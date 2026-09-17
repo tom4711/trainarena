@@ -9,7 +9,7 @@
 
 **Architecture:** Ein long-lived ASP.NET Core Prozess: **Razor Pages / Minimal + JS** für Host+Editor (Q1=A), Static HTML/JS Player, SignalR `GameHub` (Rooms/Groups, server-authoritative Timer & Scoring). Quizzes in SQLite; aktive Session vor allem im Memory. Player **ohne** Blazor-Server-Circuit.
 
-**Tech Stack:** .NET 8 · ASP.NET Core · SignalR · SQLite (EF Core oder Dapper) · **Razor Pages / Minimal + JS** Host/Editor · Vanilla HTML/JS + `@microsoft/signalr` Player · `dotnet run` first (Docker optional später).
+**Tech Stack:** .NET 10 · ASP.NET Core · SignalR · SQLite (EF Core oder Dapper) · **Razor Pages / Minimal + JS** Host/Editor · Vanilla HTML/JS + `@microsoft/signalr` Player · `dotnet run` first (Docker optional später).
 
 ## Global Constraints
 
