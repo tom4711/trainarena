@@ -1,6 +1,6 @@
 @page
 @{
-    ViewData["Title"] = "TrainArena";
+    ViewData["Title"] = "TrainArena Host";
     Layout = null;
 }
 <!DOCTYPE html>
@@ -8,11 +8,38 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TrainArena</title>
+    <title>TrainArena — Host</title>
+    <link rel="stylesheet" href="/css/host.css" />
 </head>
 <body>
-    <h1>TrainArena</h1>
-    <p>Host-UI Skeleton — Phase 0.</p>
-    <p><a href="/health">/health</a> · Hub: <code>/hubs/game</code></p>
+    <main class="host">
+        <h1>TrainArena</h1>
+        <p class="tagline">Host · Ausbilder</p>
+
+        <section id="setup" class="panel">
+            <button id="btn-create" type="button">Raum erstellen</button>
+            <p id="room-code" class="code hidden"></p>
+            <p id="lobby-status" class="muted">Noch kein Raum.</p>
+            <ul id="player-list"></ul>
+            <button id="btn-start" type="button" class="hidden" disabled>Demo starten</button>
+            <p class="hint">Spieler öffnen <a id="player-link" href="/player/">/player/</a> und geben den Code ein.</p>
+        </section>
+
+        <section id="live" class="panel hidden">
+            <h2 id="question-text"></h2>
+            <p id="timer" class="timer"></p>
+            <ol id="options" class="options"></ol>
+            <p id="reveal" class="reveal hidden"></p>
+            <div id="board" class="board hidden">
+                <h3>Rangliste</h3>
+                <ol id="board-list"></ol>
+            </div>
+            <button id="btn-next" type="button" class="hidden">Weiter / Ende</button>
+            <p id="finished" class="hidden">Runde beendet.</p>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+    <script src="/js/host.js"></script>
 </body>
 </html>

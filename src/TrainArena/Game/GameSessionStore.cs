@@ -10,6 +10,8 @@ public sealed class GameSessionStore
     private readonly RoomCodeGenerator _codes;
     private readonly ConcurrentDictionary<string, GameSession> _sessions =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, string> _connectionToCode =
+        new(StringComparer.Ordinal);
 
     public GameSessionStore(RoomCodeGenerator codes)
     {
@@ -24,6 +26,7 @@ public sealed class GameSessionStore
             var session = new GameSession(code, hostConnectionId);
             if (_sessions.TryAdd(code, session))
             {
+                _connectionToCode[hostConnectionId] = code;
                 return session;
             }
         }
@@ -41,4 +44,18 @@ public sealed class GameSessionStore
 
         return _sessions.TryGetValue(code.Trim(), out session);
     }
+
+    public bool TryGetByConnection(string connectionId, out GameSession? session)
+    {
+        session = null;
+        if (!_connectionToCode.TryGetValue(connectionId, out var code))
+        {
+            return false;
+        }
+
+        return TryGet(code, out session);
+    }
+
+    public void BindConnection(string connectionId, string code) =>
+        _connectionToCode[connectionId] = code;
 }
