@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TrainArena — Spieler</title>
+  <link rel="stylesheet" href="player.css" />
+</head>
+<body>
+  <main class="player">
+    <h1>TrainArena</h1>
+    <p class="tagline">Spieler</p>
+
+    <section id="join" class="panel">
+      <label>Raum-Code
+        <input id="code" maxlength="6" autocomplete="off" placeholder="ABC123" />
+      </label>
+      <label>Nickname
+        <input id="nickname" maxlength="24" autocomplete="off" placeholder="Dein Name" />
+      </label>
+      <button id="btn-join" type="button">Beitreten</button>
+      <p class="muted">Tipp: Gleicher Nickname nach Verbindungsabbruch = Wiedereinstieg.</p>
+      <p id="join-error" class="error"></p>
+    </section>
+
+    <section id="wait" class="panel hidden">
+      <p>Verbunden als <strong id="me"></strong>. Warte auf die Frage…</p>
+    </section>
+
+    <section id="question" class="panel hidden">
+      <p id="q-progress" class="muted"></p>
+      <h2 id="q-text"></h2>
+      <img id="q-image" class="q-image hidden" alt="" />
+      <p id="q-timer" class="timer" aria-live="polite"></p>
+      <div id="answers" class="answers"></div>
+      <p id="answer-status" class="muted"></p>
+    </section>
+
+    <section id="board" class="panel hidden">
+      <h2>Rangliste</h2>
+      <ol id="board-list"></ol>
+      <p id="wait-host" class="muted hidden">Warte auf den Host (nächste Frage)…</p>
+      <p id="done" class="hidden">Runde beendet — danke!</p>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+  <script src="player.js"></script>
+</body>
+</html>

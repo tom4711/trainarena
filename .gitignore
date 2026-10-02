@@ -10,6 +10,13 @@
 *.userosscache
 *.sln.docstates
 *.env
+*.db
+*.db-shm
+*.db-wal
+
+# Uploaded question images (keep folder)
+src/TrainArena/wwwroot/uploads/*
+!src/TrainArena/wwwroot/uploads/.gitkeep
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
