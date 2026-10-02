@@ -14,6 +14,12 @@ builder.Services.AddSingleton(sp =>
 
 var dbPath = Environment.GetEnvironmentVariable("TRAINARENA_DB")
     ?? Path.Combine(builder.Environment.ContentRootPath, "trainarena.db");
+var dbDir = Path.GetDirectoryName(dbPath);
+if (!string.IsNullOrEmpty(dbDir))
+{
+    Directory.CreateDirectory(dbDir);
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 

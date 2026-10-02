@@ -53,6 +53,25 @@ Wie viele Bundesländer?,14,15,16,17,C,20
 
 **Kahoot-ähnlich:** Excel-Vorlage als CSV speichern mit Spalten `Question`, `Answer 1`…`Answer 4`, `Time limit`, `Correct answer(s)` (1-basiert). Kein natives `.xlsx` — bei Bedarf vorher als CSV exportieren. Ungültige Zeilen werden übersprungen.
 
+## Docker (LAN self-host)
+
+Voraussetzung: Docker + Docker Compose.
+
+```bash
+docker compose up --build -d
+```
+
+Dann wie oben über `http://<lan-ip>:5175/` (Host/Player/Editor). Port-Mapping: **5175→8080** im Container.
+
+Persistenz:
+
+| Volume | Inhalt |
+|--------|--------|
+| `trainarena-data` | SQLite (`TRAINARENA_DB=/data/trainarena.db`) |
+| `trainarena-uploads` | Fragebilder unter `/app/wwwroot/uploads` |
+
+Stoppen: `docker compose down` (Volumes bleiben). Volumes mit löschen: `docker compose down -v`.
+
 ## Scope (MVP)
 
 - Text-MC-Editor (4 Optionen, 1 richtig) + optionale Bilder
@@ -67,7 +86,6 @@ PowerUps (→ v1.1) · öffentliche Demo · App-Store · Marketplace · Aula-Sca
 
 ## Roadmap danach
 
-- **Phase 5 (optional):** Docker Compose  
 - **v1.1:** PowerUps  
 - Optional: self-contained Binary  
 

@@ -1,0 +1,18 @@
+services:
+  trainarena:
+    build: .
+    image: trainarena:local
+    ports:
+      - "5175:8080"
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      ASPNETCORE_ENVIRONMENT: Production
+      TRAINARENA_DB: /data/trainarena.db
+    volumes:
+      - trainarena-data:/data
+      - trainarena-uploads:/app/wwwroot/uploads
+    restart: unless-stopped
+
+volumes:
+  trainarena-data:
+  trainarena-uploads:
