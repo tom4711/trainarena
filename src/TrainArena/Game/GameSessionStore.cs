@@ -18,12 +18,12 @@ public sealed class GameSessionStore
         _codes = codes;
     }
 
-    public GameSession Create(string hostConnectionId)
+    public GameSession Create(string hostConnectionId, Guid quizId)
     {
         for (var attempt = 0; attempt < 32; attempt++)
         {
             var code = _codes.Next();
-            var session = new GameSession(code, hostConnectionId);
+            var session = new GameSession(code, hostConnectionId, quizId);
             if (_sessions.TryAdd(code, session))
             {
                 _connectionToCode[hostConnectionId] = code;

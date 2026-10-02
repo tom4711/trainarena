@@ -15,20 +15,68 @@ public sealed class GameSession
     private readonly object _gate = new();
     private readonly List<PlayerInfo> _players = new();
     private readonly Dictionary<string, int> _answersThisQuestion = new(StringComparer.Ordinal);
+    private List<DemoQuestion> _quizQuestions = new();
 
-    public GameSession(string code, string hostConnectionId)
+    public GameSession(string code, string hostConnectionId, Guid quizId)
     {
         Code = code;
         HostConnectionId = hostConnectionId;
+        QuizId = quizId;
     }
 
     public string Code { get; }
     public string HostConnectionId { get; }
+    public Guid QuizId { get; }
     public GamePhase Phase { get; private set; } = GamePhase.Lobby;
     public DemoQuestion? CurrentQuestion { get; private set; }
     public DateTimeOffset? QuestionStartedAtUtc { get; private set; }
     public DateTimeOffset? QuestionEndsAtUtc { get; private set; }
     public int QuestionIndex { get; private set; } = -1;
+    public int QuestionCount
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _quizQuestions.Count;
+            }
+        }
+    }
+
+    public void SetQuestions(IReadOnlyList<DemoQuestion> questions)
+    {
+        ArgumentNullException.ThrowIfNull(questions);
+        lock (_gate)
+        {
+            _quizQuestions = questions.ToList();
+            QuestionIndex = -1;
+        }
+    }
+
+    public DemoQuestion? PeekNextQuestion()
+    {
+        lock (_gate)
+        {
+            var next = QuestionIndex + 1;
+            if (next < 0 || next >= _quizQuestions.Count)
+            {
+                return null;
+            }
+
+            return _quizQuestions[next];
+        }
+    }
+
+    public bool HasMoreQuestions
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return QuestionIndex + 1 < _quizQuestions.Count;
+            }
+        }
+    }
 
     public IReadOnlyList<PlayerInfo> Players
     {

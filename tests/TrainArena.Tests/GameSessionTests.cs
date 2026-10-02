@@ -8,7 +8,7 @@ public class GameSessionTests
     public void Create_AssignsSixCharRoomCode()
     {
         var store = new GameSessionStore(new RoomCodeGenerator());
-        var session = store.Create("host-1");
+        var session = store.Create("host-1", Guid.Parse("11111111-1111-1111-1111-111111111111"));
 
         Assert.Equal(6, session.Code.Length);
         Assert.Matches("^[A-Z0-9]{6}$", session.Code);
@@ -20,7 +20,7 @@ public class GameSessionTests
     public void TryJoin_AddsUniqueNickname()
     {
         var store = new GameSessionStore(new RoomCodeGenerator());
-        var session = store.Create("host-1");
+        var session = store.Create("host-1", Guid.Parse("11111111-1111-1111-1111-111111111111"));
 
         var (ok, error) = session.TryJoin("Azubi1", "conn-a");
 
@@ -35,7 +35,7 @@ public class GameSessionTests
     public void TryJoin_RejectsDuplicateNickname_CaseInsensitive()
     {
         var store = new GameSessionStore(new RoomCodeGenerator());
-        var session = store.Create("host-1");
+        var session = store.Create("host-1", Guid.Parse("11111111-1111-1111-1111-111111111111"));
         session.TryJoin("Azubi1", "conn-a");
 
         var (ok, error) = session.TryJoin("azubi1", "conn-b");
@@ -49,7 +49,7 @@ public class GameSessionTests
     public void TryJoin_RejectsBlankNickname()
     {
         var store = new GameSessionStore(new RoomCodeGenerator());
-        var session = store.Create("host-1");
+        var session = store.Create("host-1", Guid.Parse("11111111-1111-1111-1111-111111111111"));
 
         var (ok, error) = session.TryJoin("   ", "conn-a");
 
@@ -62,7 +62,7 @@ public class GameSessionTests
     public void TryGet_FindsSessionByCode_CaseInsensitive()
     {
         var store = new GameSessionStore(new RoomCodeGenerator());
-        var session = store.Create("host-1");
+        var session = store.Create("host-1", Guid.Parse("11111111-1111-1111-1111-111111111111"));
 
         Assert.True(store.TryGet(session.Code.ToLowerInvariant(), out var found));
         Assert.Same(session, found);

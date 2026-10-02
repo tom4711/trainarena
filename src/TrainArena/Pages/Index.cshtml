@@ -10,18 +10,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>TrainArena — Host</title>
     <link rel="stylesheet" href="/css/host.css" />
+    <style>
+      label { display: block; margin: 0.75rem 0; color: var(--muted); }
+      select, input {
+        display: block; width: 100%; margin-top: 0.35rem;
+        padding: 0.6rem 0.7rem; border-radius: 8px; border: 1px solid #475569;
+        background: #0f172a; color: var(--text);
+      }
+    </style>
 </head>
 <body>
     <main class="host">
         <h1>TrainArena</h1>
-        <p class="tagline">Host · Ausbilder</p>
+        <p class="tagline">Host · Ausbilder · <a href="/Editor">Quiz-Editor</a></p>
 
         <section id="setup" class="panel">
+            <label>Quiz wählen
+                <select id="quiz-select"></select>
+            </label>
             <button id="btn-create" type="button">Raum erstellen</button>
             <p id="room-code" class="code hidden"></p>
             <p id="lobby-status" class="muted">Noch kein Raum.</p>
             <ul id="player-list"></ul>
-            <button id="btn-start" type="button" class="hidden" disabled>Demo starten</button>
+            <button id="btn-start" type="button" class="hidden" disabled>Quiz starten</button>
             <p class="hint">Spieler öffnen <a id="player-link" href="/player/">/player/</a> und geben den Code ein.</p>
         </section>
 
@@ -34,7 +45,7 @@
                 <h3>Rangliste</h3>
                 <ol id="board-list"></ol>
             </div>
-            <button id="btn-next" type="button" class="hidden">Weiter / Ende</button>
+            <button id="btn-next" type="button" class="hidden">Weiter</button>
             <p id="finished" class="hidden">Runde beendet.</p>
         </section>
     </main>

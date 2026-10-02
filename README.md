@@ -13,3 +13,13 @@ which provisions the toolchain the project targets:
 - Leaves the base image's Node.js and Python toolchains untouched.
 
 The script is idempotent and safe to re-run.
+
+## Local run
+
+```bash
+dotnet run --project src/TrainArena
+```
+
+- Host: `/` — Raum erstellen, Quiz wählen, Runde steuern  
+- Player: `/player/` — Code + Nickname  
+- Editor: `/Editor` — Text-MC Quizzes (SQLite via EF Core, Datei `trainarena.db`)

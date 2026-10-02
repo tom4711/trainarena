@@ -15,7 +15,7 @@ public class GameSessionQuestionTests
     [Fact]
     public void StartQuestion_RequiresPlayer()
     {
-        var session = new GameSessionStore(new RoomCodeGenerator()).Create("host");
+        var session = new GameSessionStore(new RoomCodeGenerator()).Create("host", Guid.Parse("11111111-1111-1111-1111-111111111111"));
         var (ok, error) = session.StartQuestion(Demo(), DateTimeOffset.UtcNow);
         Assert.False(ok);
         Assert.Equal("Need at least one player", error);
@@ -25,7 +25,7 @@ public class GameSessionQuestionTests
     public void SubmitAnswer_AwardsPointsForCorrectFastAnswer()
     {
         var store = new GameSessionStore(new RoomCodeGenerator());
-        var session = store.Create("host");
+        var session = store.Create("host", Guid.Parse("11111111-1111-1111-1111-111111111111"));
         session.TryJoin("Azubi1", "p1");
         var start = DateTimeOffset.UtcNow;
         Assert.True(session.StartQuestion(Demo(), start).ok);
@@ -42,7 +42,7 @@ public class GameSessionQuestionTests
     public void SubmitAnswer_LateAfterEnd_Rejected()
     {
         var store = new GameSessionStore(new RoomCodeGenerator());
-        var session = store.Create("host");
+        var session = store.Create("host", Guid.Parse("11111111-1111-1111-1111-111111111111"));
         session.TryJoin("Azubi1", "p1");
         var start = DateTimeOffset.UtcNow;
         session.StartQuestion(Demo(), start);
@@ -57,7 +57,7 @@ public class GameSessionQuestionTests
     public void TryEndQuestion_WhenAllAnswered_MovesToReveal()
     {
         var store = new GameSessionStore(new RoomCodeGenerator());
-        var session = store.Create("host");
+        var session = store.Create("host", Guid.Parse("11111111-1111-1111-1111-111111111111"));
         session.TryJoin("Azubi1", "p1");
         var start = DateTimeOffset.UtcNow;
         session.StartQuestion(Demo(), start);

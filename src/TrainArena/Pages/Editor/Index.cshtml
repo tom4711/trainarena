@@ -1,0 +1,56 @@
+@page
+@model TrainArena.Pages.Editor.IndexModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Quiz-Editor";
+}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TrainArena — Editor</title>
+    <link rel="stylesheet" href="/css/host.css" />
+</head>
+<body>
+<main class="host">
+    <h1>Quiz-Editor</h1>
+    <p class="tagline"><a href="/">← Host</a></p>
+
+    <section class="panel">
+        <h2>Neues Quiz</h2>
+        <form method="post" asp-page-handler="Create">
+            <label>Titel
+                <input name="title" required maxlength="200" placeholder="z. B. Sicherheit Basics" />
+            </label>
+            <button type="submit">Anlegen</button>
+        </form>
+        <div asp-validation-summary="All" class="error"></div>
+    </section>
+
+    <section class="panel">
+        <h2>Vorhandene Quizzes</h2>
+        @if (Model.Quizzes.Count == 0)
+        {
+            <p class="muted">Noch keine Quizzes.</p>
+        }
+        else
+        {
+            <ul>
+            @foreach (var quiz in Model.Quizzes)
+            {
+                <li>
+                    <a asp-page="Edit" asp-route-id="@quiz.Id">@quiz.Title</a>
+                    <span class="muted">(@quiz.Questions.Count Fragen)</span>
+                    <form method="post" asp-page-handler="Delete" style="display:inline">
+                        <input type="hidden" name="id" value="@quiz.Id" />
+                        <button type="submit" onclick="return confirm('Quiz löschen?');">Löschen</button>
+                    </form>
+                </li>
+            }
+            </ul>
+        }
+    </section>
+</main>
+</body>
+</html>

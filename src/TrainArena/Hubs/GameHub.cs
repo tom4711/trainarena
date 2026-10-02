@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using TrainArena.Contracts;
 using TrainArena.Data;
 using TrainArena.Game;
@@ -12,18 +13,43 @@ public sealed class GameHub : Hub
 {
     private readonly GameSessionStore _sessions;
     private readonly IHubContext<GameHub> _hubContext;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public GameHub(GameSessionStore sessions, IHubContext<GameHub> hubContext)
+    public GameHub(
+        GameSessionStore sessions,
+        IHubContext<GameHub> hubContext,
+        IServiceScopeFactory scopeFactory)
     {
         _sessions = sessions;
         _hubContext = hubContext;
+        _scopeFactory = scopeFactory;
     }
 
     public static string RoomGroup(string code) => $"room:{code.ToUpperInvariant()}";
 
-    public async Task CreateRoom()
+    public async Task CreateRoom(Guid quizId)
     {
-        var session = _sessions.Create(Context.ConnectionId);
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var quiz = await db.Quizzes
+            .AsNoTracking()
+            .Include(q => q.Questions)
+            .FirstOrDefaultAsync(q => q.Id == quizId);
+
+        if (quiz is null || quiz.Questions.Count == 0)
+        {
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Quiz not found or empty"));
+            return;
+        }
+
+        var questions = quiz.Questions
+            .OrderBy(q => q.SortOrder)
+            .Select(QuizRules.ToDemoQuestion)
+            .ToList();
+
+        var session = _sessions.Create(Context.ConnectionId, quizId);
+        session.SetQuestions(questions);
+
         await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(session.Code));
         await Clients.Caller.SendAsync("RoomCreated", new RoomCreatedMessage(session.Code));
         await Clients.Caller.SendAsync("LobbyState", ToLobbyState(session));
@@ -54,6 +80,7 @@ public sealed class GameHub : Hub
         await Clients.Group(RoomGroup(session.Code)).SendAsync("LobbyState", ToLobbyState(session));
     }
 
+    /// <summary>Phase 0 single-question demo (ignores full quiz list).</summary>
     public async Task StartDemo()
     {
         if (!TryGetHostSession(out var session) || session is null)
@@ -61,16 +88,25 @@ public sealed class GameHub : Hub
             return;
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var (ok, error) = session.StartQuestion(SeedData.DemoQuestion, now);
-        if (!ok)
+        session.SetQuestions([SeedData.DemoQuestion]);
+        await StartCurrentNextQuestion(session);
+    }
+
+    /// <summary>Start selected quiz from the first question.</summary>
+    public async Task StartGame()
+    {
+        if (!TryGetHostSession(out var session) || session is null)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Cannot start"));
             return;
         }
 
-        await BroadcastQuestionStarted(session);
-        ScheduleQuestionEnd(session.Code, session.QuestionEndsAtUtc!.Value);
+        if (session.QuestionCount == 0)
+        {
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Quiz has no questions"));
+            return;
+        }
+
+        await StartCurrentNextQuestion(session);
     }
 
     public async Task SubmitAnswer(int optionIndex)
@@ -108,7 +144,6 @@ public sealed class GameHub : Hub
             return;
         }
 
-        // After reveal/board (auto), Host Next finishes the single-question skeleton.
         if (session.Phase == GamePhase.Reveal)
         {
             session.ShowLeaderboard();
@@ -117,13 +152,42 @@ public sealed class GameHub : Hub
                 ToLeaderboard(session));
         }
 
-        if (session.Phase == GamePhase.Leaderboard)
+        if (session.Phase != GamePhase.Leaderboard)
         {
-            session.Finish();
-            await Clients.Group(RoomGroup(session.Code)).SendAsync(
-                "GameFinished",
-                new GameFinishedMessage(ToLeaderboard(session).Entries));
+            return;
         }
+
+        if (session.HasMoreQuestions)
+        {
+            await StartCurrentNextQuestion(session);
+            return;
+        }
+
+        session.Finish();
+        await Clients.Group(RoomGroup(session.Code)).SendAsync(
+            "GameFinished",
+            new GameFinishedMessage(ToLeaderboard(session).Entries));
+    }
+
+    private async Task StartCurrentNextQuestion(GameSession session)
+    {
+        var next = session.PeekNextQuestion();
+        if (next is null)
+        {
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("No question available"));
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var (ok, error) = session.StartQuestion(next, now);
+        if (!ok)
+        {
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Cannot start"));
+            return;
+        }
+
+        await BroadcastQuestionStarted(session);
+        ScheduleQuestionEnd(session.Code, session.QuestionEndsAtUtc!.Value);
     }
 
     private bool TryGetHostSession(out GameSession? session)

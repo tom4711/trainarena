@@ -1,15 +1,15 @@
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
 using TrainArena.Contracts;
+using TrainArena.Data;
 
 namespace TrainArena.Tests;
 
-public class GameHubTests : IClassFixture<WebApplicationFactory<Program>>
+public class GameHubTests : IClassFixture<TrainArenaWebAppFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly TrainArenaWebAppFactory _factory;
 
-    public GameHubTests(WebApplicationFactory<Program> factory)
+    public GameHubTests(TrainArenaWebAppFactory factory)
     {
         _factory = factory;
     }
@@ -23,7 +23,7 @@ public class GameHubTests : IClassFixture<WebApplicationFactory<Program>>
         var hostRoomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
         var hostLobby = WaitFor<LobbyStateMessage>(host, "LobbyState");
 
-        await host.InvokeAsync("CreateRoom");
+        await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId);
         var room = await hostRoomCreated;
         Assert.Matches("^[A-Z0-9]{6}$", room.Code);
         await hostLobby; // initial empty lobby for host

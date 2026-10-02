@@ -5,6 +5,7 @@
   const btnCreate = $("btn-create");
   const btnStart = $("btn-start");
   const btnNext = $("btn-next");
+  const quizSelect = $("quiz-select");
   const roomCodeEl = $("room-code");
   const lobbyStatus = $("lobby-status");
   const playerList = $("player-list");
@@ -24,12 +25,31 @@
     .withAutomaticReconnect()
     .build();
 
+  async function loadQuizzes() {
+    const res = await fetch("/api/quizzes");
+    const quizzes = await res.json();
+    quizSelect.innerHTML = "";
+    quizzes.forEach((q) => {
+      const opt = document.createElement("option");
+      opt.value = q.id;
+      opt.textContent = `${q.title} (${q.questionCount})`;
+      quizSelect.appendChild(opt);
+    });
+    if (quizzes.length === 0) {
+      lobbyStatus.textContent = "Kein Quiz vorhanden — zuerst im Editor anlegen.";
+      btnCreate.disabled = true;
+    }
+  }
+
   connection.on("RoomCreated", (msg) => {
     roomCodeEl.textContent = msg.code;
     roomCodeEl.classList.remove("hidden");
     btnCreate.disabled = true;
+    quizSelect.disabled = true;
     btnStart.classList.remove("hidden");
     lobbyStatus.textContent = "Warte auf Spieler…";
+    const link = $("player-link");
+    link.href = `/player/?code=${encodeURIComponent(msg.code)}`;
   });
 
   connection.on("LobbyState", (msg) => {
@@ -42,6 +62,10 @@
     const count = msg.connectedCount ?? 0;
     lobbyStatus.textContent = count === 0 ? "Warte auf Spieler…" : `${count} Spieler verbunden`;
     btnStart.disabled = count < 1;
+  });
+
+  connection.on("JoinError", (msg) => {
+    lobbyStatus.textContent = msg.error || "Fehler";
   });
 
   connection.on("QuestionStarted", (msg) => {
@@ -77,6 +101,7 @@
     });
     board.classList.remove("hidden");
     btnNext.classList.remove("hidden");
+    btnNext.textContent = "Weiter";
   });
 
   connection.on("GameFinished", (msg) => {
@@ -107,11 +132,14 @@
     timerHandle = null;
   }
 
-  btnCreate.addEventListener("click", () => connection.invoke("CreateRoom"));
-  btnStart.addEventListener("click", () => connection.invoke("StartDemo"));
+  btnCreate.addEventListener("click", () => {
+    const quizId = quizSelect.value;
+    connection.invoke("CreateRoom", quizId);
+  });
+  btnStart.addEventListener("click", () => connection.invoke("StartGame"));
   btnNext.addEventListener("click", () => connection.invoke("NextQuestion"));
 
-  connection.start().catch((err) => {
+  Promise.all([connection.start(), loadQuizzes()]).catch((err) => {
     lobbyStatus.textContent = `Verbindung fehlgeschlagen: ${err}`;
   });
 })();

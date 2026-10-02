@@ -1,15 +1,15 @@
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
 using TrainArena.Contracts;
+using TrainArena.Data;
 
 namespace TrainArena.Tests;
 
-public class DemoRoundTests : IClassFixture<WebApplicationFactory<Program>>
+public class DemoRoundTests : IClassFixture<TrainArenaWebAppFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly TrainArenaWebAppFactory _factory;
 
-    public DemoRoundTests(WebApplicationFactory<Program> factory)
+    public DemoRoundTests(TrainArenaWebAppFactory factory)
     {
         _factory = factory;
     }
@@ -21,7 +21,7 @@ public class DemoRoundTests : IClassFixture<WebApplicationFactory<Program>>
         await using var player = await ConnectAsync();
 
         var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
-        await host.InvokeAsync("CreateRoom");
+        await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId);
         var room = await roomCreated;
 
         var playerJoined = WaitFor<PlayerJoinedMessage>(host, "PlayerJoined");
