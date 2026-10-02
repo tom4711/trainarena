@@ -244,12 +244,29 @@ public sealed class GameSession
         }
     }
 
-    public void Finish()
+    public (bool ok, string? error) TryFinish()
     {
         lock (_gate)
         {
+            if (Phase != GamePhase.Leaderboard)
+            {
+                return (false, "Finish only from leaderboard");
+            }
+
+            if (QuestionIndex + 1 < _quizQuestions.Count)
+            {
+                return (false, "More questions remaining");
+            }
+
             Phase = GamePhase.Finished;
+            return (true, null);
         }
+    }
+
+    /// <summary>Legacy helper — prefer <see cref="TryFinish"/>.</summary>
+    public void Finish()
+    {
+        TryFinish();
     }
 
     public int? CorrectIndex

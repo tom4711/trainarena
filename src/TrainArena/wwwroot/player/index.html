@@ -27,8 +27,9 @@
     </section>
 
     <section id="question" class="panel hidden">
+      <p id="q-progress" class="muted"></p>
       <h2 id="q-text"></h2>
-      <p id="q-timer" class="timer"></p>
+      <p id="q-timer" class="timer" aria-live="polite"></p>
       <div id="answers" class="answers"></div>
       <p id="answer-status" class="muted"></p>
     </section>
@@ -36,6 +37,7 @@
     <section id="board" class="panel hidden">
       <h2>Rangliste</h2>
       <ol id="board-list"></ol>
+      <p id="wait-host" class="muted hidden">Warte auf den Host (nächste Frage)…</p>
       <p id="done" class="hidden">Runde beendet — danke!</p>
     </section>
   </main>

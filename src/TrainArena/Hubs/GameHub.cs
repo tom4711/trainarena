@@ -163,7 +163,13 @@ public sealed class GameHub : Hub
             return;
         }
 
-        session.Finish();
+        var (ok, error) = session.TryFinish();
+        if (!ok)
+        {
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Cannot finish"));
+            return;
+        }
+
         await Clients.Group(RoomGroup(session.Code)).SendAsync(
             "GameFinished",
             new GameFinishedMessage(ToLeaderboard(session).Entries));
@@ -212,6 +218,7 @@ public sealed class GameHub : Hub
             "QuestionStarted",
             new QuestionStartedMessage(
                 session.QuestionIndex,
+                session.QuestionCount,
                 q.Text,
                 q.Options,
                 session.QuestionStartedAtUtc!.Value,
@@ -224,7 +231,10 @@ public sealed class GameHub : Hub
         session.ForceEndQuestion();
         await Clients.Group(RoomGroup(session.Code)).SendAsync(
             "QuestionEnded",
-            new QuestionEndedMessage(session.CorrectIndex!.Value));
+            new QuestionEndedMessage(
+                session.CorrectIndex!.Value,
+                session.QuestionIndex,
+                session.QuestionCount));
 
         session.ShowLeaderboard();
         await Clients.Group(RoomGroup(session.Code)).SendAsync(
@@ -258,7 +268,10 @@ public sealed class GameHub : Hub
                 session.ForceEndQuestion();
                 await _hubContext.Clients.Group(RoomGroup(code)).SendAsync(
                     "QuestionEnded",
-                    new QuestionEndedMessage(session.CorrectIndex!.Value));
+                    new QuestionEndedMessage(
+                        session.CorrectIndex!.Value,
+                        session.QuestionIndex,
+                        session.QuestionCount));
 
                 session.ShowLeaderboard();
                 await _hubContext.Clients.Group(RoomGroup(code)).SendAsync(
@@ -267,7 +280,7 @@ public sealed class GameHub : Hub
             }
             catch
             {
-                // Timer best-effort for skeleton; failures are non-fatal.
+                // Timer best-effort; end is always server-driven via QuestionEnded.
             }
         });
     }
@@ -281,7 +294,11 @@ public sealed class GameHub : Hub
     }
 
     private static LeaderboardMessage ToLeaderboard(GameSession session) =>
-        new(session.GetLeaderboard()
-            .Select(e => new LeaderboardEntryDto(e.Nickname, e.Score))
-            .ToList());
+        new(
+            session.GetLeaderboard()
+                .Select(e => new LeaderboardEntryDto(e.Nickname, e.Score))
+                .ToList(),
+            session.QuestionIndex,
+            session.QuestionCount,
+            session.HasMoreQuestions);
 }

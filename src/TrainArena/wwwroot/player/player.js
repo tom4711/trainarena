@@ -12,10 +12,14 @@
   const answerStatus = $("answer-status");
   const boardList = $("board-list");
   const qTimer = $("q-timer");
+  const qProgress = $("q-progress");
+  const waitHost = $("wait-host");
 
+  let startedAt = null;
   let endsAt = null;
   let timerHandle = null;
   let answered = false;
+  let questionOpen = false;
 
   const connection = new signalR.HubConnectionBuilder()
     .withUrl("/hubs/game")
@@ -30,13 +34,16 @@
     joinPanel.classList.add("hidden");
     waitPanel.classList.remove("hidden");
     questionPanel.classList.add("hidden");
+    boardPanel.classList.add("hidden");
   });
 
   connection.on("QuestionStarted", (msg) => {
     answered = false;
+    questionOpen = true;
     waitPanel.classList.add("hidden");
     boardPanel.classList.add("hidden");
     questionPanel.classList.remove("hidden");
+    qProgress.textContent = `Frage ${(msg.index ?? 0) + 1} von ${msg.totalQuestions ?? "?"}`;
     $("q-text").textContent = msg.text;
     answerStatus.textContent = "";
     answers.innerHTML = "";
@@ -47,6 +54,7 @@
       btn.addEventListener("click", () => submit(i, btn));
       answers.appendChild(btn);
     });
+    startedAt = new Date(msg.startedAtUtc);
     endsAt = new Date(msg.endsAtUtc);
     startTimer();
   });
@@ -54,6 +62,9 @@
   connection.on("AnswerAccepted", (msg) => {
     if (!msg.ok) {
       answerStatus.textContent = msg.error || "Antwort abgelehnt";
+      if (questionOpen && !answered) {
+        [...answers.querySelectorAll("button")].forEach((b) => (b.disabled = false));
+      }
       return;
     }
     answered = true;
@@ -62,20 +73,22 @@
   });
 
   connection.on("QuestionEnded", () => {
+    questionOpen = false;
     stopTimer();
+    qTimer.textContent = "0s";
     disableAnswers();
     if (!answered) answerStatus.textContent = "Zeit abgelaufen";
   });
 
   connection.on("Leaderboard", (msg) => {
-    showBoard(msg.entries || [], false);
+    showBoard(msg.entries || [], false, msg.hasMoreQuestions);
   });
 
   connection.on("GameFinished", (msg) => {
-    showBoard(msg.entries || [], true);
+    showBoard(msg.entries || [], true, false);
   });
 
-  function showBoard(entries, done) {
+  function showBoard(entries, done, hasMore) {
     questionPanel.classList.add("hidden");
     boardPanel.classList.remove("hidden");
     boardList.innerHTML = "";
@@ -85,10 +98,17 @@
       boardList.appendChild(li);
     });
     $("done").classList.toggle("hidden", !done);
+    waitHost.classList.toggle("hidden", done || !hasMore);
+    if (!done && !hasMore) {
+      waitHost.textContent = "Warte auf den Host (Abschluss)…";
+      waitHost.classList.remove("hidden");
+    } else if (hasMore) {
+      waitHost.textContent = "Warte auf den Host (nächste Frage)…";
+    }
   }
 
   function submit(index, btn) {
-    if (answered) return;
+    if (answered || !questionOpen) return;
     disableAnswers();
     btn.style.outline = "2px solid #fff";
     connection.invoke("SubmitAnswer", index);
@@ -101,9 +121,18 @@
   function startTimer() {
     stopTimer();
     const tick = () => {
-      if (!endsAt) return;
+      // Display-only countdown from server timestamps; QuestionEnded is authoritative.
+      if (!endsAt || !startedAt) return;
       const ms = endsAt - Date.now();
-      qTimer.textContent = ms <= 0 ? "0s" : `${Math.ceil(ms / 1000)}s`;
+      if (!questionOpen) {
+        qTimer.textContent = "0s";
+        return;
+      }
+      if (ms <= 0) {
+        qTimer.textContent = "0s · warte auf Server…";
+        return;
+      }
+      qTimer.textContent = `${Math.ceil(ms / 1000)}s`;
     };
     tick();
     timerHandle = setInterval(tick, 200);

@@ -9,16 +9,20 @@
   const roomCodeEl = $("room-code");
   const lobbyStatus = $("lobby-status");
   const playerList = $("player-list");
+  const progressEl = $("progress");
   const questionText = $("question-text");
   const optionsEl = $("options");
   const timerEl = $("timer");
   const revealEl = $("reveal");
   const board = $("board");
   const boardList = $("board-list");
+  const boardHint = $("board-hint");
   const finishedEl = $("finished");
 
+  let startedAt = null;
   let endsAt = null;
   let timerHandle = null;
+  let questionOpen = false;
 
   const connection = new signalR.HubConnectionBuilder()
     .withUrl("/hubs/game")
@@ -48,8 +52,7 @@
     quizSelect.disabled = true;
     btnStart.classList.remove("hidden");
     lobbyStatus.textContent = "Warte auf Spieler…";
-    const link = $("player-link");
-    link.href = `/player/?code=${encodeURIComponent(msg.code)}`;
+    $("player-link").href = `/player/?code=${encodeURIComponent(msg.code)}`;
   });
 
   connection.on("LobbyState", (msg) => {
@@ -73,8 +76,12 @@
     live.classList.remove("hidden");
     revealEl.classList.add("hidden");
     board.classList.add("hidden");
+    boardHint.classList.add("hidden");
     btnNext.classList.add("hidden");
     finishedEl.classList.add("hidden");
+    questionOpen = true;
+    const total = msg.totalQuestions ?? "?";
+    progressEl.textContent = `Frage ${(msg.index ?? 0) + 1} von ${total}`;
     questionText.textContent = msg.text;
     optionsEl.innerHTML = "";
     (msg.options || []).forEach((opt, i) => {
@@ -82,12 +89,15 @@
       li.textContent = `${i + 1}. ${opt}`;
       optionsEl.appendChild(li);
     });
+    startedAt = new Date(msg.startedAtUtc);
     endsAt = new Date(msg.endsAtUtc);
     startTimer();
   });
 
   connection.on("QuestionEnded", (msg) => {
+    questionOpen = false;
     stopTimer();
+    timerEl.textContent = "0s";
     revealEl.textContent = `Richtige Antwort: Option ${msg.correctIndex + 1}`;
     revealEl.classList.remove("hidden");
   });
@@ -100,8 +110,9 @@
       boardList.appendChild(li);
     });
     board.classList.remove("hidden");
+    boardHint.classList.remove("hidden");
     btnNext.classList.remove("hidden");
-    btnNext.textContent = "Weiter";
+    btnNext.textContent = msg.hasMoreQuestions ? "Nächste Frage" : "Abschluss zeigen";
   });
 
   connection.on("GameFinished", (msg) => {
@@ -112,16 +123,27 @@
       boardList.appendChild(li);
     });
     board.classList.remove("hidden");
+    boardHint.classList.add("hidden");
     btnNext.classList.add("hidden");
     finishedEl.classList.remove("hidden");
+    progressEl.textContent = "Finale";
   });
 
   function startTimer() {
     stopTimer();
     const tick = () => {
-      if (!endsAt) return;
+      // Display-only: never end the question locally — wait for QuestionEnded.
+      if (!endsAt || !startedAt) return;
       const ms = endsAt - Date.now();
-      timerEl.textContent = ms <= 0 ? "0s" : `${Math.ceil(ms / 1000)}s`;
+      if (!questionOpen) {
+        timerEl.textContent = "0s";
+        return;
+      }
+      if (ms <= 0) {
+        timerEl.textContent = "0s · warte auf Server…";
+        return;
+      }
+      timerEl.textContent = `${Math.ceil(ms / 1000)}s`;
     };
     tick();
     timerHandle = setInterval(tick, 200);
@@ -132,10 +154,7 @@
     timerHandle = null;
   }
 
-  btnCreate.addEventListener("click", () => {
-    const quizId = quizSelect.value;
-    connection.invoke("CreateRoom", quizId);
-  });
+  btnCreate.addEventListener("click", () => connection.invoke("CreateRoom", quizSelect.value));
   btnStart.addEventListener("click", () => connection.invoke("StartGame"));
   btnNext.addEventListener("click", () => connection.invoke("NextQuestion"));
 

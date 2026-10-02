@@ -37,15 +37,17 @@
         </section>
 
         <section id="live" class="panel hidden">
+            <p id="progress" class="muted"></p>
             <h2 id="question-text"></h2>
-            <p id="timer" class="timer"></p>
+            <p id="timer" class="timer" aria-live="polite"></p>
             <ol id="options" class="options"></ol>
             <p id="reveal" class="reveal hidden"></p>
             <div id="board" class="board hidden">
                 <h3>Rangliste</h3>
                 <ol id="board-list"></ol>
+                <p id="board-hint" class="muted hidden">Host entscheidet mit „Weiter“ — kein Auto-Advance.</p>
             </div>
-            <button id="btn-next" type="button" class="hidden">Weiter</button>
+            <button id="btn-next" type="button" class="hidden">Nächste Frage</button>
             <p id="finished" class="hidden">Runde beendet.</p>
         </section>
     </main>
