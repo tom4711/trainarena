@@ -42,6 +42,7 @@ public static class QuizRules
         Text = q.Text,
         Options = [q.Option0, q.Option1, q.Option2, q.Option3],
         CorrectIndex = q.CorrectIndex,
-        TimeLimitSeconds = q.TimeLimitSeconds <= 0 ? 20 : q.TimeLimitSeconds
+        TimeLimitSeconds = q.TimeLimitSeconds <= 0 ? 20 : q.TimeLimitSeconds,
+        ImageUrl = string.IsNullOrWhiteSpace(q.ImagePath) ? null : q.ImagePath
     };
 }

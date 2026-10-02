@@ -13,4 +13,7 @@ public sealed class Question
     public int CorrectIndex { get; set; }
     public int TimeLimitSeconds { get; set; } = 20;
     public int SortOrder { get; set; }
+
+    /// <summary>Public URL path under /uploads/… when set.</summary>
+    public string? ImagePath { get; set; }
 }

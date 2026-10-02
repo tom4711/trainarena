@@ -276,7 +276,7 @@ public sealed class GameHub : Hub
                 q.Options,
                 session.QuestionStartedAtUtc!.Value,
                 session.QuestionEndsAtUtc!.Value,
-                ImageUrl: null));
+                q.ImageUrl));
     }
 
     private async Task BroadcastQuestionEnded(GameSession session)
@@ -354,7 +354,7 @@ public sealed class GameHub : Hub
                         session.CurrentQuestion.Options,
                         session.QuestionStartedAtUtc.Value,
                         session.QuestionEndsAtUtc.Value,
-                        ImageUrl: null));
+                        session.CurrentQuestion.ImageUrl));
                 break;
             case GamePhase.Reveal:
             case GamePhase.Leaderboard:

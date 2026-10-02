@@ -11,6 +11,7 @@
   const playerList = $("player-list");
   const progressEl = $("progress");
   const questionText = $("question-text");
+  const questionImage = $("question-image");
   const optionsEl = $("options");
   const timerEl = $("timer");
   const revealEl = $("reveal");
@@ -103,6 +104,13 @@
     questionOpen = true;
     progressEl.textContent = `Frage ${(msg.index ?? 0) + 1} von ${msg.totalQuestions ?? "?"}`;
     questionText.textContent = msg.text;
+    if (msg.imageUrl) {
+      questionImage.src = msg.imageUrl;
+      questionImage.classList.remove("hidden");
+    } else {
+      questionImage.removeAttribute("src");
+      questionImage.classList.add("hidden");
+    }
     optionsEl.innerHTML = "";
     (msg.options || []).forEach((opt, i) => {
       const li = document.createElement("li");

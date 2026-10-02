@@ -6,6 +6,7 @@ public sealed class DemoQuestion
     public required string[] Options { get; init; }
     public required int CorrectIndex { get; init; }
     public int TimeLimitSeconds { get; init; } = 20;
+    public string? ImageUrl { get; init; }
 }
 
 public enum GamePhase

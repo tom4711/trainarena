@@ -1,4 +1,5 @@
 using TrainArena.Data;
+using TrainArena.Data.Entities;
 
 namespace TrainArena.Tests;
 
@@ -29,5 +30,39 @@ public class QuizRulesTests
     public void ValidateQuestion_AcceptsValidMc()
     {
         Assert.Null(QuizRules.ValidateQuestion("Q?", "a", "b", "c", "d", 2));
+    }
+
+    [Fact]
+    public void ToDemoQuestion_MapsImagePathToImageUrl()
+    {
+        var demo = QuizRules.ToDemoQuestion(new Question
+        {
+            Text = "Mit Bild?",
+            Option0 = "a",
+            Option1 = "b",
+            Option2 = "c",
+            Option3 = "d",
+            CorrectIndex = 0,
+            TimeLimitSeconds = 20,
+            ImagePath = "/uploads/abc.png"
+        });
+
+        Assert.Equal("/uploads/abc.png", demo.ImageUrl);
+    }
+
+    [Fact]
+    public void ToDemoQuestion_NullImageWhenMissing()
+    {
+        var demo = QuizRules.ToDemoQuestion(new Question
+        {
+            Text = "Ohne Bild?",
+            Option0 = "a",
+            Option1 = "b",
+            Option2 = "c",
+            Option3 = "d",
+            CorrectIndex = 1
+        });
+
+        Assert.Null(demo.ImageUrl);
     }
 }

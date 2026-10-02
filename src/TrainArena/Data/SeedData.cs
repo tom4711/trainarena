@@ -23,7 +23,7 @@ public static class SeedData
 
     public static async Task EnsureSeededAsync(AppDbContext db, CancellationToken ct = default)
     {
-        await db.Database.EnsureCreatedAsync(ct);
+        await db.EnsureSchemaAsync(ct);
         if (await db.Quizzes.AnyAsync(ct))
         {
             return;

@@ -9,6 +9,8 @@ builder.Services.AddRazorPages();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<RoomCodeGenerator>();
 builder.Services.AddSingleton<GameSessionStore>();
+builder.Services.AddSingleton(sp =>
+    new QuestionImageStore(sp.GetRequiredService<IWebHostEnvironment>().ContentRootPath));
 
 var dbPath = Environment.GetEnvironmentVariable("TRAINARENA_DB")
     ?? Path.Combine(builder.Environment.ContentRootPath, "trainarena.db");
@@ -16,6 +18,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 
 var app = builder.Build();
+
+Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads"));
 
 using (var scope = app.Services.CreateScope())
 {

@@ -57,6 +57,14 @@
     questionPanel.classList.remove("hidden");
     qProgress.textContent = `Frage ${(msg.index ?? 0) + 1} von ${msg.totalQuestions ?? "?"}`;
     $("q-text").textContent = msg.text;
+    const qImage = $("q-image");
+    if (msg.imageUrl) {
+      qImage.src = msg.imageUrl;
+      qImage.classList.remove("hidden");
+    } else {
+      qImage.removeAttribute("src");
+      qImage.classList.add("hidden");
+    }
     answerStatus.textContent = "";
     answers.innerHTML = "";
     (msg.options || []).forEach((opt, i) => {

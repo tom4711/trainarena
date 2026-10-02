@@ -18,8 +18,11 @@
         padding: 0.55rem 0.65rem; border-radius: 8px; border: 1px solid #475569;
         background: #0f172a; color: var(--text);
       }
+      input[type="file"] { padding: 0.35rem 0; border: 0; background: transparent; }
       .error { color: #f87171; }
+      .info { color: var(--ok); }
       .q-card { border-top: 1px solid #334155; padding-top: 0.75rem; margin-top: 0.75rem; }
+      .q-thumb { max-width: 12rem; max-height: 8rem; margin: 0.5rem 0; border-radius: 8px; display: block; }
     </style>
 </head>
 <body>
@@ -30,6 +33,10 @@
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))
     {
         <p class="error">@Model.ErrorMessage</p>
+    }
+    @if (!string.IsNullOrEmpty(Model.InfoMessage))
+    {
+        <p class="info">@Model.InfoMessage</p>
     }
 
     <section class="panel">
@@ -43,11 +50,27 @@
     </section>
 
     <section class="panel">
+        <h2>Import CSV / Kahoot</h2>
+        <p class="muted">TrainArena-CSV oder Kahoot-ähnliche Tabelle (als CSV). Ungültige Zeilen werden übersprungen.</p>
+        <form method="post" asp-page-handler="Import" enctype="multipart/form-data">
+            <input type="hidden" name="id" value="@quiz.Id" />
+            <label>Datei
+                <input type="file" name="file" accept=".csv,text/csv" required />
+            </label>
+            <button type="submit">Importieren</button>
+        </form>
+    </section>
+
+    <section class="panel">
         <h2>Fragen (@quiz.Questions.Count)</h2>
         @foreach (var q in quiz.Questions.OrderBy(x => x.SortOrder))
         {
             <div class="q-card">
                 <strong>@(q.SortOrder + 1). @q.Text</strong>
+                @if (!string.IsNullOrEmpty(q.ImagePath))
+                {
+                    <img class="q-thumb" src="@q.ImagePath" alt="" />
+                }
                 <ol>
                     <li class="@(q.CorrectIndex == 0 ? "reveal" : null)">@q.Option0</li>
                     <li class="@(q.CorrectIndex == 1 ? "reveal" : null)">@q.Option1</li>
@@ -66,9 +89,12 @@
 
     <section class="panel">
         <h2>Frage hinzufügen</h2>
-        <form method="post" asp-page-handler="AddQuestion">
+        <form method="post" asp-page-handler="AddQuestion" enctype="multipart/form-data">
             <input type="hidden" name="id" value="@quiz.Id" />
             <label>Fragetext<textarea name="text" required rows="2"></textarea></label>
+            <label>Bild (optional, max. 2&nbsp;MB — JPEG/PNG/WebP/GIF)
+                <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" />
+            </label>
             <label>Option A<input name="option0" required /></label>
             <label>Option B<input name="option1" required /></label>
             <label>Option C<input name="option2" required /></label>

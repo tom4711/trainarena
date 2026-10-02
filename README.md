@@ -32,15 +32,31 @@ Dann im Browser (am besten über die **LAN-IP**, nicht nur `localhost`):
 
 ### Daten
 
-Quizzes liegen in SQLite (`trainarena.db` neben der App, EF Core). Beim ersten Start wird **Ausbildung Basics** geseedet.
+Quizzes liegen in SQLite (`trainarena.db` neben der App, EF Core). Beim ersten Start wird **Ausbildung Basics** geseedet. Fragebilder liegen unter `wwwroot/uploads/` (max. **2 MB**, JPEG/PNG/WebP/GIF).
 
 ```bash
 dotnet test TrainArena.sln
 ```
 
+### Import CSV / Kahoot
+
+Im Editor unter einem Quiz: **Import CSV / Kahoot**.
+
+**TrainArena-CSV** (Header-Zeile Pflicht):
+
+```csv
+Question,OptionA,OptionB,OptionC,OptionD,Correct,TimeLimitSeconds
+Wie viele Bundesländer?,14,15,16,17,C,20
+```
+
+`Correct`: `A`–`D` oder `0`–`3` (auch `1`–`4`). `TimeLimitSeconds` optional (Default 20).
+
+**Kahoot-ähnlich:** Excel-Vorlage als CSV speichern mit Spalten `Question`, `Answer 1`…`Answer 4`, `Time limit`, `Correct answer(s)` (1-basiert). Kein natives `.xlsx` — bei Bedarf vorher als CSV exportieren. Ungültige Zeilen werden übersprungen.
+
 ## Scope (MVP)
 
-- Text-MC-Editor (4 Optionen, 1 richtig)
+- Text-MC-Editor (4 Optionen, 1 richtig) + optionale Bilder
+- CSV-/Kahoot-ähnlicher Import
 - Host-Raum + Code/QR-Join
 - Live-Runde, Server-Timer, Rangliste, Host Next
 - Classroom-Größe ~≤40, ein Prozess
@@ -51,9 +67,9 @@ PowerUps (→ v1.1) · öffentliche Demo · App-Store · Marketplace · Aula-Sca
 
 ## Roadmap danach
 
-- **Phase 4:** Bilder in Fragen + Import CSV/Kahoot  
+- **Phase 5 (optional):** Docker Compose  
 - **v1.1:** PowerUps  
-- Optional: Docker Compose / self-contained Binary  
+- Optional: self-contained Binary  
 
 ## Cloud Agent
 
