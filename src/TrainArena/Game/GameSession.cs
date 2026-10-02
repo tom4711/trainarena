@@ -22,6 +22,9 @@ public sealed class GameSession
     private readonly Dictionary<string, PlayerPowerUpState> _powerUps =
         new(StringComparer.OrdinalIgnoreCase);
     private List<DemoQuestion> _quizQuestions = new();
+    private bool _roomExtraTimeExtendedThisQuestion;
+    private int _hostEventsUsedThisQuestion;
+    private bool _boostAllActive;
 
     public GameSession(string code, string hostConnectionId, Guid quizId, PowerUpRoomConfig? powerUpConfig = null)
     {
@@ -244,8 +247,91 @@ public sealed class GameSession
             QuestionStartedAtUtc = nowUtc;
             QuestionEndsAtUtc = nowUtc + limit;
             _answersThisQuestion.Clear();
+            ClearPerQuestionPowerUpFlags();
             Phase = GamePhase.QuestionActive;
             return (true, null);
+        }
+    }
+
+    public (bool ok, string? error, PowerUpUseResult? result) TryUsePowerUp(
+        string connectionId,
+        PowerUpId powerUpId)
+    {
+        lock (_gate)
+        {
+            if (!PowerUpConfig.Enabled)
+            {
+                return (false, "Power-ups disabled", null);
+            }
+
+            if (Phase != GamePhase.QuestionActive || CurrentQuestion is null)
+            {
+                return (false, "No active question", null);
+            }
+
+            var player = _players.FirstOrDefault(p => p.ConnectionId == connectionId && p.IsConnected);
+            if (player is null)
+            {
+                return (false, "Not a player in this room", null);
+            }
+
+            if (_answersThisQuestion.ContainsKey(player.Nickname))
+            {
+                return (false, "Already answered", null);
+            }
+
+            if (!_powerUps.TryGetValue(player.Nickname, out var state))
+            {
+                return (false, "Not a player in this room", null);
+            }
+
+            var definition = PowerUpCatalog.Get(powerUpId);
+            if (definition.Kind != PowerUpKind.Player)
+            {
+                return (false, "Not a player power-up", null);
+            }
+
+            if (state.Inventory[powerUpId] < 1)
+            {
+                return (false, "No power-ups remaining", null);
+            }
+
+            var isSelfEffect = powerUpId is PowerUpId.FiftyFifty or PowerUpId.Double or PowerUpId.ExtraTime;
+            if (isSelfEffect && state.HasSelfEffectActive)
+            {
+                return (false, "Already used a self-effect this question", null);
+            }
+
+            state.Inventory[powerUpId]--;
+
+            int[]? masked = null;
+            DateTimeOffset? newEndsAt = null;
+
+            switch (powerUpId)
+            {
+                case PowerUpId.FiftyFifty:
+                    masked = PickTwoWrongIndexes(CurrentQuestion.CorrectIndex);
+                    state.MaskedWrongIndexes = masked;
+                    break;
+                case PowerUpId.Double:
+                    state.DoubleActive = true;
+                    break;
+                case PowerUpId.ExtraTime:
+                    state.UsedExtraTimeThisQuestion = true;
+                    if (!_roomExtraTimeExtendedThisQuestion)
+                    {
+                        QuestionEndsAtUtc = QuestionEndsAtUtc!.Value.AddSeconds(5);
+                        _roomExtraTimeExtendedThisQuestion = true;
+                        newEndsAt = QuestionEndsAtUtc;
+                    }
+
+                    break;
+                case PowerUpId.Shield:
+                    state.HasShield = true;
+                    break;
+            }
+
+            return (true, null, new PowerUpUseResult(powerUpId, masked, newEndsAt));
         }
     }
 
@@ -415,5 +501,31 @@ public sealed class GameSession
         var state = new PlayerPowerUpState();
         state.EnsurePlayerKeys();
         _powerUps[nickname] = state;
+    }
+
+    private void ClearPerQuestionPowerUpFlags()
+    {
+        foreach (var state in _powerUps.Values)
+        {
+            state.DoubleActive = false;
+            state.MaskedWrongIndexes = null;
+            state.UsedExtraTimeThisQuestion = false;
+        }
+
+        _roomExtraTimeExtendedThisQuestion = false;
+        _hostEventsUsedThisQuestion = 0;
+        _boostAllActive = false;
+    }
+
+    private static int[] PickTwoWrongIndexes(int correctIndex)
+    {
+        var wrong = Enumerable.Range(0, 4).Where(i => i != correctIndex).ToList();
+        for (var i = wrong.Count - 1; i > 0; i--)
+        {
+            var j = Random.Shared.Next(i + 1);
+            (wrong[i], wrong[j]) = (wrong[j], wrong[i]);
+        }
+
+        return [wrong[0], wrong[1]];
     }
 }
