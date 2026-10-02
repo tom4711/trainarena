@@ -1,3 +1,5 @@
+using TrainArena.Game.PowerUps;
+
 namespace TrainArena.Game;
 
 public sealed class PlayerInfo
@@ -17,14 +19,19 @@ public sealed class GameSession
     private readonly List<PlayerInfo> _players = new();
     private readonly Dictionary<string, int> _answersThisQuestion =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PlayerPowerUpState> _powerUps =
+        new(StringComparer.OrdinalIgnoreCase);
     private List<DemoQuestion> _quizQuestions = new();
 
-    public GameSession(string code, string hostConnectionId, Guid quizId)
+    public GameSession(string code, string hostConnectionId, Guid quizId, PowerUpRoomConfig? powerUpConfig = null)
     {
         Code = code;
         HostConnectionId = hostConnectionId;
         QuizId = quizId;
+        PowerUpConfig = powerUpConfig ?? PowerUpRoomConfig.CreateDefault();
     }
+
+    public PowerUpRoomConfig PowerUpConfig { get; }
 
     public string Code { get; }
     public string HostConnectionId { get; private set; }
@@ -130,6 +137,7 @@ public sealed class GameSession
                 // Soft rejoin via JoinRoom after disconnect.
                 existing.ConnectionId = connectionId;
                 existing.IsConnected = true;
+                EnsurePowerUpState(trimmed);
                 return (true, null);
             }
 
@@ -139,6 +147,7 @@ public sealed class GameSession
                 ConnectionId = connectionId,
                 IsConnected = true
             });
+            GrantStarterPowerUps(trimmed);
             return (true, null);
         }
     }
@@ -162,7 +171,21 @@ public sealed class GameSession
 
             player.ConnectionId = connectionId;
             player.IsConnected = true;
+            EnsurePowerUpState(trimmed);
             return (true, null);
+        }
+    }
+
+    public PlayerPowerUpState? GetPowerUpState(string nickname)
+    {
+        lock (_gate)
+        {
+            if (!_powerUps.TryGetValue(nickname, out var state))
+            {
+                return null;
+            }
+
+            return state;
         }
     }
 
@@ -363,4 +386,34 @@ public sealed class GameSession
 
     public bool IsHost(string connectionId) =>
         string.Equals(HostConnectionId, connectionId, StringComparison.Ordinal);
+
+    private void GrantStarterPowerUps(string nickname)
+    {
+        var state = new PlayerPowerUpState();
+        state.EnsurePlayerKeys();
+        if (PowerUpConfig.Enabled)
+        {
+            foreach (var id in PowerUpCatalog.PlayerIds)
+            {
+                if (PowerUpConfig.Starter.TryGetValue(id, out var count))
+                {
+                    state.Inventory[id] = count;
+                }
+            }
+        }
+
+        _powerUps[nickname] = state;
+    }
+
+    private void EnsurePowerUpState(string nickname)
+    {
+        if (_powerUps.ContainsKey(nickname))
+        {
+            return;
+        }
+
+        var state = new PlayerPowerUpState();
+        state.EnsurePlayerKeys();
+        _powerUps[nickname] = state;
+    }
 }

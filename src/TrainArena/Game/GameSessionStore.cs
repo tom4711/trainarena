@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using TrainArena.Game.PowerUps;
 
 namespace TrainArena.Game;
 
@@ -18,12 +19,12 @@ public sealed class GameSessionStore
         _codes = codes;
     }
 
-    public GameSession Create(string hostConnectionId, Guid quizId)
+    public GameSession Create(string hostConnectionId, Guid quizId, PowerUpRoomConfig? config = null)
     {
         for (var attempt = 0; attempt < 32; attempt++)
         {
             var code = _codes.Next();
-            var session = new GameSession(code, hostConnectionId, quizId);
+            var session = new GameSession(code, hostConnectionId, quizId, config);
             if (_sessions.TryAdd(code, session))
             {
                 _connectionToCode[hostConnectionId] = code;
