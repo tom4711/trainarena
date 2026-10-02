@@ -18,11 +18,17 @@
   const boardList = $("board-list");
   const boardHint = $("board-hint");
   const finishedEl = $("finished");
+  const qrWrap = $("qr-wrap");
+  const qrCanvas = $("qr-canvas");
+  const joinUrlEl = $("join-url");
+
+  const STORAGE_ROOM = "trainarena.host.room";
 
   let startedAt = null;
   let endsAt = null;
   let timerHandle = null;
   let questionOpen = false;
+  let roomCode = sessionStorage.getItem(STORAGE_ROOM) || "";
 
   const connection = new signalR.HubConnectionBuilder()
     .withUrl("/hubs/game")
@@ -36,7 +42,7 @@
     quizzes.forEach((q) => {
       const opt = document.createElement("option");
       opt.value = q.id;
-      opt.textContent = `${q.title} (${q.questionCount})`;
+      opt.textContent = `${q.title} (${q.questionCount} Fragen)`;
       quizSelect.appendChild(opt);
     });
     if (quizzes.length === 0) {
@@ -45,25 +51,40 @@
     }
   }
 
-  connection.on("RoomCreated", (msg) => {
-    roomCodeEl.textContent = msg.code;
+  function showJoinArtifacts(code) {
+    roomCode = code;
+    sessionStorage.setItem(STORAGE_ROOM, code);
+    roomCodeEl.textContent = code;
     roomCodeEl.classList.remove("hidden");
+    const url = `${location.origin}/player/?code=${encodeURIComponent(code)}`;
+    joinUrlEl.innerHTML = `Beitrittslink: <a href="${url}">${url}</a>`;
+    qrWrap.classList.remove("hidden");
+    if (window.QRCode) {
+      QRCode.toCanvas(qrCanvas, url, { width: 180, margin: 1 }, (err) => {
+        if (err) console.error(err);
+      });
+    }
+  }
+
+  connection.on("RoomCreated", (msg) => {
+    showJoinArtifacts(msg.code);
     btnCreate.disabled = true;
     quizSelect.disabled = true;
     btnStart.classList.remove("hidden");
-    lobbyStatus.textContent = "Warte auf Spieler…";
-    $("player-link").href = `/player/?code=${encodeURIComponent(msg.code)}`;
+    lobbyStatus.textContent = "0 Spieler verbunden — warte auf Beitritte…";
   });
 
   connection.on("LobbyState", (msg) => {
     playerList.innerHTML = "";
     (msg.players || []).forEach((p) => {
       const li = document.createElement("li");
-      li.textContent = p.nickname;
+      li.textContent = p.nickname + (p.isConnected === false ? " (getrennt)" : "");
+      if (p.isConnected === false) li.classList.add("offline");
       playerList.appendChild(li);
     });
     const count = msg.connectedCount ?? 0;
-    lobbyStatus.textContent = count === 0 ? "Warte auf Spieler…" : `${count} Spieler verbunden`;
+    lobbyStatus.textContent =
+      count === 0 ? "0 Spieler verbunden — warte auf Beitritte…" : `${count} Spieler verbunden`;
     btnStart.disabled = count < 1;
   });
 
@@ -80,8 +101,7 @@
     btnNext.classList.add("hidden");
     finishedEl.classList.add("hidden");
     questionOpen = true;
-    const total = msg.totalQuestions ?? "?";
-    progressEl.textContent = `Frage ${(msg.index ?? 0) + 1} von ${total}`;
+    progressEl.textContent = `Frage ${(msg.index ?? 0) + 1} von ${msg.totalQuestions ?? "?"}`;
     questionText.textContent = msg.text;
     optionsEl.innerHTML = "";
     (msg.options || []).forEach((opt, i) => {
@@ -132,7 +152,6 @@
   function startTimer() {
     stopTimer();
     const tick = () => {
-      // Display-only: never end the question locally — wait for QuestionEnded.
       if (!endsAt || !startedAt) return;
       const ms = endsAt - Date.now();
       if (!questionOpen) {
@@ -158,7 +177,32 @@
   btnStart.addEventListener("click", () => connection.invoke("StartGame"));
   btnNext.addEventListener("click", () => connection.invoke("NextQuestion"));
 
-  Promise.all([connection.start(), loadQuizzes()]).catch((err) => {
-    lobbyStatus.textContent = `Verbindung fehlgeschlagen: ${err}`;
+  connection.onreconnected(async () => {
+    if (!roomCode) return;
+    try {
+      await connection.invoke("RejoinHost", roomCode);
+      lobbyStatus.textContent = "Wieder verbunden.";
+    } catch (err) {
+      lobbyStatus.textContent = `Reconnect fehlgeschlagen: ${err}`;
+    }
   });
+
+  Promise.all([connection.start(), loadQuizzes()])
+    .then(async () => {
+      if (roomCode) {
+        try {
+          await connection.invoke("RejoinHost", roomCode);
+          showJoinArtifacts(roomCode);
+          btnCreate.disabled = true;
+          quizSelect.disabled = true;
+          btnStart.classList.remove("hidden");
+        } catch {
+          sessionStorage.removeItem(STORAGE_ROOM);
+          roomCode = "";
+        }
+      }
+    })
+    .catch((err) => {
+      lobbyStatus.textContent = `Verbindung fehlgeschlagen: ${err}`;
+    });
 })();

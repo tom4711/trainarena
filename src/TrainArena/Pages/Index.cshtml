@@ -17,6 +17,12 @@
         padding: 0.6rem 0.7rem; border-radius: 8px; border: 1px solid #475569;
         background: #0f172a; color: var(--text);
       }
+      #qr-wrap {
+        display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem;
+        margin: 0.75rem 0;
+      }
+      #qr-canvas { background: #fff; border-radius: 8px; padding: 0.5rem; }
+      .offline { opacity: 0.45; text-decoration: line-through; }
     </style>
 </head>
 <body>
@@ -26,14 +32,18 @@
 
         <section id="setup" class="panel">
             <label>Quiz wählen
-                <select id="quiz-select"></select>
+                <select id="quiz-select" aria-label="Quiz wählen"></select>
             </label>
             <button id="btn-create" type="button">Raum erstellen</button>
-            <p id="room-code" class="code hidden"></p>
+            <p id="room-code" class="code hidden" aria-live="polite"></p>
+            <div id="qr-wrap" class="hidden">
+                <canvas id="qr-canvas" width="180" height="180" aria-label="QR-Code zum Beitreten"></canvas>
+                <p id="join-url" class="hint"></p>
+            </div>
             <p id="lobby-status" class="muted">Noch kein Raum.</p>
             <ul id="player-list"></ul>
             <button id="btn-start" type="button" class="hidden" disabled>Quiz starten</button>
-            <p class="hint">Spieler öffnen <a id="player-link" href="/player/">/player/</a> und geben den Code ein.</p>
+            <p class="hint">Tipp: Host-Seite über die LAN-IP öffnen (nicht localhost), damit Handys den QR-Link erreichen.</p>
         </section>
 
         <section id="live" class="panel hidden">
@@ -45,14 +55,15 @@
             <div id="board" class="board hidden">
                 <h3>Rangliste</h3>
                 <ol id="board-list"></ol>
-                <p id="board-hint" class="muted hidden">Host entscheidet mit „Weiter“ — kein Auto-Advance.</p>
+                <p id="board-hint" class="muted hidden">Du entscheidest mit „Weiter“ — kein automatischer Wechsel.</p>
             </div>
             <button id="btn-next" type="button" class="hidden">Nächste Frage</button>
-            <p id="finished" class="hidden">Runde beendet.</p>
+            <p id="finished" class="hidden">Runde beendet. Danke!</p>
         </section>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
     <script src="/js/host.js"></script>
 </body>
 </html>

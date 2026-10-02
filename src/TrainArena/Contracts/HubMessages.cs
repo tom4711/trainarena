@@ -4,7 +4,7 @@ public sealed record RoomCreatedMessage(string Code);
 
 public sealed record PlayerJoinedMessage(string Nickname, int ConnectedCount);
 
-public sealed record LobbyPlayerDto(string Nickname);
+public sealed record LobbyPlayerDto(string Nickname, bool IsConnected);
 
 public sealed record LobbyStateMessage(IReadOnlyList<LobbyPlayerDto> Players, int ConnectedCount);
 

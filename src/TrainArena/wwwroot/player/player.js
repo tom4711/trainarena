@@ -3,6 +3,9 @@
   const params = new URLSearchParams(location.search);
   if (params.get("code")) $("code").value = params.get("code").toUpperCase();
 
+  const STORAGE_CODE = "trainarena.player.code";
+  const STORAGE_NICK = "trainarena.player.nickname";
+
   const joinPanel = $("join");
   const waitPanel = $("wait");
   const questionPanel = $("question");
@@ -20,6 +23,11 @@
   let timerHandle = null;
   let answered = false;
   let questionOpen = false;
+  let roomCode = sessionStorage.getItem(STORAGE_CODE) || $("code").value.trim().toUpperCase();
+  let nickname = sessionStorage.getItem(STORAGE_NICK) || "";
+
+  if (roomCode) $("code").value = roomCode;
+  if (nickname) $("nickname").value = nickname;
 
   const connection = new signalR.HubConnectionBuilder()
     .withUrl("/hubs/game")
@@ -34,7 +42,11 @@
     joinPanel.classList.add("hidden");
     waitPanel.classList.remove("hidden");
     questionPanel.classList.add("hidden");
-    boardPanel.classList.add("hidden");
+    if (boardPanel.classList.contains("hidden") === false && !questionOpen) {
+      // keep board if mid-round sync already showed it
+    } else {
+      boardPanel.classList.add("hidden");
+    }
   });
 
   connection.on("QuestionStarted", (msg) => {
@@ -98,12 +110,14 @@
       boardList.appendChild(li);
     });
     $("done").classList.toggle("hidden", !done);
-    waitHost.classList.toggle("hidden", done || !hasMore);
-    if (!done && !hasMore) {
-      waitHost.textContent = "Warte auf den Host (Abschluss)…";
-      waitHost.classList.remove("hidden");
+    if (done) {
+      waitHost.classList.add("hidden");
     } else if (hasMore) {
       waitHost.textContent = "Warte auf den Host (nächste Frage)…";
+      waitHost.classList.remove("hidden");
+    } else {
+      waitHost.textContent = "Warte auf den Host (Abschluss)…";
+      waitHost.classList.remove("hidden");
     }
   }
 
@@ -121,7 +135,6 @@
   function startTimer() {
     stopTimer();
     const tick = () => {
-      // Display-only countdown from server timestamps; QuestionEnded is authoritative.
       if (!endsAt || !startedAt) return;
       const ms = endsAt - Date.now();
       if (!questionOpen) {
@@ -143,19 +156,60 @@
     timerHandle = null;
   }
 
+  async function joinOrRejoin(code, nick, preferRejoin) {
+    roomCode = code;
+    nickname = nick;
+    sessionStorage.setItem(STORAGE_CODE, code);
+    sessionStorage.setItem(STORAGE_NICK, nick);
+    $("me").textContent = nick;
+    if (preferRejoin) {
+      await connection.invoke("RejoinRoom", code, nick);
+    } else {
+      try {
+        await connection.invoke("JoinRoom", code, nick);
+      } catch {
+        await connection.invoke("RejoinRoom", code, nick);
+      }
+    }
+  }
+
   $("btn-join").addEventListener("click", async () => {
     joinError.textContent = "";
     const code = $("code").value.trim().toUpperCase();
-    const nickname = $("nickname").value.trim();
-    $("me").textContent = nickname;
+    const nick = $("nickname").value.trim();
     try {
-      await connection.invoke("JoinRoom", code, nickname);
+      await joinOrRejoin(code, nick, false);
     } catch (err) {
-      joinError.textContent = String(err);
+      // Nickname already taken after disconnect → try rejoin
+      try {
+        await joinOrRejoin(code, nick, true);
+      } catch (err2) {
+        joinError.textContent = String(err2);
+      }
     }
   });
 
-  connection.start().catch((err) => {
-    joinError.textContent = `Verbindung fehlgeschlagen: ${err}`;
+  connection.onreconnected(async () => {
+    if (!roomCode || !nickname) return;
+    try {
+      await connection.invoke("RejoinRoom", roomCode, nickname);
+    } catch (err) {
+      joinError.textContent = `Reconnect fehlgeschlagen: ${err}`;
+    }
   });
+
+  connection
+    .start()
+    .then(async () => {
+      if (roomCode && nickname) {
+        try {
+          await joinOrRejoin(roomCode, nickname, true);
+        } catch {
+          // stay on join form
+        }
+      }
+    })
+    .catch((err) => {
+      joinError.textContent = `Verbindung fehlgeschlagen: ${err}`;
+    });
 })();

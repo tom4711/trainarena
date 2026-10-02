@@ -38,7 +38,7 @@ public sealed class GameHub : Hub
 
         if (quiz is null || quiz.Questions.Count == 0)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Quiz not found or empty"));
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Quiz nicht gefunden oder leer"));
             return;
         }
 
@@ -59,25 +59,78 @@ public sealed class GameHub : Hub
     {
         if (!_sessions.TryGet(code, out var session) || session is null)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Room not found"));
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Raum nicht gefunden"));
             return;
         }
 
         var (ok, error) = session.TryJoin(nickname, Context.ConnectionId);
         if (!ok)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Join failed"));
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Beitritt fehlgeschlagen"));
             return;
         }
 
         _sessions.BindConnection(Context.ConnectionId, session.Code);
         await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(session.Code));
 
-        var players = session.Players;
         await Clients.Group(RoomGroup(session.Code)).SendAsync(
             "PlayerJoined",
-            new PlayerJoinedMessage(players[^1].Nickname, players.Count));
+            new PlayerJoinedMessage(nickname.Trim(), session.ConnectedPlayerCount));
         await Clients.Group(RoomGroup(session.Code)).SendAsync("LobbyState", ToLobbyState(session));
+    }
+
+    /// <summary>Re-attach a player after SignalR reconnect (same room + nickname).</summary>
+    public async Task RejoinRoom(string code, string nickname)
+    {
+        if (!_sessions.TryGet(code, out var session) || session is null)
+        {
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Raum nicht gefunden"));
+            return;
+        }
+
+        var (ok, error) = session.TryRejoin(nickname, Context.ConnectionId);
+        if (!ok)
+        {
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Reconnect fehlgeschlagen"));
+            return;
+        }
+
+        _sessions.BindConnection(Context.ConnectionId, session.Code);
+        await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(session.Code));
+        await Clients.Group(RoomGroup(session.Code)).SendAsync("LobbyState", ToLobbyState(session));
+        await SyncCallerToCurrentPhase(session);
+    }
+
+    /// <summary>Re-attach the host after SignalR reconnect.</summary>
+    public async Task RejoinHost(string code)
+    {
+        if (!_sessions.TryGet(code, out var session) || session is null)
+        {
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Raum nicht gefunden"));
+            return;
+        }
+
+        session.TryRebindHost(Context.ConnectionId);
+        _sessions.BindConnection(Context.ConnectionId, session.Code);
+        await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(session.Code));
+        await Clients.Caller.SendAsync("RoomCreated", new RoomCreatedMessage(session.Code));
+        await Clients.Group(RoomGroup(session.Code)).SendAsync("LobbyState", ToLobbyState(session));
+        await SyncCallerToCurrentPhase(session);
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        if (_sessions.TryGetByConnection(Context.ConnectionId, out var session) && session is not null)
+        {
+            var wasPlayer = session.MarkDisconnected(Context.ConnectionId);
+            _sessions.UnbindConnection(Context.ConnectionId);
+            if (wasPlayer)
+            {
+                await Clients.Group(RoomGroup(session.Code)).SendAsync("LobbyState", ToLobbyState(session));
+            }
+        }
+
+        await base.OnDisconnectedAsync(exception);
     }
 
     /// <summary>Phase 0 single-question demo (ignores full quiz list).</summary>
@@ -285,12 +338,42 @@ public sealed class GameHub : Hub
         });
     }
 
+    private async Task SyncCallerToCurrentPhase(GameSession session)
+    {
+        switch (session.Phase)
+        {
+            case GamePhase.QuestionActive when session.CurrentQuestion is not null
+                && session.QuestionStartedAtUtc is not null
+                && session.QuestionEndsAtUtc is not null:
+                await Clients.Caller.SendAsync(
+                    "QuestionStarted",
+                    new QuestionStartedMessage(
+                        session.QuestionIndex,
+                        session.QuestionCount,
+                        session.CurrentQuestion.Text,
+                        session.CurrentQuestion.Options,
+                        session.QuestionStartedAtUtc.Value,
+                        session.QuestionEndsAtUtc.Value,
+                        ImageUrl: null));
+                break;
+            case GamePhase.Reveal:
+            case GamePhase.Leaderboard:
+                await Clients.Caller.SendAsync("Leaderboard", ToLeaderboard(session));
+                break;
+            case GamePhase.Finished:
+                await Clients.Caller.SendAsync(
+                    "GameFinished",
+                    new GameFinishedMessage(ToLeaderboard(session).Entries));
+                break;
+        }
+    }
+
     private static LobbyStateMessage ToLobbyState(GameSession session)
     {
         var players = session.Players;
         return new LobbyStateMessage(
-            players.Select(p => new LobbyPlayerDto(p.Nickname)).ToList(),
-            players.Count);
+            players.Select(p => new LobbyPlayerDto(p.Nickname, p.IsConnected)).ToList(),
+            session.ConnectedPlayerCount);
     }
 
     private static LeaderboardMessage ToLeaderboard(GameSession session) =>

@@ -3,7 +3,8 @@ namespace TrainArena.Game;
 public sealed class PlayerInfo
 {
     public required string Nickname { get; init; }
-    public required string ConnectionId { get; init; }
+    public string ConnectionId { get; set; } = "";
+    public bool IsConnected { get; set; } = true;
     public int Score { get; set; }
 }
 
@@ -14,7 +15,8 @@ public sealed class GameSession
 {
     private readonly object _gate = new();
     private readonly List<PlayerInfo> _players = new();
-    private readonly Dictionary<string, int> _answersThisQuestion = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _answersThisQuestion =
+        new(StringComparer.OrdinalIgnoreCase);
     private List<DemoQuestion> _quizQuestions = new();
 
     public GameSession(string code, string hostConnectionId, Guid quizId)
@@ -25,13 +27,14 @@ public sealed class GameSession
     }
 
     public string Code { get; }
-    public string HostConnectionId { get; }
+    public string HostConnectionId { get; private set; }
     public Guid QuizId { get; }
     public GamePhase Phase { get; private set; } = GamePhase.Lobby;
     public DemoQuestion? CurrentQuestion { get; private set; }
     public DateTimeOffset? QuestionStartedAtUtc { get; private set; }
     public DateTimeOffset? QuestionEndsAtUtc { get; private set; }
     public int QuestionIndex { get; private set; } = -1;
+
     public int QuestionCount
     {
         get
@@ -39,6 +42,17 @@ public sealed class GameSession
             lock (_gate)
             {
                 return _quizQuestions.Count;
+            }
+        }
+    }
+
+    public int ConnectedPlayerCount
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _players.Count(p => p.IsConnected);
             }
         }
     }
@@ -104,17 +118,75 @@ public sealed class GameSession
                 return (false, "Game already started");
             }
 
-            if (_players.Any(p => string.Equals(p.Nickname, trimmed, StringComparison.OrdinalIgnoreCase)))
+            var existing = _players.FirstOrDefault(p =>
+                string.Equals(p.Nickname, trimmed, StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
             {
-                return (false, "Nickname already taken");
+                if (existing.IsConnected)
+                {
+                    return (false, "Nickname already taken");
+                }
+
+                // Soft rejoin via JoinRoom after disconnect.
+                existing.ConnectionId = connectionId;
+                existing.IsConnected = true;
+                return (true, null);
             }
 
             _players.Add(new PlayerInfo
             {
                 Nickname = trimmed,
-                ConnectionId = connectionId
+                ConnectionId = connectionId,
+                IsConnected = true
             });
             return (true, null);
+        }
+    }
+
+    public (bool ok, string? error) TryRejoin(string nickname, string connectionId)
+    {
+        var trimmed = nickname?.Trim() ?? "";
+        if (trimmed.Length == 0)
+        {
+            return (false, "Nickname required");
+        }
+
+        lock (_gate)
+        {
+            var player = _players.FirstOrDefault(p =>
+                string.Equals(p.Nickname, trimmed, StringComparison.OrdinalIgnoreCase));
+            if (player is null)
+            {
+                return (false, "Unknown nickname for this room");
+            }
+
+            player.ConnectionId = connectionId;
+            player.IsConnected = true;
+            return (true, null);
+        }
+    }
+
+    public bool TryRebindHost(string connectionId)
+    {
+        lock (_gate)
+        {
+            HostConnectionId = connectionId;
+            return true;
+        }
+    }
+
+    public bool MarkDisconnected(string connectionId)
+    {
+        lock (_gate)
+        {
+            var player = _players.FirstOrDefault(p => p.ConnectionId == connectionId);
+            if (player is null)
+            {
+                return false;
+            }
+
+            player.IsConnected = false;
+            return true;
         }
     }
 
@@ -172,13 +244,13 @@ public sealed class GameSession
                 return (false, "Question already ended", 0);
             }
 
-            var player = _players.FirstOrDefault(p => p.ConnectionId == connectionId);
+            var player = _players.FirstOrDefault(p => p.ConnectionId == connectionId && p.IsConnected);
             if (player is null)
             {
                 return (false, "Not a player in this room", 0);
             }
 
-            if (_answersThisQuestion.ContainsKey(connectionId))
+            if (_answersThisQuestion.ContainsKey(player.Nickname))
             {
                 return (false, "Already answered", 0);
             }
@@ -188,7 +260,7 @@ public sealed class GameSession
                 return (false, "Invalid option", 0);
             }
 
-            _answersThisQuestion[connectionId] = optionIndex;
+            _answersThisQuestion[player.Nickname] = optionIndex;
             var correct = optionIndex == CurrentQuestion.CorrectIndex;
             var elapsed = serverUtc - QuestionStartedAtUtc.Value;
             var limit = QuestionEndsAtUtc.Value - QuestionStartedAtUtc.Value;
@@ -207,8 +279,9 @@ public sealed class GameSession
                 return false;
             }
 
+            var expectedAnswers = Math.Max(1, _players.Count(p => p.IsConnected));
             if (nowUtc < QuestionEndsAtUtc.Value
-                && _answersThisQuestion.Count < _players.Count)
+                && _answersThisQuestion.Count < expectedAnswers)
             {
                 return false;
             }
@@ -263,11 +336,7 @@ public sealed class GameSession
         }
     }
 
-    /// <summary>Legacy helper — prefer <see cref="TryFinish"/>.</summary>
-    public void Finish()
-    {
-        TryFinish();
-    }
+    public void Finish() => TryFinish();
 
     public int? CorrectIndex
     {

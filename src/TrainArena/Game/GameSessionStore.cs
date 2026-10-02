@@ -58,4 +58,7 @@ public sealed class GameSessionStore
 
     public void BindConnection(string connectionId, string code) =>
         _connectionToCode[connectionId] = code;
+
+    public void UnbindConnection(string connectionId) =>
+        _connectionToCode.TryRemove(connectionId, out _);
 }
