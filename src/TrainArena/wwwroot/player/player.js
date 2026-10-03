@@ -17,12 +17,21 @@
   const qTimer = $("q-timer");
   const qProgress = $("q-progress");
   const waitHost = $("wait-host");
+  const powerupsEl = $("powerups");
+
+  const PLAYER_POWERUPS = [
+    { id: "fifty_fifty", label: "50/50" },
+    { id: "double", label: "Double" },
+    { id: "extra_time", label: "Extra-Zeit" },
+    { id: "shield", label: "Shield" },
+  ];
 
   let startedAt = null;
   let endsAt = null;
   let timerHandle = null;
   let answered = false;
   let questionOpen = false;
+  let inventory = {};
   let roomCode = sessionStorage.getItem(STORAGE_CODE) || $("code").value.trim().toUpperCase();
   let nickname = sessionStorage.getItem(STORAGE_NICK) || "";
 
@@ -34,14 +43,94 @@
     .withAutomaticReconnect()
     .build();
 
+  function countFor(id) {
+    return inventory[id] ?? 0;
+  }
+
+  function refreshPowerUpButtons() {
+    const buttons = powerupsEl.querySelectorAll("button[data-powerup]");
+    const lock = answered || !questionOpen;
+    buttons.forEach((btn) => {
+      const id = btn.dataset.powerup;
+      const n = countFor(id);
+      const countSpan = btn.querySelector(".count");
+      if (countSpan) countSpan.textContent = ` (${n})`;
+      btn.disabled = lock || n <= 0;
+    });
+    const anyStock = PLAYER_POWERUPS.some((p) => countFor(p.id) > 0);
+    powerupsEl.classList.toggle("hidden", !questionOpen || !anyStock);
+  }
+
+  function ensurePowerUpButtons() {
+    if (powerupsEl.dataset.built === "1") return;
+    powerupsEl.dataset.built = "1";
+    powerupsEl.innerHTML = "";
+    PLAYER_POWERUPS.forEach((p) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.dataset.powerup = p.id;
+      btn.innerHTML = `${p.label}<span class="count"> (0)</span>`;
+      btn.addEventListener("click", () => usePowerUp(p.id));
+      powerupsEl.appendChild(btn);
+    });
+  }
+
+  function usePowerUp(id) {
+    if (answered || !questionOpen || countFor(id) <= 0) return;
+    connection.invoke("UsePowerUp", id);
+  }
+
+  function applyMaskedOptions(indexes) {
+    if (!indexes || !indexes.length) return;
+    const buttons = [...answers.querySelectorAll("button")];
+    indexes.forEach((i) => {
+      const btn = buttons[i];
+      if (btn) btn.classList.add("hidden");
+    });
+  }
+
   connection.on("JoinError", (msg) => {
     joinError.textContent = msg.error || "Beitritt fehlgeschlagen";
+  });
+
+  connection.on("InventoryUpdate", (msg) => {
+    inventory = msg.counts || {};
+    ensurePowerUpButtons();
+    refreshPowerUpButtons();
+  });
+
+  connection.on("PowerUpUsed", (msg) => {
+    if (!msg.ok) return;
+    if (msg.endsAtUtc) {
+      endsAt = new Date(msg.endsAtUtc);
+      if (questionOpen) startTimer();
+    }
+    if (msg.maskedWrongIndexes && msg.maskedWrongIndexes.length) {
+      applyMaskedOptions(msg.maskedWrongIndexes);
+    }
+  });
+
+  connection.on("PowerUpError", (msg) => {
+    if (questionOpen) {
+      answerStatus.textContent = msg.error || "Power-Up fehlgeschlagen";
+    }
+  });
+
+  connection.on("ArenaEvent", (msg) => {
+    if (msg.endsAtUtc) {
+      endsAt = new Date(msg.endsAtUtc);
+      if (questionOpen) startTimer();
+    }
+    if (msg.powerUpId === "boost_all" && questionOpen) {
+      answerStatus.textContent = "Team-Boost aktiv — Punkte ×2";
+    }
   });
 
   connection.on("LobbyState", () => {
     joinPanel.classList.add("hidden");
     waitPanel.classList.remove("hidden");
     questionPanel.classList.add("hidden");
+    powerupsEl.classList.add("hidden");
     if (boardPanel.classList.contains("hidden") === false && !questionOpen) {
       // keep board if mid-round sync already showed it
     } else {
@@ -76,6 +165,8 @@
     });
     startedAt = new Date(msg.startedAtUtc);
     endsAt = new Date(msg.endsAtUtc);
+    ensurePowerUpButtons();
+    refreshPowerUpButtons();
     startTimer();
   });
 
@@ -84,11 +175,13 @@
       answerStatus.textContent = msg.error || "Antwort abgelehnt";
       if (questionOpen && !answered) {
         [...answers.querySelectorAll("button")].forEach((b) => (b.disabled = false));
+        refreshPowerUpButtons();
       }
       return;
     }
     answered = true;
     disableAnswers();
+    refreshPowerUpButtons();
     answerStatus.textContent = `Gesendet (+${msg.points} Punkte)`;
   });
 
@@ -97,6 +190,7 @@
     stopTimer();
     qTimer.textContent = "0s";
     disableAnswers();
+    powerupsEl.classList.add("hidden");
     if (!answered) answerStatus.textContent = "Zeit abgelaufen";
   });
 
@@ -111,6 +205,7 @@
   function showBoard(entries, done, hasMore) {
     questionPanel.classList.add("hidden");
     boardPanel.classList.remove("hidden");
+    powerupsEl.classList.add("hidden");
     boardList.innerHTML = "";
     entries.forEach((e) => {
       const li = document.createElement("li");
@@ -132,6 +227,7 @@
   function submit(index, btn) {
     if (answered || !questionOpen) return;
     disableAnswers();
+    refreshPowerUpButtons();
     btn.style.outline = "2px solid #fff";
     connection.invoke("SubmitAnswer", index);
   }
@@ -188,7 +284,6 @@
     try {
       await joinOrRejoin(code, nick, false);
     } catch (err) {
-      // Nickname already taken after disconnect → try rejoin
       try {
         await joinOrRejoin(code, nick, true);
       } catch (err2) {

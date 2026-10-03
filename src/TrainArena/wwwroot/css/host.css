@@ -61,3 +61,55 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .reveal { color: var(--ok); font-weight: 600; }
 .board ol { padding-left: 1.25rem; }
 a { color: var(--accent); }
+
+.powerup-setup {
+  margin: 1rem 0 0.75rem;
+  padding: 0;
+  border: none;
+}
+.powerup-setup legend {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 0 0.25rem;
+}
+.powerup-setup .inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-right: 1rem;
+  margin-bottom: 0.5rem;
+}
+.powerup-setup .inline input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+.powerup-setup .inline input[type="number"],
+.pu-starters input[type="number"] {
+  width: 3rem;
+  display: inline-block;
+  margin-top: 0;
+  padding: 0.35rem 0.4rem;
+}
+.pu-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-top: 0.35rem;
+}
+.pu-starters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.button-row button {
+  flex: 1 1 auto;
+  min-width: 8rem;
+}
