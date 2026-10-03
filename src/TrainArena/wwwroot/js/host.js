@@ -18,6 +18,7 @@
   const board = $("board");
   const boardList = $("board-list");
   const boardHint = $("board-hint");
+  const boardAutoAdvance = $("board-auto-advance");
   const finishedEl = $("finished");
   const qrWrap = $("qr-wrap");
   const qrCanvas = $("qr-canvas");
@@ -34,12 +35,30 @@
   let timerHandle = null;
   let questionOpen = false;
   let hostArenaUsed = false;
+  let autoAdvanceHandle = null;
   let roomCode = sessionStorage.getItem(STORAGE_ROOM) || "";
 
   const connection = new signalR.HubConnectionBuilder()
     .withUrl("/hubs/game")
     .withAutomaticReconnect()
     .build();
+
+  function disableLobbySetup() {
+    $("powerup-setup").querySelectorAll("input").forEach((el) => {
+      el.disabled = true;
+    });
+    $("auto-advance-setup").querySelectorAll("input, select").forEach((el) => {
+      el.disabled = true;
+    });
+  }
+
+  function readAutoAdvanceConfig() {
+    const delay = parseInt($("aa-delay").value, 10);
+    return {
+      enabled: $("aa-enabled").checked,
+      delaySeconds: [3, 5, 10].includes(delay) ? delay : 5,
+    };
+  }
 
   function readPowerUpConfig() {
     const num = (id) => {
@@ -115,9 +134,7 @@
     showJoinArtifacts(msg.code);
     btnCreate.disabled = true;
     quizSelect.disabled = true;
-    $("powerup-setup").querySelectorAll("input").forEach((el) => {
-      el.disabled = true;
-    });
+    disableLobbySetup();
     btnStart.classList.remove("hidden");
     lobbyStatus.textContent = "0 Spieler verbunden — warte auf Beitritte…";
   });
@@ -140,7 +157,29 @@
     lobbyStatus.textContent = msg.error || "Fehler";
   });
 
+  function clearAutoAdvanceCountdown() {
+    if (autoAdvanceHandle) clearInterval(autoAdvanceHandle);
+    autoAdvanceHandle = null;
+    boardAutoAdvance.classList.add("hidden");
+    boardAutoAdvance.textContent = "";
+  }
+
+  function startAutoAdvanceCountdown(advancesAtUtc) {
+    clearAutoAdvanceCountdown();
+    boardHint.classList.add("hidden");
+    boardAutoAdvance.classList.remove("hidden");
+    const target = new Date(advancesAtUtc);
+    const tick = () => {
+      const sec = Math.max(0, Math.ceil((target - Date.now()) / 1000));
+      boardAutoAdvance.textContent =
+        sec > 0 ? `Automatisch in ${sec}s` : "Automatisch gleich…";
+    };
+    tick();
+    autoAdvanceHandle = setInterval(tick, 200);
+  }
+
   connection.on("QuestionStarted", (msg) => {
+    clearAutoAdvanceCountdown();
     setup.classList.add("hidden");
     live.classList.remove("hidden");
     revealEl.classList.add("hidden");
@@ -182,6 +221,7 @@
   });
 
   connection.on("Leaderboard", (msg) => {
+    clearAutoAdvanceCountdown();
     setArenaVisible(false);
     boardList.innerHTML = "";
     (msg.entries || []).forEach((e) => {
@@ -195,7 +235,19 @@
     btnNext.textContent = msg.hasMoreQuestions ? "Nächste Frage" : "Abschluss zeigen";
   });
 
+  connection.on("AutoAdvanceScheduled", (msg) => {
+    if (msg?.advancesAtUtc) startAutoAdvanceCountdown(msg.advancesAtUtc);
+  });
+
+  connection.on("AutoAdvanceCancelled", () => {
+    clearAutoAdvanceCountdown();
+    if (!board.classList.contains("hidden")) {
+      boardHint.classList.remove("hidden");
+    }
+  });
+
   connection.on("GameFinished", (msg) => {
+    clearAutoAdvanceCountdown();
     setArenaVisible(false);
     boardList.innerHTML = "";
     (msg.entries || []).forEach((e) => {
@@ -260,7 +312,8 @@
 
   btnCreate.addEventListener("click", () => {
     const config = readPowerUpConfig();
-    connection.invoke("CreateRoom", quizSelect.value, config);
+    const autoAdvance = readAutoAdvanceConfig();
+    connection.invoke("CreateRoom", quizSelect.value, config, autoAdvance);
   });
   btnStart.addEventListener("click", () => connection.invoke("StartGame"));
   btnNext.addEventListener("click", () => connection.invoke("NextQuestion"));
@@ -292,9 +345,7 @@
           showJoinArtifacts(roomCode);
           btnCreate.disabled = true;
           quizSelect.disabled = true;
-          $("powerup-setup").querySelectorAll("input").forEach((el) => {
-            el.disabled = true;
-          });
+          disableLobbySetup();
           btnStart.classList.remove("hidden");
         } catch {
           sessionStorage.removeItem(STORAGE_ROOM);
