@@ -41,6 +41,18 @@ public class PowerUpScoringTests
     }
 
     [Fact]
+    public void ForceEndQuestion_ClearsDoubleWhenUnanswered()
+    {
+        var (s, _, _) = ActiveRoom();
+        Assert.True(s.TryUsePowerUp("p1", PowerUpId.Double).ok);
+        Assert.True(s.GetPowerUpState("Ada")!.DoubleActive);
+
+        s.ForceEndQuestion();
+
+        Assert.False(s.GetPowerUpState("Ada")!.DoubleActive);
+    }
+
+    [Fact]
     public void WrongAnswer_ClearsDoubleWithoutPoints()
     {
         var (s, _, t0) = ActiveRoom();

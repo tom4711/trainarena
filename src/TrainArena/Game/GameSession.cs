@@ -524,7 +524,7 @@ public sealed class GameSession
                 return false;
             }
 
-            Phase = GamePhase.Reveal;
+            TransitionQuestionToReveal();
             return true;
         }
     }
@@ -538,7 +538,7 @@ public sealed class GameSession
                 return;
             }
 
-            Phase = GamePhase.Reveal;
+            TransitionQuestionToReveal();
         }
     }
 
@@ -630,6 +630,20 @@ public sealed class GameSession
         var state = new PlayerPowerUpState();
         state.EnsurePlayerKeys();
         _powerUps[nickname] = state;
+    }
+
+    private void TransitionQuestionToReveal()
+    {
+        ClearDoubleActiveForAllPlayers();
+        Phase = GamePhase.Reveal;
+    }
+
+    private void ClearDoubleActiveForAllPlayers()
+    {
+        foreach (var state in _powerUps.Values)
+        {
+            state.DoubleActive = false;
+        }
     }
 
     private void ClearPerQuestionPowerUpFlags()
