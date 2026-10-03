@@ -5,50 +5,46 @@ using TrainArena.Data;
 
 namespace TrainArena.Tests;
 
-public class GameHubTests : IClassFixture<TrainArenaWebAppFactory>
+public class PowerUpHubTests : IClassFixture<TrainArenaWebAppFactory>
 {
     private readonly TrainArenaWebAppFactory _factory;
 
-    public GameHubTests(TrainArenaWebAppFactory factory)
+    public PowerUpHubTests(TrainArenaWebAppFactory factory)
     {
         _factory = factory;
     }
 
     [Fact]
-    public async Task CreateRoom_ThenJoin_BroadcastsLobbyStateToBothConnections()
+    public async Task UsePowerUp_FiftyFifty_EmitsPowerUpUsedAndDepletesInventory()
     {
         await using var host = await ConnectAsync();
         await using var player = await ConnectAsync();
 
         var hostRoomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
-        var hostLobby = WaitFor<LobbyStateMessage>(host, "LobbyState");
-
         await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId, null);
         var room = await hostRoomCreated;
-        Assert.Matches("^[A-Z0-9]{6}$", room.Code);
-        await hostLobby; // initial empty lobby for host
 
-        var hostPlayerJoined = WaitFor<PlayerJoinedMessage>(host, "PlayerJoined");
-        var hostLobbyAfterJoin = WaitFor<LobbyStateMessage>(host, "LobbyState");
-        var playerJoined = WaitFor<PlayerJoinedMessage>(player, "PlayerJoined");
-        var playerLobby = WaitFor<LobbyStateMessage>(player, "LobbyState");
-
+        var playerInventoryOnJoin = WaitFor<InventoryUpdateMessage>(player, "InventoryUpdate");
         await player.InvokeAsync("JoinRoom", room.Code, "Azubi1");
+        var inventoryOnJoin = await playerInventoryOnJoin;
+        Assert.Equal(1, inventoryOnJoin.Counts["fifty_fifty"]);
 
-        var joined = await playerJoined;
-        Assert.Equal("Azubi1", joined.Nickname);
-        Assert.Equal(1, joined.ConnectedCount);
+        var playerQuestion = WaitFor<QuestionStartedMessage>(player, "QuestionStarted");
+        await host.InvokeAsync("StartGame");
+        await playerQuestion;
 
-        var hostJoinedEvent = await hostPlayerJoined;
-        Assert.Equal("Azubi1", hostJoinedEvent.Nickname);
+        var powerUpUsed = WaitFor<PowerUpUsedMessage>(player, "PowerUpUsed");
+        var inventoryAfterUse = WaitFor<InventoryUpdateMessage>(player, "InventoryUpdate");
+        await player.InvokeAsync("UsePowerUp", "fifty_fifty");
 
-        var lobby = await playerLobby;
-        Assert.Equal(1, lobby.ConnectedCount);
-        Assert.Contains(lobby.Players, p => p.Nickname == "Azubi1");
+        var used = await powerUpUsed;
+        Assert.True(used.Ok);
+        Assert.Equal("fifty_fifty", used.PowerUpId);
+        Assert.NotNull(used.MaskedWrongIndexes);
+        Assert.Equal(2, used.MaskedWrongIndexes!.Length);
 
-        var hostSeenLobby = await hostLobbyAfterJoin;
-        Assert.Equal(1, hostSeenLobby.ConnectedCount);
-        Assert.Contains(hostSeenLobby.Players, p => p.Nickname == "Azubi1");
+        var inventory = await inventoryAfterUse;
+        Assert.Equal(0, inventory.Counts["fifty_fifty"]);
     }
 
     private async Task<HubConnection> ConnectAsync()
