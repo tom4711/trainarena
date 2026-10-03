@@ -21,7 +21,7 @@ public class DemoRoundTests : IClassFixture<TrainArenaWebAppFactory>
         await using var player = await ConnectAsync();
 
         var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
-        await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId);
+        await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId, null);
         var room = await roomCreated;
 
         var playerJoined = WaitFor<PlayerJoinedMessage>(host, "PlayerJoined");
