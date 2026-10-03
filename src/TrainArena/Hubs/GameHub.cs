@@ -170,8 +170,15 @@ public sealed class GameHub : Hub
     {
         if (_sessions.TryGetByConnection(Context.ConnectionId, out var session) && session is not null)
         {
+            var isHost = session.IsHost(Context.ConnectionId);
             var wasPlayer = session.MarkDisconnected(Context.ConnectionId);
             _sessions.UnbindConnection(Context.ConnectionId);
+
+            if (isHost)
+            {
+                CancelAutoAdvance(session.Code, broadcastIfActive: true);
+            }
+
             if (wasPlayer)
             {
                 await Clients.Group(RoomGroup(session.Code)).SendAsync("LobbyState", ToLobbyState(session));

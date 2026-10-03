@@ -92,6 +92,46 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
     }
 
     [Fact]
+    public async Task HostDisconnect_CancelsPendingAutoAdvance()
+    {
+        var quizId = await SeedTwoQuestionQuizAsync();
+
+        var host = await ConnectAsync();
+        await using var player = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync(
+            "CreateRoom",
+            quizId,
+            null,
+            new AutoAdvanceConfigDto(true, 3));
+        var room = await roomCreated;
+
+        await player.InvokeAsync("JoinRoom", room.Code, "Azubi1");
+
+        var q1 = WaitFor<QuestionStartedMessage>(player, "QuestionStarted");
+        var scheduled = WaitFor<AutoAdvanceScheduledMessage>(player, "AutoAdvanceScheduled");
+        var board1 = WaitFor<LeaderboardMessage>(player, "Leaderboard");
+
+        await host.InvokeAsync("StartGame");
+        await q1;
+        await player.InvokeAsync("SubmitAnswer", 0);
+        await board1;
+        await scheduled;
+
+        var cancelled = WaitFor<AutoAdvanceCancelledMessage>(player, "AutoAdvanceCancelled");
+        await host.StopAsync();
+        await host.DisposeAsync();
+        await cancelled;
+
+        var extraQuestionStarted = false;
+        player.On<JsonElement>("QuestionStarted", _ => extraQuestionStarted = true);
+
+        await Task.Delay(TimeSpan.FromSeconds(4));
+        Assert.False(extraQuestionStarted);
+    }
+
+    [Fact]
     public async Task CreateRoom_InvalidAutoAdvanceDelay_EmitsJoinError()
     {
         await using var host = await ConnectAsync();
