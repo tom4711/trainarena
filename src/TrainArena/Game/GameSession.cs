@@ -508,18 +508,19 @@ public sealed class GameSession
         }
     }
 
+    public bool ShouldEndQuestion(DateTimeOffset nowUtc)
+    {
+        lock (_gate)
+        {
+            return CanEndQuestionNow(nowUtc);
+        }
+    }
+
     public bool TryEndQuestion(DateTimeOffset nowUtc)
     {
         lock (_gate)
         {
-            if (Phase != GamePhase.QuestionActive || QuestionEndsAtUtc is null)
-            {
-                return false;
-            }
-
-            var expectedAnswers = Math.Max(1, _players.Count(p => p.IsConnected));
-            if (nowUtc < QuestionEndsAtUtc.Value
-                && _answersThisQuestion.Count < expectedAnswers)
+            if (!CanEndQuestionNow(nowUtc))
             {
                 return false;
             }
@@ -529,17 +530,35 @@ public sealed class GameSession
         }
     }
 
-    public void ForceEndQuestion()
+    public bool ForceEndQuestion()
     {
         lock (_gate)
         {
             if (Phase != GamePhase.QuestionActive)
             {
-                return;
+                return false;
             }
 
             TransitionQuestionToReveal();
+            return true;
         }
+    }
+
+    private bool CanEndQuestionNow(DateTimeOffset nowUtc)
+    {
+        if (Phase != GamePhase.QuestionActive || QuestionEndsAtUtc is null)
+        {
+            return false;
+        }
+
+        var expectedAnswers = Math.Max(1, _players.Count(p => p.IsConnected));
+        if (nowUtc < QuestionEndsAtUtc.Value
+            && _answersThisQuestion.Count < expectedAnswers)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     public void ShowLeaderboard()
