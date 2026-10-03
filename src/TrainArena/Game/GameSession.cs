@@ -22,9 +22,12 @@ public sealed class GameSession
     private readonly Dictionary<string, PlayerPowerUpState> _powerUps =
         new(StringComparer.OrdinalIgnoreCase);
     private List<DemoQuestion> _quizQuestions = new();
+    private readonly Dictionary<string, bool> _correctThisQuestion =
+        new(StringComparer.OrdinalIgnoreCase);
     private bool _roomExtraTimeExtendedThisQuestion;
     private int _hostEventsUsedThisQuestion;
     private bool _boostAllActive;
+    private TimeSpan _questionScoreLimit;
 
     public GameSession(string code, string hostConnectionId, Guid quizId, PowerUpRoomConfig? powerUpConfig = null)
     {
@@ -242,11 +245,13 @@ public sealed class GameSession
             }
 
             var limit = TimeSpan.FromSeconds(Math.Max(1, question.TimeLimitSeconds));
+            _questionScoreLimit = limit;
             CurrentQuestion = question;
             QuestionIndex++;
             QuestionStartedAtUtc = nowUtc;
             QuestionEndsAtUtc = nowUtc + limit;
             _answersThisQuestion.Clear();
+            _correctThisQuestion.Clear();
             ClearPerQuestionPowerUpFlags();
             Phase = GamePhase.QuestionActive;
             return (true, null);
@@ -371,11 +376,135 @@ public sealed class GameSession
 
             _answersThisQuestion[player.Nickname] = optionIndex;
             var correct = optionIndex == CurrentQuestion.CorrectIndex;
+            _correctThisQuestion[player.Nickname] = correct;
             var elapsed = serverUtc - QuestionStartedAtUtc.Value;
-            var limit = QuestionEndsAtUtc.Value - QuestionStartedAtUtc.Value;
-            var points = Scoring.Score(correct, elapsed, limit);
+            var points = Scoring.Score(correct, elapsed, _questionScoreLimit);
+            if (points > 0)
+            {
+                if (_powerUps.TryGetValue(player.Nickname, out var pu))
+                {
+                    if (pu.DoubleActive)
+                    {
+                        points *= 2;
+                        pu.DoubleActive = false;
+                    }
+                }
+
+                if (_boostAllActive)
+                {
+                    points = (int)Math.Floor(points * 1.5);
+                }
+            }
+            else if (_powerUps.TryGetValue(player.Nickname, out var puWrong))
+            {
+                puWrong.DoubleActive = false;
+            }
+
             player.Score += points;
             return (true, null, points);
+        }
+    }
+
+    public (bool ok, string? error, DateTimeOffset? newEndsAtUtc) TryHostArenaEvent(
+        string hostConnectionId,
+        PowerUpId powerUpId)
+    {
+        lock (_gate)
+        {
+            if (!PowerUpConfig.Enabled)
+            {
+                return (false, "Power-ups disabled", null);
+            }
+
+            if (!PowerUpConfig.HostEventsEnabled)
+            {
+                return (false, "Host arena events disabled", null);
+            }
+
+            if (Phase != GamePhase.QuestionActive || CurrentQuestion is null)
+            {
+                return (false, "No active question", null);
+            }
+
+            if (!string.Equals(HostConnectionId, hostConnectionId, StringComparison.Ordinal))
+            {
+                return (false, "Only the host can trigger arena events", null);
+            }
+
+            if (_hostEventsUsedThisQuestion >= PowerUpConfig.MaxHostEventPerQuestion)
+            {
+                return (false, "Host event budget exhausted for this question", null);
+            }
+
+            var definition = PowerUpCatalog.Get(powerUpId);
+            if (definition.Kind != PowerUpKind.Host)
+            {
+                return (false, "Not a host arena event", null);
+            }
+
+            DateTimeOffset? newEndsAt = null;
+            switch (powerUpId)
+            {
+                case PowerUpId.BoostAll:
+                    _boostAllActive = true;
+                    break;
+                case PowerUpId.TimePlus:
+                    QuestionEndsAtUtc = QuestionEndsAtUtc!.Value.AddSeconds(5);
+                    newEndsAt = QuestionEndsAtUtc;
+                    break;
+                default:
+                    return (false, "Unknown host arena event", null);
+            }
+
+            _hostEventsUsedThisQuestion++;
+            return (true, null, newEndsAt);
+        }
+    }
+
+    public IReadOnlyList<(string Nickname, PowerUpId PowerUpId)> ApplyStreakRewards(Random? rng = null)
+    {
+        rng ??= Random.Shared;
+        lock (_gate)
+        {
+            var grants = new List<(string Nickname, PowerUpId PowerUpId)>();
+            var every = PowerUpConfig.StreakRewardEvery;
+            var pool = PowerUpConfig.StreakRewardPool;
+            if (!PowerUpConfig.Enabled || every <= 0 || pool.Count == 0)
+            {
+                _correctThisQuestion.Clear();
+                return grants;
+            }
+
+            foreach (var player in _players)
+            {
+                if (!_powerUps.TryGetValue(player.Nickname, out var state))
+                {
+                    continue;
+                }
+
+                var answeredCorrectly = _correctThisQuestion.TryGetValue(player.Nickname, out var ok) && ok;
+                if (answeredCorrectly)
+                {
+                    state.Streak++;
+                }
+                else
+                {
+                    state.Streak = 0;
+                }
+
+                if (state.Streak > 0 && state.Streak % every == 0)
+                {
+                    var pick = pool[rng.Next(pool.Count)];
+                    if (state.Inventory[pick] < PowerUpConfig.MaxStackPerType)
+                    {
+                        state.Inventory[pick]++;
+                        grants.Add((player.Nickname, pick));
+                    }
+                }
+            }
+
+            _correctThisQuestion.Clear();
+            return grants;
         }
     }
 
