@@ -19,12 +19,16 @@ public sealed class GameSessionStore
         _codes = codes;
     }
 
-    public GameSession Create(string hostConnectionId, Guid quizId, PowerUpRoomConfig? config = null)
+    public GameSession Create(
+        string hostConnectionId,
+        Guid quizId,
+        PowerUpRoomConfig? powerUps = null,
+        AutoAdvanceOptions? autoAdvance = null)
     {
         for (var attempt = 0; attempt < 32; attempt++)
         {
             var code = _codes.Next();
-            var session = new GameSession(code, hostConnectionId, quizId, config);
+            var session = new GameSession(code, hostConnectionId, quizId, powerUps, autoAdvance);
             if (_sessions.TryAdd(code, session))
             {
                 _connectionToCode[hostConnectionId] = code;

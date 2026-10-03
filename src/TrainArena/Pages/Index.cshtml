@@ -52,6 +52,21 @@
                     <label>Shield <input type="number" id="pu-shield" min="0" max="9" value="1" /></label>
                 </div>
             </fieldset>
+            <fieldset id="auto-advance-setup" class="powerup-setup">
+                <legend>Auto-Weiter</legend>
+                <label class="inline">
+                    <input type="checkbox" id="aa-enabled" />
+                    Automatisch weiter
+                </label>
+                <label class="inline">
+                    Verzögerung
+                    <select id="aa-delay" aria-label="Verzögerung bis zur nächsten Frage">
+                        <option value="3">3 Sekunden</option>
+                        <option value="5" selected>5 Sekunden</option>
+                        <option value="10">10 Sekunden</option>
+                    </select>
+                </label>
+            </fieldset>
             <button id="btn-create" type="button">Raum erstellen</button>
             <p id="room-code" class="code hidden" aria-live="polite"></p>
             <div id="qr-wrap" class="hidden">
@@ -80,6 +95,7 @@
                 <h3>Rangliste</h3>
                 <ol id="board-list"></ol>
                 <p id="board-hint" class="muted hidden">Du entscheidest mit „Weiter“ — kein automatischer Wechsel.</p>
+                <p id="board-auto-advance" class="hint hidden" aria-live="polite"></p>
             </div>
             <button id="btn-next" type="button" class="hidden">Nächste Frage</button>
             <p id="finished" class="hidden">Runde beendet. Danke!</p>

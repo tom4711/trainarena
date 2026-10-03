@@ -16,6 +16,9 @@ public sealed class GameHub : Hub
     private static readonly ConcurrentDictionary<string, CancellationTokenSource> QuestionEndTimers =
         new(StringComparer.OrdinalIgnoreCase);
 
+    private static readonly ConcurrentDictionary<string, CancellationTokenSource> AutoAdvanceTimers =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private readonly GameSessionStore _sessions;
     private readonly IHubContext<GameHub> _hubContext;
     private readonly IServiceScopeFactory _scopeFactory;
@@ -32,7 +35,10 @@ public sealed class GameHub : Hub
 
     public static string RoomGroup(string code) => $"room:{code.ToUpperInvariant()}";
 
-    public async Task CreateRoom(Guid quizId, PowerUpConfigDto? powerUpConfig = null)
+    public async Task CreateRoom(
+        Guid quizId,
+        PowerUpConfigDto? powerUpConfig = null,
+        AutoAdvanceConfigDto? autoAdvance = null)
     {
         PowerUpRoomConfig? roomConfig = null;
         if (powerUpConfig is not null)
@@ -49,6 +55,22 @@ public sealed class GameHub : Hub
             if (validationError is not null)
             {
                 await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(validationError));
+                return;
+            }
+        }
+
+        AutoAdvanceOptions? autoAdvanceOptions = null;
+        if (autoAdvance is not null)
+        {
+            autoAdvanceOptions = new AutoAdvanceOptions
+            {
+                Enabled = autoAdvance.Enabled,
+                DelaySeconds = autoAdvance.DelaySeconds,
+            };
+            var autoError = autoAdvanceOptions.Validate();
+            if (autoError is not null)
+            {
+                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(autoError));
                 return;
             }
         }
@@ -71,7 +93,7 @@ public sealed class GameHub : Hub
             .Select(QuizRules.ToDemoQuestion)
             .ToList();
 
-        var session = _sessions.Create(Context.ConnectionId, quizId, roomConfig);
+        var session = _sessions.Create(Context.ConnectionId, quizId, roomConfig, autoAdvanceOptions);
         session.SetQuestions(questions);
 
         await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(session.Code));
@@ -148,8 +170,15 @@ public sealed class GameHub : Hub
     {
         if (_sessions.TryGetByConnection(Context.ConnectionId, out var session) && session is not null)
         {
+            var isHost = session.IsHost(Context.ConnectionId);
             var wasPlayer = session.MarkDisconnected(Context.ConnectionId);
             _sessions.UnbindConnection(Context.ConnectionId);
+
+            if (isHost)
+            {
+                CancelAutoAdvance(session.Code, broadcastIfActive: true);
+            }
+
             if (wasPlayer)
             {
                 await Clients.Group(RoomGroup(session.Code)).SendAsync("LobbyState", ToLobbyState(session));
@@ -296,6 +325,8 @@ public sealed class GameHub : Hub
             return;
         }
 
+        CancelAutoAdvance(session.Code, broadcastIfActive: true);
+
         if (session.Phase == GamePhase.Reveal)
         {
             session.ShowLeaderboard();
@@ -309,30 +340,24 @@ public sealed class GameHub : Hub
             return;
         }
 
-        if (session.HasMoreQuestions)
-        {
-            await StartCurrentNextQuestion(session);
-            return;
-        }
-
-        var (ok, error) = session.TryFinish();
-        if (!ok)
-        {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Cannot finish"));
-            return;
-        }
-
-        await Clients.Group(RoomGroup(session.Code)).SendAsync(
-            "GameFinished",
-            new GameFinishedMessage(ToLeaderboard(session).Entries));
+        await AdvanceFromLeaderboardAsync(session, notifyHostOnError: true, viaHubContext: false);
     }
 
-    private async Task StartCurrentNextQuestion(GameSession session)
+    private async Task StartCurrentNextQuestion(
+        GameSession session,
+        bool notifyHostOnError = true,
+        bool viaHubContext = false)
     {
+        CancelAutoAdvance(session.Code, broadcastIfActive: false);
+
         var next = session.PeekNextQuestion();
         if (next is null)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("No question available"));
+            if (notifyHostOnError)
+            {
+                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("No question available"));
+            }
+
             return;
         }
 
@@ -340,11 +365,23 @@ public sealed class GameHub : Hub
         var (ok, error) = session.StartQuestion(next, now);
         if (!ok)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Cannot start"));
+            if (notifyHostOnError)
+            {
+                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Cannot start"));
+            }
+
             return;
         }
 
-        await BroadcastQuestionStarted(session);
+        if (viaHubContext)
+        {
+            await BroadcastQuestionStartedViaHubContext(session);
+        }
+        else
+        {
+            await BroadcastQuestionStarted(session);
+        }
+
         RescheduleQuestionEnd(session.Code, session.QuestionEndsAtUtc!.Value);
     }
 
@@ -368,15 +405,26 @@ public sealed class GameHub : Hub
         var q = session.CurrentQuestion!;
         await Clients.Group(RoomGroup(session.Code)).SendAsync(
             "QuestionStarted",
-            new QuestionStartedMessage(
-                session.QuestionIndex,
-                session.QuestionCount,
-                q.Text,
-                q.Options,
-                session.QuestionStartedAtUtc!.Value,
-                session.QuestionEndsAtUtc!.Value,
-                q.ImageUrl));
+            ToQuestionStartedMessage(session, q));
     }
+
+    private async Task BroadcastQuestionStartedViaHubContext(GameSession session)
+    {
+        var q = session.CurrentQuestion!;
+        await _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync(
+            "QuestionStarted",
+            ToQuestionStartedMessage(session, q));
+    }
+
+    private static QuestionStartedMessage ToQuestionStartedMessage(GameSession session, DemoQuestion q) =>
+        new(
+            session.QuestionIndex,
+            session.QuestionCount,
+            q.Text,
+            q.Options,
+            session.QuestionStartedAtUtc!.Value,
+            session.QuestionEndsAtUtc!.Value,
+            q.ImageUrl);
 
     private async Task BroadcastQuestionEndedAsync(GameSession session)
     {
@@ -401,6 +449,7 @@ public sealed class GameHub : Hub
             ToLeaderboard(session));
 
         CancelQuestionEndTimer(session.Code);
+        ScheduleAutoAdvance(session);
     }
 
     /// <summary>
@@ -471,6 +520,112 @@ public sealed class GameHub : Hub
             ToLeaderboard(session));
 
         CancelQuestionEndTimer(session.Code);
+        ScheduleAutoAdvance(session);
+    }
+
+    private void ScheduleAutoAdvance(GameSession session)
+    {
+        if (!session.AutoAdvance.Enabled || session.Phase != GamePhase.Leaderboard)
+        {
+            return;
+        }
+
+        CancelAutoAdvance(session.Code, broadcastIfActive: false);
+
+        var delay = TimeSpan.FromSeconds(session.AutoAdvance.DelaySeconds);
+        var advancesAtUtc = DateTimeOffset.UtcNow + delay;
+        var cts = new CancellationTokenSource();
+        AutoAdvanceTimers[session.Code] = cts;
+
+        _ = _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync(
+            "AutoAdvanceScheduled",
+            new AutoAdvanceScheduledMessage(advancesAtUtc));
+
+        var code = session.Code;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(delay, cts.Token);
+                if (!_sessions.TryGet(code, out var live) || live is null)
+                {
+                    return;
+                }
+
+                if (live.Phase != GamePhase.Leaderboard)
+                {
+                    return;
+                }
+
+                await AdvanceFromLeaderboardAsync(live, notifyHostOnError: false, viaHubContext: true);
+            }
+            catch (OperationCanceledException)
+            {
+                // Host Next or rescheduled auto-advance.
+            }
+            catch
+            {
+                // Timer best-effort; host can always advance manually.
+            }
+        });
+    }
+
+    private void CancelAutoAdvance(string code, bool broadcastIfActive)
+    {
+        if (!AutoAdvanceTimers.TryRemove(code, out var existing))
+        {
+            return;
+        }
+
+        existing.Cancel();
+        existing.Dispose();
+
+        if (broadcastIfActive)
+        {
+            _ = _hubContext.Clients.Group(RoomGroup(code)).SendAsync(
+                "AutoAdvanceCancelled",
+                new AutoAdvanceCancelledMessage());
+        }
+    }
+
+    private async Task AdvanceFromLeaderboardAsync(
+        GameSession session,
+        bool notifyHostOnError,
+        bool viaHubContext)
+    {
+        if (session.Phase != GamePhase.Leaderboard)
+        {
+            return;
+        }
+
+        CancelAutoAdvance(session.Code, broadcastIfActive: false);
+
+        if (session.HasMoreQuestions)
+        {
+            await StartCurrentNextQuestion(session, notifyHostOnError, viaHubContext);
+            return;
+        }
+
+        var (ok, error) = session.TryFinish();
+        if (!ok)
+        {
+            if (notifyHostOnError)
+            {
+                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Cannot finish"));
+            }
+
+            return;
+        }
+
+        var finished = new GameFinishedMessage(ToLeaderboard(session).Entries);
+        if (viaHubContext)
+        {
+            await _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync("GameFinished", finished);
+        }
+        else
+        {
+            await Clients.Group(RoomGroup(session.Code)).SendAsync("GameFinished", finished);
+        }
     }
 
     private static void CancelQuestionEndTimer(string code)

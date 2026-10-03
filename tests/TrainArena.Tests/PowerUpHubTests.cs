@@ -21,7 +21,7 @@ public class PowerUpHubTests : IClassFixture<TrainArenaWebAppFactory>
         await using var player = await ConnectAsync();
 
         var hostRoomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
-        await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId, null);
+        await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId, null, null);
         var room = await hostRoomCreated;
 
         var playerInventoryOnJoin = WaitFor<InventoryUpdateMessage>(player, "InventoryUpdate");
@@ -55,7 +55,7 @@ public class PowerUpHubTests : IClassFixture<TrainArenaWebAppFactory>
         await using var player2 = await ConnectAsync();
 
         var hostRoomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
-        await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId, null);
+        await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId, null, null);
         var room = await hostRoomCreated;
 
         await player1.InvokeAsync("JoinRoom", room.Code, "Azubi1");
