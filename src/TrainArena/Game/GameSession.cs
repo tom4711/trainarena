@@ -1,3 +1,5 @@
+using TrainArena.Game.PowerUps;
+
 namespace TrainArena.Game;
 
 public sealed class PlayerInfo
@@ -17,14 +19,25 @@ public sealed class GameSession
     private readonly List<PlayerInfo> _players = new();
     private readonly Dictionary<string, int> _answersThisQuestion =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PlayerPowerUpState> _powerUps =
+        new(StringComparer.OrdinalIgnoreCase);
     private List<DemoQuestion> _quizQuestions = new();
+    private readonly Dictionary<string, bool> _correctThisQuestion =
+        new(StringComparer.OrdinalIgnoreCase);
+    private bool _roomExtraTimeExtendedThisQuestion;
+    private int _hostEventsUsedThisQuestion;
+    private bool _boostAllActive;
+    private TimeSpan _questionScoreLimit;
 
-    public GameSession(string code, string hostConnectionId, Guid quizId)
+    public GameSession(string code, string hostConnectionId, Guid quizId, PowerUpRoomConfig? powerUpConfig = null)
     {
         Code = code;
         HostConnectionId = hostConnectionId;
         QuizId = quizId;
+        PowerUpConfig = powerUpConfig ?? PowerUpRoomConfig.CreateDefault();
     }
+
+    public PowerUpRoomConfig PowerUpConfig { get; }
 
     public string Code { get; }
     public string HostConnectionId { get; private set; }
@@ -130,6 +143,7 @@ public sealed class GameSession
                 // Soft rejoin via JoinRoom after disconnect.
                 existing.ConnectionId = connectionId;
                 existing.IsConnected = true;
+                EnsurePowerUpState(trimmed);
                 return (true, null);
             }
 
@@ -139,6 +153,7 @@ public sealed class GameSession
                 ConnectionId = connectionId,
                 IsConnected = true
             });
+            GrantStarterPowerUps(trimmed);
             return (true, null);
         }
     }
@@ -162,7 +177,21 @@ public sealed class GameSession
 
             player.ConnectionId = connectionId;
             player.IsConnected = true;
+            EnsurePowerUpState(trimmed);
             return (true, null);
+        }
+    }
+
+    public PlayerPowerUpState? GetPowerUpState(string nickname)
+    {
+        lock (_gate)
+        {
+            if (!_powerUps.TryGetValue(nickname, out var state))
+            {
+                return null;
+            }
+
+            return state;
         }
     }
 
@@ -216,13 +245,98 @@ public sealed class GameSession
             }
 
             var limit = TimeSpan.FromSeconds(Math.Max(1, question.TimeLimitSeconds));
+            _questionScoreLimit = limit;
             CurrentQuestion = question;
             QuestionIndex++;
             QuestionStartedAtUtc = nowUtc;
             QuestionEndsAtUtc = nowUtc + limit;
             _answersThisQuestion.Clear();
+            _correctThisQuestion.Clear();
+            ClearPerQuestionPowerUpFlags();
             Phase = GamePhase.QuestionActive;
             return (true, null);
+        }
+    }
+
+    public (bool ok, string? error, PowerUpUseResult? result) TryUsePowerUp(
+        string connectionId,
+        PowerUpId powerUpId)
+    {
+        lock (_gate)
+        {
+            if (!PowerUpConfig.Enabled)
+            {
+                return (false, "Power-ups disabled", null);
+            }
+
+            if (Phase != GamePhase.QuestionActive || CurrentQuestion is null)
+            {
+                return (false, "No active question", null);
+            }
+
+            var player = _players.FirstOrDefault(p => p.ConnectionId == connectionId && p.IsConnected);
+            if (player is null)
+            {
+                return (false, "Not a player in this room", null);
+            }
+
+            if (_answersThisQuestion.ContainsKey(player.Nickname))
+            {
+                return (false, "Already answered", null);
+            }
+
+            if (!_powerUps.TryGetValue(player.Nickname, out var state))
+            {
+                return (false, "Not a player in this room", null);
+            }
+
+            var definition = PowerUpCatalog.Get(powerUpId);
+            if (definition.Kind != PowerUpKind.Player)
+            {
+                return (false, "Not a player power-up", null);
+            }
+
+            if (state.Inventory[powerUpId] < 1)
+            {
+                return (false, "No power-ups remaining", null);
+            }
+
+            var isSelfEffect = powerUpId is PowerUpId.FiftyFifty or PowerUpId.Double or PowerUpId.ExtraTime;
+            if (isSelfEffect && state.HasSelfEffectActive)
+            {
+                return (false, "Already used a self-effect this question", null);
+            }
+
+            state.Inventory[powerUpId]--;
+
+            int[]? masked = null;
+            DateTimeOffset? newEndsAt = null;
+
+            switch (powerUpId)
+            {
+                case PowerUpId.FiftyFifty:
+                    masked = PickTwoWrongIndexes(CurrentQuestion.CorrectIndex);
+                    state.MaskedWrongIndexes = masked;
+                    break;
+                case PowerUpId.Double:
+                    state.DoubleActive = true;
+                    break;
+                case PowerUpId.ExtraTime:
+                    state.UsedExtraTimeThisQuestion = true;
+                    if (!_roomExtraTimeExtendedThisQuestion)
+                    {
+                        QuestionEndsAtUtc = QuestionEndsAtUtc!.Value.AddSeconds(5);
+                        _roomExtraTimeExtendedThisQuestion = true;
+                        newEndsAt = QuestionEndsAtUtc;
+                    }
+
+                    break;
+                case PowerUpId.Shield:
+                    state.HasShield = true;
+                    break;
+            }
+
+            return (true, null, new PowerUpUseResult(powerUpId, masked, newEndsAt));
         }
     }
 
@@ -262,11 +376,143 @@ public sealed class GameSession
 
             _answersThisQuestion[player.Nickname] = optionIndex;
             var correct = optionIndex == CurrentQuestion.CorrectIndex;
+            _correctThisQuestion[player.Nickname] = correct;
             var elapsed = serverUtc - QuestionStartedAtUtc.Value;
-            var limit = QuestionEndsAtUtc.Value - QuestionStartedAtUtc.Value;
-            var points = Scoring.Score(correct, elapsed, limit);
+            var points = Scoring.Score(correct, elapsed, _questionScoreLimit);
+            if (points > 0)
+            {
+                if (_powerUps.TryGetValue(player.Nickname, out var pu))
+                {
+                    if (pu.DoubleActive)
+                    {
+                        points *= 2;
+                        pu.DoubleActive = false;
+                    }
+                }
+
+                if (_boostAllActive)
+                {
+                    points = (int)Math.Floor(points * 1.5);
+                }
+            }
+            else if (_powerUps.TryGetValue(player.Nickname, out var puWrong))
+            {
+                puWrong.DoubleActive = false;
+            }
+
             player.Score += points;
             return (true, null, points);
+        }
+    }
+
+    public (bool ok, string? error, DateTimeOffset? newEndsAtUtc) TryHostArenaEvent(
+        string hostConnectionId,
+        PowerUpId powerUpId)
+    {
+        lock (_gate)
+        {
+            if (!PowerUpConfig.Enabled)
+            {
+                return (false, "Power-ups disabled", null);
+            }
+
+            if (!PowerUpConfig.HostEventsEnabled)
+            {
+                return (false, "Host arena events disabled", null);
+            }
+
+            if (Phase != GamePhase.QuestionActive || CurrentQuestion is null)
+            {
+                return (false, "No active question", null);
+            }
+
+            if (!string.Equals(HostConnectionId, hostConnectionId, StringComparison.Ordinal))
+            {
+                return (false, "Only the host can trigger arena events", null);
+            }
+
+            if (_hostEventsUsedThisQuestion >= PowerUpConfig.MaxHostEventPerQuestion)
+            {
+                return (false, "Host event budget exhausted for this question", null);
+            }
+
+            var definition = PowerUpCatalog.Get(powerUpId);
+            if (definition.Kind != PowerUpKind.Host)
+            {
+                return (false, "Not a host arena event", null);
+            }
+
+            DateTimeOffset? newEndsAt = null;
+            switch (powerUpId)
+            {
+                case PowerUpId.BoostAll:
+                    _boostAllActive = true;
+                    break;
+                case PowerUpId.TimePlus:
+                    QuestionEndsAtUtc = QuestionEndsAtUtc!.Value.AddSeconds(5);
+                    newEndsAt = QuestionEndsAtUtc;
+                    break;
+                default:
+                    return (false, "Unknown host arena event", null);
+            }
+
+            _hostEventsUsedThisQuestion++;
+            return (true, null, newEndsAt);
+        }
+    }
+
+    public IReadOnlyList<(string Nickname, PowerUpId PowerUpId)> ApplyStreakRewards(Random? rng = null)
+    {
+        rng ??= Random.Shared;
+        lock (_gate)
+        {
+            var grants = new List<(string Nickname, PowerUpId PowerUpId)>();
+            var every = PowerUpConfig.StreakRewardEvery;
+            var pool = PowerUpConfig.StreakRewardPool;
+            if (!PowerUpConfig.Enabled || every <= 0 || pool.Count == 0)
+            {
+                _correctThisQuestion.Clear();
+                return grants;
+            }
+
+            foreach (var player in _players)
+            {
+                if (!_powerUps.TryGetValue(player.Nickname, out var state))
+                {
+                    continue;
+                }
+
+                var answeredCorrectly = _correctThisQuestion.TryGetValue(player.Nickname, out var ok) && ok;
+                if (answeredCorrectly)
+                {
+                    state.Streak++;
+                }
+                else
+                {
+                    state.Streak = 0;
+                }
+
+                if (state.Streak > 0 && state.Streak % every == 0)
+                {
+                    var pick = pool[rng.Next(pool.Count)];
+                    if (state.Inventory[pick] < PowerUpConfig.MaxStackPerType)
+                    {
+                        state.Inventory[pick]++;
+                        grants.Add((player.Nickname, pick));
+                    }
+                }
+            }
+
+            _correctThisQuestion.Clear();
+            return grants;
+        }
+    }
+
+    public bool ShouldEndQuestion(DateTimeOffset nowUtc)
+    {
+        lock (_gate)
+        {
+            return CanEndQuestionNow(nowUtc);
         }
     }
 
@@ -274,34 +520,45 @@ public sealed class GameSession
     {
         lock (_gate)
         {
-            if (Phase != GamePhase.QuestionActive || QuestionEndsAtUtc is null)
+            if (!CanEndQuestionNow(nowUtc))
             {
                 return false;
             }
 
-            var expectedAnswers = Math.Max(1, _players.Count(p => p.IsConnected));
-            if (nowUtc < QuestionEndsAtUtc.Value
-                && _answersThisQuestion.Count < expectedAnswers)
-            {
-                return false;
-            }
-
-            Phase = GamePhase.Reveal;
+            TransitionQuestionToReveal();
             return true;
         }
     }
 
-    public void ForceEndQuestion()
+    public bool ForceEndQuestion()
     {
         lock (_gate)
         {
             if (Phase != GamePhase.QuestionActive)
             {
-                return;
+                return false;
             }
 
-            Phase = GamePhase.Reveal;
+            TransitionQuestionToReveal();
+            return true;
         }
+    }
+
+    private bool CanEndQuestionNow(DateTimeOffset nowUtc)
+    {
+        if (Phase != GamePhase.QuestionActive || QuestionEndsAtUtc is null)
+        {
+            return false;
+        }
+
+        var expectedAnswers = Math.Max(1, _players.Count(p => p.IsConnected));
+        if (nowUtc < QuestionEndsAtUtc.Value
+            && _answersThisQuestion.Count < expectedAnswers)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     public void ShowLeaderboard()
@@ -363,4 +620,74 @@ public sealed class GameSession
 
     public bool IsHost(string connectionId) =>
         string.Equals(HostConnectionId, connectionId, StringComparison.Ordinal);
+
+    private void GrantStarterPowerUps(string nickname)
+    {
+        var state = new PlayerPowerUpState();
+        state.EnsurePlayerKeys();
+        if (PowerUpConfig.Enabled)
+        {
+            foreach (var id in PowerUpCatalog.PlayerIds)
+            {
+                if (PowerUpConfig.Starter.TryGetValue(id, out var count))
+                {
+                    state.Inventory[id] = count;
+                }
+            }
+        }
+
+        _powerUps[nickname] = state;
+    }
+
+    private void EnsurePowerUpState(string nickname)
+    {
+        if (_powerUps.ContainsKey(nickname))
+        {
+            return;
+        }
+
+        var state = new PlayerPowerUpState();
+        state.EnsurePlayerKeys();
+        _powerUps[nickname] = state;
+    }
+
+    private void TransitionQuestionToReveal()
+    {
+        ClearDoubleActiveForAllPlayers();
+        Phase = GamePhase.Reveal;
+    }
+
+    private void ClearDoubleActiveForAllPlayers()
+    {
+        foreach (var state in _powerUps.Values)
+        {
+            state.DoubleActive = false;
+        }
+    }
+
+    private void ClearPerQuestionPowerUpFlags()
+    {
+        foreach (var state in _powerUps.Values)
+        {
+            state.DoubleActive = false;
+            state.MaskedWrongIndexes = null;
+            state.UsedExtraTimeThisQuestion = false;
+        }
+
+        _roomExtraTimeExtendedThisQuestion = false;
+        _hostEventsUsedThisQuestion = 0;
+        _boostAllActive = false;
+    }
+
+    private static int[] PickTwoWrongIndexes(int correctIndex)
+    {
+        var wrong = Enumerable.Range(0, 4).Where(i => i != correctIndex).ToList();
+        for (var i = wrong.Count - 1; i > 0; i--)
+        {
+            var j = Random.Shared.Next(i + 1);
+            (wrong[i], wrong[j]) = (wrong[j], wrong[i]);
+        }
+
+        return [wrong[0], wrong[1]];
+    }
 }

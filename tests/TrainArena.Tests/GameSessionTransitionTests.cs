@@ -113,4 +113,18 @@ public class GameSessionTransitionTests
         Assert.False(ok);
         Assert.Equal("No active question", error);
     }
+
+    [Fact]
+    public void ForceEndQuestion_SecondCall_ReturnsFalse_AndLeavesReveal()
+    {
+        var session = ReadyLobby("Azubi1");
+        var t0 = DateTimeOffset.UtcNow;
+        session.StartQuestion(Q(seconds: 60), t0);
+
+        Assert.True(session.ForceEndQuestion());
+        Assert.Equal(GamePhase.Reveal, session.Phase);
+
+        Assert.False(session.ForceEndQuestion());
+        Assert.Equal(GamePhase.Reveal, session.Phase);
+    }
 }

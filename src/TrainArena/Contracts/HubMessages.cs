@@ -34,3 +34,27 @@ public sealed record LeaderboardMessage(
     bool HasMoreQuestions);
 
 public sealed record GameFinishedMessage(IReadOnlyList<LeaderboardEntryDto> Entries);
+
+public sealed record PowerUpConfigDto(
+    bool Enabled,
+    Dictionary<string, int>? Starter,
+    int StreakRewardEvery,
+    int MaxStackPerType,
+    bool HostEventsEnabled,
+    int MaxHostEventPerQuestion);
+
+public sealed record InventoryUpdateMessage(
+    Dictionary<string, int> Counts,
+    int Streak);
+
+public sealed record PowerUpUsedMessage(
+    string PowerUpId,
+    bool Ok,
+    int[]? MaskedWrongIndexes,
+    DateTimeOffset? EndsAtUtc);
+
+public sealed record ArenaEventMessage(
+    string PowerUpId,
+    DateTimeOffset? EndsAtUtc);
+
+public sealed record PowerUpErrorMessage(string Error);

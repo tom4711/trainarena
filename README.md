@@ -80,13 +80,20 @@ Stoppen: `docker compose down` (Volumes bleiben). Volumes mit löschen: `docker 
 - Live-Runde, Server-Timer, Rangliste, Host Next
 - Classroom-Größe ~≤40, ein Prozess
 
+## Power-Ups (v1.1)
+
+Beim **Raum erstellen** kann der Host Power-Ups aktivieren und Starter-Anzahlen setzen (50/50, Double, Extra-Zeit, Shield) sowie die Streak-Belohnung (Standard: alle 2 richtigen Antworten).
+
+- **Spieler:** Inventar-Buttons während einer offenen Frage (vor der Antwort); 50/50 blendet zwei falsche Optionen aus.
+- **Host:** während der Frage **Team-Boost** (alle Punkte ×1,5) oder **Zeit +5** (einmal pro Frage, serverseitig).
+- Punkte, Inventar und Timer werden **nur auf dem Server** berechnet; die UI zeigt nur den Stand.
+
 ## Non-Goals (MVP)
 
-PowerUps (→ v1.1) · öffentliche Demo · App-Store · Marketplace · Aula-Scale · SSO · Auto-Advance
+Öffentliche Demo · App-Store · Marketplace · Aula-Scale · SSO · Auto-Advance
 
 ## Roadmap danach
 
-- **v1.1:** PowerUps  
 - Optional: self-contained Binary  
 
 ## Cloud Agent
