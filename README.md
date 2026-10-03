@@ -92,8 +92,16 @@ Beim **Raum erstellen** kann der Host Power-Ups aktivieren und Starter-Anzahlen 
 
 Öffentliche Demo · App-Store · Marketplace · Aula-Scale · SSO · Auto-Advance
 
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) auf jedem PR und Push nach `main`:
+
+- `dotnet restore` / `build` / `test` (.NET 10)
+- `docker build` (Image nur prüfen, kein Registry-Push)
+
 ## Roadmap danach
 
+- Optional: Auto-Advance (Host-Flag)
 - Optional: self-contained Binary  
 
 ## Cloud Agent
