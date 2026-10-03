@@ -122,7 +122,7 @@
       if (questionOpen) startTimer();
     }
     if (msg.powerUpId === "boost_all" && questionOpen) {
-      answerStatus.textContent = "Team-Boost aktiv — Punkte ×2";
+      answerStatus.textContent = "Team-Boost aktiv — Punkte ×1,5";
     }
   });
 
@@ -172,14 +172,14 @@
 
   connection.on("AnswerAccepted", (msg) => {
     if (!msg.ok) {
+      answered = false;
       answerStatus.textContent = msg.error || "Antwort abgelehnt";
-      if (questionOpen && !answered) {
+      if (questionOpen) {
         [...answers.querySelectorAll("button")].forEach((b) => (b.disabled = false));
         refreshPowerUpButtons();
       }
       return;
     }
-    answered = true;
     disableAnswers();
     refreshPowerUpButtons();
     answerStatus.textContent = `Gesendet (+${msg.points} Punkte)`;
@@ -226,6 +226,7 @@
 
   function submit(index, btn) {
     if (answered || !questionOpen) return;
+    answered = true;
     disableAnswers();
     refreshPowerUpButtons();
     btn.style.outline = "2px solid #fff";

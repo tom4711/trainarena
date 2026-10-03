@@ -213,7 +213,7 @@
   connection.on("ArenaEvent", (msg) => {
     updateEndsAtFromServer(msg.endsAtUtc);
     if (msg.powerUpId === "boost_all") {
-      arenaStatus.textContent = "Team-Boost aktiv — alle Punkte ×2 diese Frage";
+      arenaStatus.textContent = "Team-Boost aktiv — alle Punkte ×1,5 diese Frage";
       arenaStatus.classList.remove("hidden");
     } else if (msg.powerUpId === "time_plus") {
       arenaStatus.textContent = "Zeit um 5 Sekunden verlängert";

@@ -47,6 +47,35 @@ public class PowerUpHubTests : IClassFixture<TrainArenaWebAppFactory>
         Assert.Equal(0, inventory.Counts["fifty_fifty"]);
     }
 
+    [Fact]
+    public async Task UsePowerUp_AfterAnswer_EmitsPowerUpError()
+    {
+        await using var host = await ConnectAsync();
+        await using var player1 = await ConnectAsync();
+        await using var player2 = await ConnectAsync();
+
+        var hostRoomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId, null);
+        var room = await hostRoomCreated;
+
+        await player1.InvokeAsync("JoinRoom", room.Code, "Azubi1");
+        await player2.InvokeAsync("JoinRoom", room.Code, "Azubi2");
+
+        var q1 = WaitFor<QuestionStartedMessage>(player1, "QuestionStarted");
+        await host.InvokeAsync("StartGame");
+        await q1;
+
+        var answerAccepted = WaitFor<AnswerAcceptedMessage>(player1, "AnswerAccepted");
+        await player1.InvokeAsync("SubmitAnswer", 0);
+        await answerAccepted;
+
+        var powerUpError = WaitFor<PowerUpErrorMessage>(player1, "PowerUpError");
+        await player1.InvokeAsync("UsePowerUp", "double");
+        var err = await powerUpError;
+
+        Assert.Contains("answered", err.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task<HubConnection> ConnectAsync()
     {
         var server = _factory.Server;
