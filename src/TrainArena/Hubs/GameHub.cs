@@ -210,7 +210,7 @@ public sealed class GameHub : Hub
             "ScoreUpdate",
             new ScoreUpdateMessage(player.Nickname, player.Score, points));
 
-        if (session.TryEndQuestion(now))
+        if (session.ShouldEndQuestion(now))
         {
             await BroadcastQuestionEndedAsync(session);
         }
@@ -380,7 +380,11 @@ public sealed class GameHub : Hub
 
     private async Task BroadcastQuestionEndedAsync(GameSession session)
     {
-        session.ForceEndQuestion();
+        if (!session.ForceEndQuestion())
+        {
+            return;
+        }
+
         await Clients.Group(RoomGroup(session.Code)).SendAsync(
             "QuestionEnded",
             new QuestionEndedMessage(
@@ -446,7 +450,11 @@ public sealed class GameHub : Hub
 
     private async Task BroadcastQuestionEndedViaHubContextAsync(GameSession session)
     {
-        session.ForceEndQuestion();
+        if (!session.ForceEndQuestion())
+        {
+            return;
+        }
+
         await _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync(
             "QuestionEnded",
             new QuestionEndedMessage(
