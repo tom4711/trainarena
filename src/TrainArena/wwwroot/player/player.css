@@ -61,6 +61,7 @@ button, .answers button {
   cursor: pointer;
 }
 .answers button:disabled { opacity: 0.5; cursor: not-allowed; }
+.answers button.hidden { display: none !important; }
 .error { color: var(--danger); min-height: 1.25rem; }
 .muted { color: var(--muted); }
 .timer { color: var(--accent); font-size: 1.2rem; }
@@ -74,3 +75,27 @@ button, .answers button {
   background: #0f172a;
 }
 .hidden { display: none !important; }
+
+.powerups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.25rem;
+}
+.powerups button {
+  width: auto;
+  flex: 1 1 calc(50% - 0.25rem);
+  margin-top: 0;
+  padding: 0.55rem 0.5rem;
+  font-size: 0.85rem;
+  background: #334155;
+  color: var(--text);
+}
+.powerups button:disabled {
+  opacity: 0.35;
+}
+.powerups button .count {
+  opacity: 0.85;
+  font-weight: 400;
+  font-size: 0.8rem;
+}

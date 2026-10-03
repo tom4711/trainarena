@@ -34,6 +34,24 @@
             <label>Quiz wählen
                 <select id="quiz-select" aria-label="Quiz wählen"></select>
             </label>
+            <fieldset id="powerup-setup" class="powerup-setup">
+                <legend>Power-Ups</legend>
+                <label class="inline">
+                    <input type="checkbox" id="pu-enabled" checked />
+                    Aktiviert
+                </label>
+                <label class="inline">
+                    Streak alle
+                    <input type="number" id="pu-streak" min="0" max="99" value="2" />
+                    richtige
+                </label>
+                <div class="pu-starters">
+                    <label>50/50 <input type="number" id="pu-fifty" min="0" max="9" value="1" /></label>
+                    <label>Double <input type="number" id="pu-double" min="0" max="9" value="1" /></label>
+                    <label>Extra-Zeit <input type="number" id="pu-extra" min="0" max="9" value="0" /></label>
+                    <label>Shield <input type="number" id="pu-shield" min="0" max="9" value="1" /></label>
+                </div>
+            </fieldset>
             <button id="btn-create" type="button">Raum erstellen</button>
             <p id="room-code" class="code hidden" aria-live="polite"></p>
             <div id="qr-wrap" class="hidden">
@@ -51,6 +69,11 @@
             <h2 id="question-text"></h2>
             <img id="question-image" class="q-image hidden" alt="" />
             <p id="timer" class="timer" aria-live="polite"></p>
+            <div id="arena-actions" class="button-row hidden" aria-label="Arena-Power-Ups">
+                <button id="btn-boost" type="button">Team-Boost</button>
+                <button id="btn-time-plus" type="button">Zeit +5</button>
+            </div>
+            <p id="arena-status" class="muted hidden" aria-live="polite"></p>
             <ol id="options" class="options"></ol>
             <p id="reveal" class="reveal hidden"></p>
             <div id="board" class="board hidden">

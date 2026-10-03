@@ -22,6 +22,10 @@
   const qrWrap = $("qr-wrap");
   const qrCanvas = $("qr-canvas");
   const joinUrlEl = $("join-url");
+  const arenaActions = $("arena-actions");
+  const btnBoost = $("btn-boost");
+  const btnTimePlus = $("btn-time-plus");
+  const arenaStatus = $("arena-status");
 
   const STORAGE_ROOM = "trainarena.host.room";
 
@@ -29,12 +33,52 @@
   let endsAt = null;
   let timerHandle = null;
   let questionOpen = false;
+  let hostArenaUsed = false;
   let roomCode = sessionStorage.getItem(STORAGE_ROOM) || "";
 
   const connection = new signalR.HubConnectionBuilder()
     .withUrl("/hubs/game")
     .withAutomaticReconnect()
     .build();
+
+  function readPowerUpConfig() {
+    const num = (id) => {
+      const v = parseInt($(id).value, 10);
+      return Number.isFinite(v) ? Math.max(0, v) : 0;
+    };
+    return {
+      enabled: $("pu-enabled").checked,
+      starter: {
+        fifty_fifty: num("pu-fifty"),
+        double: num("pu-double"),
+        extra_time: num("pu-extra"),
+        shield: num("pu-shield"),
+      },
+      streakRewardEvery: num("pu-streak"),
+      maxStackPerType: 3,
+      hostEventsEnabled: true,
+      maxHostEventPerQuestion: 1,
+    };
+  }
+
+  function setArenaVisible(visible) {
+    arenaActions.classList.toggle("hidden", !visible);
+    if (!visible) {
+      arenaStatus.classList.add("hidden");
+      arenaStatus.textContent = "";
+    }
+  }
+
+  function setArenaButtonsEnabled(enabled) {
+    btnBoost.disabled = !enabled;
+    btnTimePlus.disabled = !enabled;
+  }
+
+  function updateEndsAtFromServer(endsAtUtc) {
+    if (!endsAtUtc) return;
+    endsAt = new Date(endsAtUtc);
+    if (questionOpen) startTimer();
+  }
 
   async function loadQuizzes() {
     const res = await fetch("/api/quizzes");
@@ -71,6 +115,9 @@
     showJoinArtifacts(msg.code);
     btnCreate.disabled = true;
     quizSelect.disabled = true;
+    $("powerup-setup").querySelectorAll("input").forEach((el) => {
+      el.disabled = true;
+    });
     btnStart.classList.remove("hidden");
     lobbyStatus.textContent = "0 Spieler verbunden — warte auf Beitritte…";
   });
@@ -102,6 +149,9 @@
     btnNext.classList.add("hidden");
     finishedEl.classList.add("hidden");
     questionOpen = true;
+    hostArenaUsed = false;
+    setArenaVisible(true);
+    setArenaButtonsEnabled(true);
     progressEl.textContent = `Frage ${(msg.index ?? 0) + 1} von ${msg.totalQuestions ?? "?"}`;
     questionText.textContent = msg.text;
     if (msg.imageUrl) {
@@ -124,6 +174,7 @@
 
   connection.on("QuestionEnded", (msg) => {
     questionOpen = false;
+    setArenaVisible(false);
     stopTimer();
     timerEl.textContent = "0s";
     revealEl.textContent = `Richtige Antwort: Option ${msg.correctIndex + 1}`;
@@ -131,6 +182,7 @@
   });
 
   connection.on("Leaderboard", (msg) => {
+    setArenaVisible(false);
     boardList.innerHTML = "";
     (msg.entries || []).forEach((e) => {
       const li = document.createElement("li");
@@ -144,6 +196,7 @@
   });
 
   connection.on("GameFinished", (msg) => {
+    setArenaVisible(false);
     boardList.innerHTML = "";
     (msg.entries || []).forEach((e) => {
       const li = document.createElement("li");
@@ -155,6 +208,30 @@
     btnNext.classList.add("hidden");
     finishedEl.classList.remove("hidden");
     progressEl.textContent = "Finale";
+  });
+
+  connection.on("ArenaEvent", (msg) => {
+    updateEndsAtFromServer(msg.endsAtUtc);
+    if (msg.powerUpId === "boost_all") {
+      arenaStatus.textContent = "Team-Boost aktiv — alle Punkte ×2 diese Frage";
+      arenaStatus.classList.remove("hidden");
+    } else if (msg.powerUpId === "time_plus") {
+      arenaStatus.textContent = "Zeit um 5 Sekunden verlängert";
+      arenaStatus.classList.remove("hidden");
+    }
+    hostArenaUsed = true;
+    setArenaButtonsEnabled(false);
+  });
+
+  connection.on("PowerUpUsed", (msg) => {
+    if (msg.endsAtUtc) updateEndsAtFromServer(msg.endsAtUtc);
+  });
+
+  connection.on("PowerUpError", (msg) => {
+    if (questionOpen) {
+      arenaStatus.textContent = msg.error || "Power-Up fehlgeschlagen";
+      arenaStatus.classList.remove("hidden");
+    }
   });
 
   function startTimer() {
@@ -181,9 +258,21 @@
     timerHandle = null;
   }
 
-  btnCreate.addEventListener("click", () => connection.invoke("CreateRoom", quizSelect.value));
+  btnCreate.addEventListener("click", () => {
+    const config = readPowerUpConfig();
+    connection.invoke("CreateRoom", quizSelect.value, config);
+  });
   btnStart.addEventListener("click", () => connection.invoke("StartGame"));
   btnNext.addEventListener("click", () => connection.invoke("NextQuestion"));
+
+  btnBoost.addEventListener("click", () => {
+    if (!questionOpen || hostArenaUsed) return;
+    connection.invoke("HostArenaEvent", "boost_all");
+  });
+  btnTimePlus.addEventListener("click", () => {
+    if (!questionOpen || hostArenaUsed) return;
+    connection.invoke("HostArenaEvent", "time_plus");
+  });
 
   connection.onreconnected(async () => {
     if (!roomCode) return;
@@ -203,6 +292,9 @@
           showJoinArtifacts(roomCode);
           btnCreate.disabled = true;
           quizSelect.disabled = true;
+          $("powerup-setup").querySelectorAll("input").forEach((el) => {
+            el.disabled = true;
+          });
           btnStart.classList.remove("hidden");
         } catch {
           sessionStorage.removeItem(STORAGE_ROOM);
