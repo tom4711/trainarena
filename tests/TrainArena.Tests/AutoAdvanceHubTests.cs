@@ -49,6 +49,69 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
     }
 
     [Fact]
+    public async Task Leaderboard_AutoAdvanceEnabled_FiresNextQuestionAfterDelay()
+    {
+        var quizId = await SeedTwoQuestionQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var player = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync(
+            "CreateRoom",
+            quizId,
+            null,
+            new AutoAdvanceConfigDto(true, 3));
+        var room = await roomCreated;
+
+        await player.InvokeAsync("JoinRoom", room.Code, "Azubi1");
+
+        var q1 = WaitFor<QuestionStartedMessage>(player, "QuestionStarted");
+        var scheduled = WaitFor<AutoAdvanceScheduledMessage>(player, "AutoAdvanceScheduled");
+        var board1 = WaitFor<LeaderboardMessage>(player, "Leaderboard");
+
+        await host.InvokeAsync("StartGame");
+        await q1;
+        await player.InvokeAsync("SubmitAnswer", 0);
+        await board1;
+        await scheduled;
+
+        var q2 = WaitFor<QuestionStartedMessage>(player, "QuestionStarted");
+
+        var second = await q2;
+        Assert.Equal(1, second.Index);
+    }
+
+    [Fact]
+    public async Task Leaderboard_WithAutoAdvanceDisabled_DoesNotBroadcastScheduled()
+    {
+        var quizId = await SeedTwoQuestionQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var player = await ConnectAsync();
+
+        var autoAdvanceScheduled = false;
+        player.On<JsonElement>("AutoAdvanceScheduled", _ => autoAdvanceScheduled = true);
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync("CreateRoom", quizId, null, null);
+        var room = await roomCreated;
+
+        await player.InvokeAsync("JoinRoom", room.Code, "Azubi1");
+
+        var q1 = WaitFor<QuestionStartedMessage>(player, "QuestionStarted");
+        var board1 = WaitFor<LeaderboardMessage>(player, "Leaderboard");
+
+        await host.InvokeAsync("StartGame");
+        await q1;
+        await player.InvokeAsync("SubmitAnswer", 0);
+        await board1;
+
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        Assert.False(autoAdvanceScheduled);
+    }
+
+    [Fact]
     public async Task HostNextQuestion_BeforeAutoAdvanceFire_CancelsAndDoesNotDoubleAdvance()
     {
         var quizId = await SeedTwoQuestionQuizAsync();
