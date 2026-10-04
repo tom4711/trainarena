@@ -17,6 +17,7 @@
   const qTimer = $("q-timer");
   const qProgress = $("q-progress");
   const waitHost = $("wait-host");
+  const boardAutoAdvance = $("board-auto-advance");
   const powerupsEl = $("powerups");
 
   const PLAYER_POWERUPS = [
@@ -32,6 +33,8 @@
   let answered = false;
   let questionOpen = false;
   let inventory = {};
+  let autoAdvanceHandle = null;
+  let boardWaitingForHost = false;
   let roomCode = sessionStorage.getItem(STORAGE_CODE) || $("code").value.trim().toUpperCase();
   let nickname = sessionStorage.getItem(STORAGE_NICK) || "";
 
@@ -138,7 +141,29 @@
     }
   });
 
+  function clearAutoAdvanceCountdown() {
+    if (autoAdvanceHandle) clearInterval(autoAdvanceHandle);
+    autoAdvanceHandle = null;
+    boardAutoAdvance.classList.add("hidden");
+    boardAutoAdvance.textContent = "";
+  }
+
+  function startAutoAdvanceCountdown(advancesAtUtc) {
+    clearAutoAdvanceCountdown();
+    waitHost.classList.add("hidden");
+    boardAutoAdvance.classList.remove("hidden");
+    const target = new Date(advancesAtUtc);
+    const tick = () => {
+      const sec = Math.max(0, Math.ceil((target - Date.now()) / 1000));
+      boardAutoAdvance.textContent =
+        sec > 0 ? `Automatisch in ${sec}s` : "Automatisch gleich…";
+    };
+    tick();
+    autoAdvanceHandle = setInterval(tick, 200);
+  }
+
   connection.on("QuestionStarted", (msg) => {
+    clearAutoAdvanceCountdown();
     answered = false;
     questionOpen = true;
     waitPanel.classList.add("hidden");
@@ -195,11 +220,24 @@
   });
 
   connection.on("Leaderboard", (msg) => {
+    clearAutoAdvanceCountdown();
     showBoard(msg.entries || [], false, msg.hasMoreQuestions);
   });
 
   connection.on("GameFinished", (msg) => {
+    clearAutoAdvanceCountdown();
     showBoard(msg.entries || [], true, false);
+  });
+
+  connection.on("AutoAdvanceScheduled", (msg) => {
+    if (msg?.advancesAtUtc) startAutoAdvanceCountdown(msg.advancesAtUtc);
+  });
+
+  connection.on("AutoAdvanceCancelled", () => {
+    clearAutoAdvanceCountdown();
+    if (boardWaitingForHost) {
+      waitHost.classList.remove("hidden");
+    }
   });
 
   function showBoard(entries, done, hasMore) {
@@ -213,6 +251,7 @@
       boardList.appendChild(li);
     });
     $("done").classList.toggle("hidden", !done);
+    boardWaitingForHost = !done;
     if (done) {
       waitHost.classList.add("hidden");
     } else if (hasMore) {

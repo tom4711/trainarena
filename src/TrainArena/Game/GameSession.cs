@@ -29,15 +29,22 @@ public sealed class GameSession
     private bool _boostAllActive;
     private TimeSpan _questionScoreLimit;
 
-    public GameSession(string code, string hostConnectionId, Guid quizId, PowerUpRoomConfig? powerUpConfig = null)
+    public GameSession(
+        string code,
+        string hostConnectionId,
+        Guid quizId,
+        PowerUpRoomConfig? powerUpConfig = null,
+        AutoAdvanceOptions? autoAdvance = null)
     {
         Code = code;
         HostConnectionId = hostConnectionId;
         QuizId = quizId;
         PowerUpConfig = powerUpConfig ?? PowerUpRoomConfig.CreateDefault();
+        AutoAdvance = autoAdvance ?? AutoAdvanceOptions.CreateDefault();
     }
 
     public PowerUpRoomConfig PowerUpConfig { get; }
+    public AutoAdvanceOptions AutoAdvance { get; }
 
     public string Code { get; }
     public string HostConnectionId { get; private set; }

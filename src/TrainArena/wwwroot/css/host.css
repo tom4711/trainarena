@@ -90,6 +90,12 @@ a { color: var(--accent); }
   margin-top: 0;
   padding: 0.35rem 0.4rem;
 }
+.powerup-setup .inline select {
+  width: auto;
+  display: inline-block;
+  margin-top: 0;
+  padding: 0.35rem 0.5rem;
+}
 .pu-starters {
   display: flex;
   flex-wrap: wrap;

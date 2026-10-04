@@ -22,7 +22,7 @@ Dann im Browser (am besten über die **LAN-IP**, nicht nur `localhost`):
 
 1. Host: Quiz wählen → **Raum erstellen** → Code/QR zeigen  
 2. Spieler: Code scannen/eingeben + Nickname → warten  
-3. Host: **Quiz starten** → nach jeder Frage **Weiter** (kein Auto-Advance)
+3. Host: **Quiz starten** → nach jeder Frage **Weiter**; optional beim Raumerstellen **Automatisch weiter** (3/5/10 s nach der Rangliste, standardmäßig aus)
 
 ### Firewall / LAN
 
@@ -90,7 +90,7 @@ Beim **Raum erstellen** kann der Host Power-Ups aktivieren und Starter-Anzahlen 
 
 ## Non-Goals (MVP)
 
-Öffentliche Demo · App-Store · Marketplace · Aula-Scale · SSO · Auto-Advance
+Öffentliche Demo · App-Store · Marketplace · Aula-Scale · SSO
 
 ## CI
 
@@ -101,7 +101,6 @@ GitHub Actions (`.github/workflows/ci.yml`) auf jedem PR und Push nach `main`:
 
 ## Roadmap danach
 
-- Optional: Auto-Advance (Host-Flag)
 - Optional: self-contained Binary  
 
 ## Cloud Agent

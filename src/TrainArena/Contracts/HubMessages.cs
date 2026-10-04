@@ -58,3 +58,9 @@ public sealed record ArenaEventMessage(
     DateTimeOffset? EndsAtUtc);
 
 public sealed record PowerUpErrorMessage(string Error);
+
+public sealed record AutoAdvanceConfigDto(bool Enabled, int DelaySeconds);
+
+public sealed record AutoAdvanceScheduledMessage(DateTimeOffset AdvancesAtUtc);
+
+public sealed record AutoAdvanceCancelledMessage();

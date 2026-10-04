@@ -23,7 +23,7 @@ public class GameHubTests : IClassFixture<TrainArenaWebAppFactory>
         var hostRoomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
         var hostLobby = WaitFor<LobbyStateMessage>(host, "LobbyState");
 
-        await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId, null);
+        await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId, null, null);
         var room = await hostRoomCreated;
         Assert.Matches("^[A-Z0-9]{6}$", room.Code);
         await hostLobby; // initial empty lobby for host
