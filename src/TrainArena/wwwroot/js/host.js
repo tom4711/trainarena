@@ -200,6 +200,12 @@
 
   connection.on("JoinError", (msg) => {
     setLobbyStatus(msg.error || "Fehler", "is-error");
+    if (!roomCode && !quizSelect.disabled) {
+      btnCreate.disabled = false;
+    }
+    if (!live.classList.contains("hidden")) {
+      btnStart.disabled = false;
+    }
   });
 
   function clearAutoAdvanceCountdown() {
