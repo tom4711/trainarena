@@ -179,6 +179,7 @@
       qImage.removeAttribute("src");
       qImage.classList.add("hidden");
     }
+    answerStatus.className = "muted";
     answerStatus.textContent = "";
     answers.innerHTML = "";
     (msg.options || []).forEach((opt, i) => {
@@ -198,25 +199,35 @@
   connection.on("AnswerAccepted", (msg) => {
     if (!msg.ok) {
       answered = false;
+      answerStatus.className = "error";
       answerStatus.textContent = msg.error || "Antwort abgelehnt";
       if (questionOpen) {
-        [...answers.querySelectorAll("button")].forEach((b) => (b.disabled = false));
+        [...answers.querySelectorAll("button")].forEach((b) => {
+          b.disabled = false;
+          b.classList.remove("is-selected");
+        });
         refreshPowerUpButtons();
       }
       return;
     }
     disableAnswers();
     refreshPowerUpButtons();
-    answerStatus.textContent = `Gesendet (+${msg.points} Punkte)`;
+    answerStatus.className = "status-ok";
+    answerStatus.textContent =
+      msg.points > 0 ? `Gesendet (+${msg.points} Punkte)` : "Gesendet";
   });
 
   connection.on("QuestionEnded", () => {
     questionOpen = false;
     stopTimer();
     qTimer.textContent = "0s";
+    qTimer.classList.remove("is-urgent", "is-critical");
     disableAnswers();
     powerupsEl.classList.add("hidden");
-    if (!answered) answerStatus.textContent = "Zeit abgelaufen";
+    if (!answered) {
+      answerStatus.className = "status-warn";
+      answerStatus.textContent = "Zeit abgelaufen";
+    }
   });
 
   connection.on("Leaderboard", (msg) => {
@@ -245,9 +256,14 @@
     boardPanel.classList.remove("hidden");
     powerupsEl.classList.add("hidden");
     boardList.innerHTML = "";
-    entries.forEach((e) => {
+    entries.forEach((e, i) => {
       const li = document.createElement("li");
-      li.textContent = `${e.nickname}: ${e.score}`;
+      li.innerHTML =
+        `<span class="rank">${i + 1}.</span>` +
+        `<span class="nick"></span>` +
+        `<span class="score"></span>`;
+      li.querySelector(".nick").textContent = e.nickname;
+      li.querySelector(".score").textContent = String(e.score);
       boardList.appendChild(li);
     });
     $("done").classList.toggle("hidden", !done);
@@ -268,12 +284,31 @@
     answered = true;
     disableAnswers();
     refreshPowerUpButtons();
-    btn.style.outline = "2px solid #fff";
-    connection.invoke("SubmitAnswer", index);
+    btn.classList.add("is-selected");
+    answerStatus.className = "muted";
+    answerStatus.textContent = "Sende…";
+    connection.invoke("SubmitAnswer", index).catch((err) => {
+      answered = false;
+      [...answers.querySelectorAll("button")].forEach((b) => {
+        b.disabled = false;
+        b.classList.remove("is-selected");
+      });
+      refreshPowerUpButtons();
+      answerStatus.className = "error";
+      answerStatus.textContent = `Senden fehlgeschlagen: ${err}`;
+    });
   }
 
   function disableAnswers() {
     [...answers.querySelectorAll("button")].forEach((b) => (b.disabled = true));
+  }
+
+  function setTimerUrgency(msLeft) {
+    qTimer.classList.remove("is-urgent", "is-critical");
+    if (!questionOpen || msLeft <= 0) return;
+    const sec = Math.ceil(msLeft / 1000);
+    if (sec <= 5) qTimer.classList.add("is-critical");
+    else if (sec <= 10) qTimer.classList.add("is-urgent");
   }
 
   function startTimer() {
@@ -283,13 +318,16 @@
       const ms = endsAt - Date.now();
       if (!questionOpen) {
         qTimer.textContent = "0s";
+        qTimer.classList.remove("is-urgent", "is-critical");
         return;
       }
       if (ms <= 0) {
         qTimer.textContent = "0s · warte auf Server…";
+        qTimer.classList.add("is-critical");
         return;
       }
       qTimer.textContent = `${Math.ceil(ms / 1000)}s`;
+      setTimerUrgency(ms);
     };
     tick();
     timerHandle = setInterval(tick, 200);
@@ -317,18 +355,50 @@
     }
   }
 
-  $("btn-join").addEventListener("click", async () => {
+  async function tryJoin() {
     joinError.textContent = "";
     const code = $("code").value.trim().toUpperCase();
     const nick = $("nickname").value.trim();
+    if (!code || code.length < 4) {
+      joinError.textContent = "Bitte einen gültigen Raum-Code eingeben.";
+      return;
+    }
+    if (!nick) {
+      joinError.textContent = "Bitte einen Nickname eingeben.";
+      return;
+    }
+    const btn = $("btn-join");
+    btn.classList.add("is-busy");
+    btn.disabled = true;
+    btn.textContent = "Beitreten…";
     try {
       await joinOrRejoin(code, nick, false);
     } catch (err) {
       try {
         await joinOrRejoin(code, nick, true);
       } catch (err2) {
-        joinError.textContent = String(err2);
+        joinError.textContent = String(err2?.message || err2);
       }
+    } finally {
+      btn.classList.remove("is-busy");
+      btn.disabled = false;
+      btn.textContent = "Beitreten";
+    }
+  }
+
+  $("btn-join").addEventListener("click", () => {
+    tryJoin();
+  });
+  $("nickname").addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      tryJoin();
+    }
+  });
+  $("code").addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      $("nickname").focus();
     }
   });
 
@@ -354,5 +424,6 @@
     })
     .catch((err) => {
       joinError.textContent = `Verbindung fehlgeschlagen: ${err}`;
+      $("btn-join").disabled = true;
     });
 })();

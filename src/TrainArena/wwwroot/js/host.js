@@ -99,19 +99,62 @@
     if (questionOpen) startTimer();
   }
 
-  async function loadQuizzes() {
-    const res = await fetch("/api/quizzes");
-    const quizzes = await res.json();
-    quizSelect.innerHTML = "";
-    quizzes.forEach((q) => {
-      const opt = document.createElement("option");
-      opt.value = q.id;
-      opt.textContent = `${q.title} (${q.questionCount} Fragen)`;
-      quizSelect.appendChild(opt);
+  function setLobbyStatus(text, kind) {
+    lobbyStatus.textContent = text;
+    lobbyStatus.classList.remove("is-loading", "is-error", "is-ok");
+    if (kind) lobbyStatus.classList.add(kind);
+  }
+
+  function renderBoardEntries(entries) {
+    boardList.innerHTML = "";
+    (entries || []).forEach((e, i) => {
+      const li = document.createElement("li");
+      li.innerHTML =
+        `<span class="rank">${i + 1}.</span>` +
+        `<span class="nick"></span>` +
+        `<span class="score"></span>`;
+      li.querySelector(".nick").textContent = e.nickname;
+      li.querySelector(".score").textContent = String(e.score);
+      boardList.appendChild(li);
     });
-    if (quizzes.length === 0) {
-      lobbyStatus.textContent = "Kein Quiz vorhanden — zuerst im Editor anlegen.";
+  }
+
+  function setTimerUrgency(msLeft) {
+    timerEl.classList.remove("is-urgent", "is-critical");
+    if (!questionOpen || msLeft <= 0) return;
+    const sec = Math.ceil(msLeft / 1000);
+    if (sec <= 5) timerEl.classList.add("is-critical");
+    else if (sec <= 10) timerEl.classList.add("is-urgent");
+  }
+
+  async function loadQuizzes() {
+    quizSelect.disabled = true;
+    quizSelect.innerHTML = `<option value="">Quiz werden geladen…</option>`;
+    btnCreate.disabled = true;
+    try {
+      const res = await fetch("/api/quizzes");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const quizzes = await res.json();
+      quizSelect.innerHTML = "";
+      quizzes.forEach((q) => {
+        const opt = document.createElement("option");
+        opt.value = q.id;
+        opt.textContent = `${q.title} (${q.questionCount} Fragen)`;
+        quizSelect.appendChild(opt);
+      });
+      if (quizzes.length === 0) {
+        quizSelect.innerHTML = `<option value="">Kein Quiz vorhanden</option>`;
+        setLobbyStatus("Kein Quiz vorhanden — zuerst im Editor anlegen.", "is-error");
+        btnCreate.disabled = true;
+        return;
+      }
+      quizSelect.disabled = false;
+      btnCreate.disabled = false;
+    } catch (err) {
+      quizSelect.innerHTML = `<option value="">Laden fehlgeschlagen</option>`;
+      setLobbyStatus(`Quiz-Liste fehlgeschlagen: ${err}`, "is-error");
       btnCreate.disabled = true;
+      throw err;
     }
   }
 
@@ -136,7 +179,7 @@
     quizSelect.disabled = true;
     disableLobbySetup();
     btnStart.classList.remove("hidden");
-    lobbyStatus.textContent = "0 Spieler verbunden — warte auf Beitritte…";
+    setLobbyStatus("0 Spieler verbunden — warte auf Beitritte…");
   });
 
   connection.on("LobbyState", (msg) => {
@@ -148,13 +191,21 @@
       playerList.appendChild(li);
     });
     const count = msg.connectedCount ?? 0;
-    lobbyStatus.textContent =
-      count === 0 ? "0 Spieler verbunden — warte auf Beitritte…" : `${count} Spieler verbunden`;
+    setLobbyStatus(
+      count === 0 ? "0 Spieler verbunden — warte auf Beitritte…" : `${count} Spieler verbunden`,
+      count > 0 ? "is-ok" : null,
+    );
     btnStart.disabled = count < 1;
   });
 
   connection.on("JoinError", (msg) => {
-    lobbyStatus.textContent = msg.error || "Fehler";
+    setLobbyStatus(msg.error || "Fehler", "is-error");
+    if (!roomCode && !quizSelect.disabled) {
+      btnCreate.disabled = false;
+    }
+    if (!live.classList.contains("hidden")) {
+      btnStart.disabled = false;
+    }
   });
 
   function clearAutoAdvanceCountdown() {
@@ -203,7 +254,9 @@
     optionsEl.innerHTML = "";
     (msg.options || []).forEach((opt, i) => {
       const li = document.createElement("li");
-      li.textContent = `${i + 1}. ${opt}`;
+      li.dataset.index = String(i);
+      li.innerHTML = `<span class="opt-index">${i + 1}</span><span class="opt-text"></span>`;
+      li.querySelector(".opt-text").textContent = opt;
       optionsEl.appendChild(li);
     });
     startedAt = new Date(msg.startedAtUtc);
@@ -216,6 +269,10 @@
     setArenaVisible(false);
     stopTimer();
     timerEl.textContent = "0s";
+    timerEl.classList.remove("is-urgent", "is-critical");
+    [...optionsEl.querySelectorAll("li")].forEach((li) => {
+      li.classList.toggle("is-correct", Number(li.dataset.index) === msg.correctIndex);
+    });
     revealEl.textContent = `Richtige Antwort: Option ${msg.correctIndex + 1}`;
     revealEl.classList.remove("hidden");
   });
@@ -223,12 +280,7 @@
   connection.on("Leaderboard", (msg) => {
     clearAutoAdvanceCountdown();
     setArenaVisible(false);
-    boardList.innerHTML = "";
-    (msg.entries || []).forEach((e) => {
-      const li = document.createElement("li");
-      li.textContent = `${e.nickname}: ${e.score}`;
-      boardList.appendChild(li);
-    });
+    renderBoardEntries(msg.entries);
     board.classList.remove("hidden");
     boardHint.classList.remove("hidden");
     btnNext.classList.remove("hidden");
@@ -249,12 +301,7 @@
   connection.on("GameFinished", (msg) => {
     clearAutoAdvanceCountdown();
     setArenaVisible(false);
-    boardList.innerHTML = "";
-    (msg.entries || []).forEach((e) => {
-      const li = document.createElement("li");
-      li.textContent = `${e.nickname}: ${e.score}`;
-      boardList.appendChild(li);
-    });
+    renderBoardEntries(msg.entries);
     board.classList.remove("hidden");
     boardHint.classList.add("hidden");
     btnNext.classList.add("hidden");
@@ -293,13 +340,16 @@
       const ms = endsAt - Date.now();
       if (!questionOpen) {
         timerEl.textContent = "0s";
+        timerEl.classList.remove("is-urgent", "is-critical");
         return;
       }
       if (ms <= 0) {
         timerEl.textContent = "0s · warte auf Server…";
+        timerEl.classList.add("is-critical");
         return;
       }
       timerEl.textContent = `${Math.ceil(ms / 1000)}s`;
+      setTimerUrgency(ms);
     };
     tick();
     timerHandle = setInterval(tick, 200);
@@ -311,11 +361,26 @@
   }
 
   btnCreate.addEventListener("click", () => {
+    if (!quizSelect.value) {
+      setLobbyStatus("Bitte zuerst ein Quiz wählen.", "is-error");
+      return;
+    }
+    setLobbyStatus("Raum wird erstellt…", "is-loading");
+    btnCreate.disabled = true;
     const config = readPowerUpConfig();
     const autoAdvance = readAutoAdvanceConfig();
-    connection.invoke("CreateRoom", quizSelect.value, config, autoAdvance);
+    connection.invoke("CreateRoom", quizSelect.value, config, autoAdvance).catch((err) => {
+      btnCreate.disabled = false;
+      setLobbyStatus(`Raum erstellen fehlgeschlagen: ${err}`, "is-error");
+    });
   });
-  btnStart.addEventListener("click", () => connection.invoke("StartGame"));
+  btnStart.addEventListener("click", () => {
+    btnStart.disabled = true;
+    connection.invoke("StartGame").catch((err) => {
+      btnStart.disabled = false;
+      setLobbyStatus(`Start fehlgeschlagen: ${err}`, "is-error");
+    });
+  });
   btnNext.addEventListener("click", () => connection.invoke("NextQuestion"));
 
   btnBoost.addEventListener("click", () => {
@@ -331,29 +396,34 @@
     if (!roomCode) return;
     try {
       await connection.invoke("RejoinHost", roomCode);
-      lobbyStatus.textContent = "Wieder verbunden.";
+      setLobbyStatus("Wieder verbunden.", "is-ok");
     } catch (err) {
-      lobbyStatus.textContent = `Reconnect fehlgeschlagen: ${err}`;
+      setLobbyStatus(`Reconnect fehlgeschlagen: ${err}`, "is-error");
     }
   });
 
   Promise.all([connection.start(), loadQuizzes()])
     .then(async () => {
-      if (roomCode) {
-        try {
-          await connection.invoke("RejoinHost", roomCode);
-          showJoinArtifacts(roomCode);
-          btnCreate.disabled = true;
-          quizSelect.disabled = true;
-          disableLobbySetup();
-          btnStart.classList.remove("hidden");
-        } catch {
-          sessionStorage.removeItem(STORAGE_ROOM);
-          roomCode = "";
-        }
+      if (!roomCode) {
+        setLobbyStatus("Noch kein Raum.");
+        return;
+      }
+      try {
+        await connection.invoke("RejoinHost", roomCode);
+        showJoinArtifacts(roomCode);
+        btnCreate.disabled = true;
+        quizSelect.disabled = true;
+        disableLobbySetup();
+        btnStart.classList.remove("hidden");
+        setLobbyStatus("Wieder verbunden — warte auf Spieler…", "is-ok");
+      } catch {
+        sessionStorage.removeItem(STORAGE_ROOM);
+        roomCode = "";
+        setLobbyStatus("Noch kein Raum.");
       }
     })
     .catch((err) => {
-      lobbyStatus.textContent = `Verbindung fehlgeschlagen: ${err}`;
+      setLobbyStatus(`Verbindung fehlgeschlagen: ${err}`, "is-error");
+      btnCreate.disabled = true;
     });
 })();
