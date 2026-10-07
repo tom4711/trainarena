@@ -49,6 +49,7 @@ h2 {
   font-size: clamp(1.15rem, 4.5vw, 1.45rem);
   line-height: 1.3;
   font-weight: 650;
+  color: var(--text);
 }
 
 .tagline {
@@ -266,8 +267,10 @@ button:active:not(:disabled),
   font-weight: 700;
 }
 #wait-host {
-  margin: 0.5rem 0 0;
+  margin: 0.65rem 0 0;
   text-align: center;
+  color: #cbd5e1;
+  font-weight: 600;
 }
 #done {
   margin: 0.85rem 0 0;
