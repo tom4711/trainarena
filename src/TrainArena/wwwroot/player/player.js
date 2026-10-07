@@ -136,7 +136,7 @@
     fxTitle.textContent = title;
     fxSub.textContent = sub || "";
     fxOverlay.classList.remove("hidden");
-    const ms = reducedMotion ? 1400 : 900;
+    const ms = reducedMotion ? 1600 : 1100;
     fxTimer = window.setTimeout(() => {
       fxOverlay.classList.add("hidden");
       fxOverlay.className = "fx-overlay hidden";
