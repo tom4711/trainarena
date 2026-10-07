@@ -442,6 +442,17 @@ a { color: var(--accent); }
   color: var(--text);
 }
 .button-row button:disabled { opacity: 0.4; }
+.button-row button.is-activating {
+  animation: pu-activate 380ms ease-out;
+  border: 1px solid var(--accent);
+}
+.button-row button.is-spent {
+  opacity: 0.4;
+}
+
+.timer.is-extended {
+  animation: pu-timer-bump 520ms ease-out;
+}
 
 #arena-status {
   margin: 0.25rem 0 0.5rem;
@@ -451,6 +462,40 @@ a { color: var(--accent); }
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   color: var(--text);
   font-size: 0.92rem;
+}
+#arena-status.is-pu-toast {
+  animation: pu-toast-in 320ms ease-out;
+}
+#arena-status.is-boost {
+  background: color-mix(in srgb, #f472b6 14%, transparent);
+  border-color: color-mix(in srgb, #f472b6 40%, transparent);
+}
+#arena-status.is-time {
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+}
+
+@keyframes pu-activate {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.05); filter: brightness(1.12); }
+  100% { transform: scale(1); }
+}
+@keyframes pu-timer-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.16); color: var(--ok); }
+  100% { transform: scale(1); }
+}
+@keyframes pu-toast-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button-row button.is-activating,
+  .timer.is-extended,
+  #arena-status.is-pu-toast {
+    animation: none !important;
+  }
 }
 
 @media (max-width: 420px) {

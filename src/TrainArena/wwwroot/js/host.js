@@ -240,6 +240,9 @@
     finishedEl.classList.add("hidden");
     questionOpen = true;
     hostArenaUsed = false;
+    btnBoost.classList.remove("is-spent", "is-activating");
+    btnTimePlus.classList.remove("is-spent", "is-activating");
+    arenaStatus.classList.remove("is-boost", "is-time", "is-pu-toast");
     setArenaVisible(true);
     setArenaButtonsEnabled(true);
     progressEl.textContent = `Frage ${(msg.index ?? 0) + 1} von ${msg.totalQuestions ?? "?"}`;
@@ -309,27 +312,58 @@
     progressEl.textContent = "Finale";
   });
 
+  function flashClass(el, className, ms = 420) {
+    if (!el) return;
+    el.classList.remove(className);
+    void el.offsetWidth;
+    el.classList.add(className);
+    window.setTimeout(() => el.classList.remove(className), ms);
+  }
+
+  function bumpTimer() {
+    flashClass(timerEl, "is-extended", 560);
+  }
+
+  function showArenaToast(text, kind) {
+    arenaStatus.textContent = text;
+    arenaStatus.classList.remove("hidden", "is-boost", "is-time", "is-pu-toast");
+    void arenaStatus.offsetWidth;
+    arenaStatus.classList.add("is-pu-toast");
+    if (kind) arenaStatus.classList.add(kind);
+  }
+
   connection.on("ArenaEvent", (msg) => {
     updateEndsAtFromServer(msg.endsAtUtc);
+    const btn =
+      msg.powerUpId === "boost_all"
+        ? btnBoost
+        : msg.powerUpId === "time_plus"
+          ? btnTimePlus
+          : null;
+    flashClass(btn, "is-activating", 400);
     if (msg.powerUpId === "boost_all") {
-      arenaStatus.textContent = "Team-Boost aktiv — alle Punkte ×1,5 diese Frage";
-      arenaStatus.classList.remove("hidden");
+      showArenaToast("Team-Boost aktiv — alle Punkte ×1,5 diese Frage", "is-boost");
     } else if (msg.powerUpId === "time_plus") {
-      arenaStatus.textContent = "Zeit um 5 Sekunden verlängert";
-      arenaStatus.classList.remove("hidden");
+      showArenaToast("Zeit um 5 Sekunden verlängert", "is-time");
+      bumpTimer();
     }
     hostArenaUsed = true;
     setArenaButtonsEnabled(false);
+    btnBoost.classList.add("is-spent");
+    btnTimePlus.classList.add("is-spent");
   });
 
   connection.on("PowerUpUsed", (msg) => {
-    if (msg.endsAtUtc) updateEndsAtFromServer(msg.endsAtUtc);
+    if (msg.endsAtUtc) {
+      updateEndsAtFromServer(msg.endsAtUtc);
+      bumpTimer();
+      showArenaToast("Spieler: Extra-Zeit (+5s)", "is-time");
+    }
   });
 
   connection.on("PowerUpError", (msg) => {
     if (questionOpen) {
-      arenaStatus.textContent = msg.error || "Power-Up fehlgeschlagen";
-      arenaStatus.classList.remove("hidden");
+      showArenaToast(msg.error || "Power-Up fehlgeschlagen");
     }
   });
 
@@ -385,10 +419,12 @@
 
   btnBoost.addEventListener("click", () => {
     if (!questionOpen || hostArenaUsed) return;
+    flashClass(btnBoost, "is-activating", 400);
     connection.invoke("HostArenaEvent", "boost_all");
   });
   btnTimePlus.addEventListener("click", () => {
     if (!questionOpen || hostArenaUsed) return;
+    flashClass(btnTimePlus, "is-activating", 400);
     connection.invoke("HostArenaEvent", "time_plus");
   });
 
