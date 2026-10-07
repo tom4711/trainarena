@@ -7,23 +7,9 @@
 <html lang="de">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>TrainArena — Host</title>
     <link rel="stylesheet" href="/css/host.css" />
-    <style>
-      label { display: block; margin: 0.75rem 0; color: var(--muted); }
-      select, input {
-        display: block; width: 100%; margin-top: 0.35rem;
-        padding: 0.6rem 0.7rem; border-radius: 8px; border: 1px solid #475569;
-        background: #0f172a; color: var(--text);
-      }
-      #qr-wrap {
-        display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem;
-        margin: 0.75rem 0;
-      }
-      #qr-canvas { background: #fff; border-radius: 8px; padding: 0.5rem; }
-      .offline { opacity: 0.45; text-decoration: line-through; }
-    </style>
 </head>
 <body>
     <main class="host">
@@ -32,7 +18,9 @@
 
         <section id="setup" class="panel">
             <label>Quiz wählen
-                <select id="quiz-select" aria-label="Quiz wählen"></select>
+                <select id="quiz-select" aria-label="Quiz wählen" disabled>
+                    <option value="">Quiz werden geladen…</option>
+                </select>
             </label>
             <fieldset id="powerup-setup" class="powerup-setup">
                 <legend>Power-Ups</legend>
@@ -67,28 +55,30 @@
                     </select>
                 </label>
             </fieldset>
-            <button id="btn-create" type="button">Raum erstellen</button>
+            <button id="btn-create" type="button" disabled>Raum erstellen</button>
             <p id="room-code" class="code hidden" aria-live="polite"></p>
             <div id="qr-wrap" class="hidden">
                 <canvas id="qr-canvas" width="180" height="180" aria-label="QR-Code zum Beitreten"></canvas>
                 <p id="join-url" class="hint"></p>
             </div>
-            <p id="lobby-status" class="muted">Noch kein Raum.</p>
-            <ul id="player-list"></ul>
+            <p id="lobby-status" class="status is-loading" aria-live="polite">Verbinde…</p>
+            <ul id="player-list" aria-label="Verbundene Spieler"></ul>
             <button id="btn-start" type="button" class="hidden" disabled>Quiz starten</button>
             <p class="hint">Tipp: Host-Seite über die LAN-IP öffnen (nicht localhost), damit Handys den QR-Link erreichen.</p>
         </section>
 
         <section id="live" class="panel hidden">
-            <p id="progress" class="muted"></p>
+            <div class="live-meta">
+                <p id="progress" class="muted"></p>
+                <p id="timer" class="timer" aria-live="polite"></p>
+            </div>
             <h2 id="question-text"></h2>
             <img id="question-image" class="q-image hidden" alt="" />
-            <p id="timer" class="timer" aria-live="polite"></p>
             <div id="arena-actions" class="button-row hidden" aria-label="Arena-Power-Ups">
                 <button id="btn-boost" type="button">Team-Boost</button>
                 <button id="btn-time-plus" type="button">Zeit +5</button>
             </div>
-            <p id="arena-status" class="muted hidden" aria-live="polite"></p>
+            <p id="arena-status" class="hidden" aria-live="polite"></p>
             <ol id="options" class="options"></ol>
             <p id="reveal" class="reveal hidden"></p>
             <div id="board" class="board hidden">

@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>TrainArena — Spieler</title>
   <link rel="stylesheet" href="player.css" />
 </head>
@@ -13,31 +13,35 @@
 
     <section id="join" class="panel">
       <label>Raum-Code
-        <input id="code" maxlength="6" autocomplete="off" placeholder="ABC123" />
+        <input id="code" maxlength="6" autocomplete="off" placeholder="ABC123" inputmode="text" enterkeyhint="next" />
       </label>
       <label>Nickname
-        <input id="nickname" maxlength="24" autocomplete="off" placeholder="Dein Name" />
+        <input id="nickname" maxlength="24" autocomplete="nickname" placeholder="Dein Name" enterkeyhint="go" />
       </label>
       <button id="btn-join" type="button">Beitreten</button>
-      <p class="muted">Tipp: Gleicher Nickname nach Verbindungsabbruch = Wiedereinstieg.</p>
-      <p id="join-error" class="error"></p>
+      <p class="hint">Tipp: Gleicher Nickname nach Verbindungsabbruch = Wiedereinstieg.</p>
+      <p id="join-error" class="error" role="alert" aria-live="assertive"></p>
     </section>
 
     <section id="wait" class="panel hidden">
-      <p>Verbunden als <strong id="me"></strong>. Warte auf die Frage…</p>
+      <div class="wait-dot" aria-hidden="true"></div>
+      <p>Verbunden als <strong id="me"></strong>.</p>
+      <p class="hint" style="margin-top:0.45rem">Warte auf die nächste Frage…</p>
     </section>
 
     <section id="question" class="panel hidden">
-      <p id="q-progress" class="muted"></p>
+      <div class="q-meta">
+        <p id="q-progress" class="muted"></p>
+        <p id="q-timer" class="timer" aria-live="polite"></p>
+      </div>
       <h2 id="q-text"></h2>
       <img id="q-image" class="q-image hidden" alt="" />
-      <p id="q-timer" class="timer" aria-live="polite"></p>
       <div id="powerups" class="powerups hidden" aria-label="Power-Ups"></div>
       <div id="answers" class="answers"></div>
-      <p id="answer-status" class="muted"></p>
+      <p id="answer-status" class="muted" aria-live="polite"></p>
     </section>
 
-    <section id="board" class="panel hidden">
+    <section id="board" class="panel hidden board">
       <h2>Rangliste</h2>
       <ol id="board-list"></ol>
       <p id="wait-host" class="muted hidden">Warte auf den Host (nächste Frage)…</p>
