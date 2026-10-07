@@ -8,6 +8,7 @@ public static class PowerUpIdParser
         ["double"] = PowerUpId.Double,
         ["extra_time"] = PowerUpId.ExtraTime,
         ["shield"] = PowerUpId.Shield,
+        ["disrupt"] = PowerUpId.Disrupt,
         ["boost_all"] = PowerUpId.BoostAll,
         ["time_plus"] = PowerUpId.TimePlus,
     };

@@ -13,6 +13,7 @@ public class PowerUpRoomConfigTests
         Assert.Equal(1, c.Starter[PowerUpId.Double]);
         Assert.Equal(0, c.Starter[PowerUpId.ExtraTime]);
         Assert.Equal(1, c.Starter[PowerUpId.Shield]);
+        Assert.Equal(1, c.Starter[PowerUpId.Disrupt]);
         Assert.Equal(2, c.StreakRewardEvery);
         Assert.Equal(3, c.MaxStackPerType);
         Assert.True(c.HostEventsEnabled);

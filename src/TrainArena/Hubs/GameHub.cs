@@ -245,7 +245,11 @@ public sealed class GameHub : Hub
         }
     }
 
-    public async Task UsePowerUp(string powerUpId)
+    /// <summary>
+    /// Use a player power-up. Always pass <paramref name="targetNickname"/> (null when unused):
+    /// SignalR does not support optional parameters or hub overloads.
+    /// </summary>
+    public async Task UsePowerUp(string powerUpId, string? targetNickname)
     {
         if (!_sessions.TryGetByConnection(Context.ConnectionId, out var session) || session is null)
         {
@@ -259,7 +263,7 @@ public sealed class GameHub : Hub
             return;
         }
 
-        var (ok, error, result) = session.TryUsePowerUp(Context.ConnectionId, id);
+        var (ok, error, result) = session.TryUsePowerUp(Context.ConnectionId, id, targetNickname);
         if (!ok || result is null)
         {
             await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage(error ?? "Power-up failed"));
@@ -267,15 +271,55 @@ public sealed class GameHub : Hub
         }
 
         var wire = PowerUpIdParser.ToWire(result.Id);
-        var message = new PowerUpUsedMessage(wire, true, result.MaskedWrongIndexes, result.NewEndsAtUtc);
+        var message = new PowerUpUsedMessage(
+            wire,
+            true,
+            result.MaskedWrongIndexes,
+            result.NewEndsAtUtc,
+            result.ActorNickname,
+            result.TargetNickname,
+            result.BlockedByShield,
+            result.FxKind);
         await Clients.Caller.SendAsync("PowerUpUsed", message);
 
         var player = session.Players.First(p => p.ConnectionId == Context.ConnectionId);
         await SendInventoryUpdateToCaller(session, player.Nickname);
 
+        if (result.Id == PowerUpId.Shield)
+        {
+            await Clients.Group(RoomGroup(session.Code)).SendAsync(
+                "PowerUpFx",
+                new PowerUpFxMessage("shield_up", wire, result.ActorNickname, null));
+        }
+        else if (result.Id == PowerUpId.Disrupt)
+        {
+            await Clients.Group(RoomGroup(session.Code)).SendAsync(
+                "PowerUpFx",
+                new PowerUpFxMessage("attack_launch", wire, result.ActorNickname, result.TargetNickname));
+
+            if (result.BlockedByShield)
+            {
+                await Clients.Group(RoomGroup(session.Code)).SendAsync(
+                    "PowerUpFx",
+                    new PowerUpFxMessage("shield_break", "shield", result.TargetNickname, result.ActorNickname));
+                await Clients.Group(RoomGroup(session.Code)).SendAsync(
+                    "PowerUpFx",
+                    new PowerUpFxMessage("attack_blocked", wire, result.ActorNickname, result.TargetNickname));
+            }
+            else
+            {
+                await Clients.Group(RoomGroup(session.Code)).SendAsync(
+                    "PowerUpFx",
+                    new PowerUpFxMessage("attack_hit", wire, result.ActorNickname, result.TargetNickname));
+            }
+
+            // Others (host + opponents) see the attack outcome; caller already got PowerUpUsed.
+            await Clients.OthersInGroup(RoomGroup(session.Code)).SendAsync("PowerUpUsed", message);
+        }
+
         if (result.NewEndsAtUtc is not null)
         {
-            await Clients.Group(RoomGroup(session.Code)).SendAsync("PowerUpUsed", message);
+            await Clients.OthersInGroup(RoomGroup(session.Code)).SendAsync("PowerUpUsed", message);
             RescheduleQuestionEnd(session.Code, result.NewEndsAtUtc.Value);
         }
     }

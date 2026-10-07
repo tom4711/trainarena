@@ -27,8 +27,14 @@
   const btnBoost = $("btn-boost");
   const btnTimePlus = $("btn-time-plus");
   const arenaStatus = $("arena-status");
+  const fxOverlay = $("fx-overlay");
+  const fxTitle = $("fx-title");
+  const fxSub = $("fx-sub");
 
   const STORAGE_ROOM = "trainarena.host.room";
+  let fxTimer = null;
+  const fxQueue = [];
+  let fxShowing = false;
 
   let startedAt = null;
   let endsAt = null;
@@ -72,6 +78,7 @@
         double: num("pu-double"),
         extra_time: num("pu-extra"),
         shield: num("pu-shield"),
+        disrupt: num("pu-disrupt"),
       },
       streakRewardEvery: num("pu-streak"),
       maxStackPerType: 3,
@@ -331,6 +338,52 @@
     arenaStatus.classList.add("is-pu-toast");
     if (kind) arenaStatus.classList.add(kind);
   }
+
+  function showFx(kind, title, sub) {
+    fxQueue.push({ kind, title, sub });
+    if (!fxShowing) drainFxQueue();
+  }
+
+  function drainFxQueue() {
+    if (!fxOverlay || fxQueue.length === 0) {
+      fxShowing = false;
+      return;
+    }
+    fxShowing = true;
+    const { kind, title, sub } = fxQueue.shift();
+    if (fxTimer) clearTimeout(fxTimer);
+    fxOverlay.className = `fx-overlay is-${kind}`;
+    fxTitle.textContent = title;
+    fxSub.textContent = sub || "";
+    fxOverlay.classList.remove("hidden");
+    const ms = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1400 : 900;
+    fxTimer = window.setTimeout(() => {
+      fxOverlay.classList.add("hidden");
+      fxOverlay.className = "fx-overlay hidden";
+      drainFxQueue();
+    }, ms);
+  }
+
+  connection.on("PowerUpFx", (msg) => {
+    const kind = msg?.kind;
+    const actor = msg?.actorNickname || "?";
+    const target = msg?.targetNickname || "?";
+    if (kind === "shield_up") {
+      showFx(kind, "Schild aktiv", `${actor} ist geschützt`);
+      showArenaToast(`Schild aktiv: ${actor}`, "is-time");
+    } else if (kind === "shield_break") {
+      showFx(kind, "Schild zerstört", `${actor} hält den Angriff von ${target} nicht`);
+      showArenaToast(`Schild zerstört: ${actor}`, "is-boost");
+    } else if (kind === "attack_launch") {
+      showFx(kind, "Störimpuls!", `${actor} greift ${target} an`);
+    } else if (kind === "attack_hit") {
+      showFx(kind, "Treffer!", `${target} ist gestört — nächste Antwort zählt nicht`);
+      showArenaToast(`Störimpuls trifft ${target}`, "is-boost");
+    } else if (kind === "attack_blocked") {
+      showFx(kind, "Geblockt!", `${target} blockt ${actor} mit dem Schild`);
+      showArenaToast(`Schild blockt Angriff auf ${target}`, "is-time");
+    }
+  });
 
   connection.on("ArenaEvent", (msg) => {
     updateEndsAtFromServer(msg.endsAtUtc);

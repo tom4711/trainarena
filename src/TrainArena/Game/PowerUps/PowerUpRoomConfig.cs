@@ -19,6 +19,7 @@ public sealed class PowerUpRoomConfig
             [PowerUpId.Double] = 1,
             [PowerUpId.ExtraTime] = 0,
             [PowerUpId.Shield] = 1,
+            [PowerUpId.Disrupt] = 1,
         },
         StreakRewardEvery = 2,
         StreakRewardPool = PowerUpCatalog.PlayerIds.ToList(),

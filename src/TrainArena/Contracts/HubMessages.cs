@@ -51,11 +51,25 @@ public sealed record PowerUpUsedMessage(
     string PowerUpId,
     bool Ok,
     int[]? MaskedWrongIndexes,
-    DateTimeOffset? EndsAtUtc);
+    DateTimeOffset? EndsAtUtc,
+    string? ActorNickname = null,
+    string? TargetNickname = null,
+    bool BlockedByShield = false,
+    string? FxKind = null);
 
 public sealed record ArenaEventMessage(
     string PowerUpId,
     DateTimeOffset? EndsAtUtc);
+
+/// <summary>
+/// Full-screen / arena FX for competitive power-ups.
+/// Kind: shield_up | shield_break | attack_launch | attack_hit | attack_blocked
+/// </summary>
+public sealed record PowerUpFxMessage(
+    string Kind,
+    string PowerUpId,
+    string? ActorNickname,
+    string? TargetNickname);
 
 public sealed record PowerUpErrorMessage(string Error);
 
