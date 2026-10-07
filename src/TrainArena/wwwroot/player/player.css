@@ -296,12 +296,98 @@ button:active:not(:disabled),
   background: #334155;
   color: var(--text);
   border: 1px solid var(--panel-border);
+  position: relative;
+  overflow: hidden;
 }
 .powerups button:disabled { opacity: 0.35; }
 .powerups button .count {
   opacity: 0.85;
   font-weight: 400;
   font-size: 0.8rem;
+  display: inline-block;
+}
+
+/* Power-up motion: activate → effect → consume */
+.powerups button.is-activating {
+  animation: pu-activate 380ms ease-out;
+  border-color: var(--accent);
+}
+.powerups button.is-active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, #334155);
+  opacity: 1;
+}
+.powerups button.is-active[data-powerup="shield"] {
+  border-color: #67e8f9;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #67e8f9 50%, transparent);
+  background: color-mix(in srgb, #67e8f9 14%, #334155);
+}
+.powerups button.is-active[data-powerup="double"] {
+  border-color: #f472b6;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #f472b6 50%, transparent);
+  background: color-mix(in srgb, #f472b6 14%, #334155);
+}
+.powerups button .count.is-consumed {
+  animation: pu-consume 420ms ease-out;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.answers button.is-masking {
+  animation: pu-mask-out 420ms ease-in forwards;
+  pointer-events: none;
+}
+.answers button.is-masked {
+  display: none !important;
+}
+
+.timer.is-extended {
+  animation: pu-timer-bump 520ms ease-out;
+}
+
+#answer-status.is-pu-toast {
+  animation: pu-toast-in 320ms ease-out;
+  color: var(--accent);
+  font-weight: 650;
+}
+
+@keyframes pu-activate {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.06); filter: brightness(1.15); }
+  100% { transform: scale(1); }
+}
+@keyframes pu-consume {
+  0% { transform: scale(1); opacity: 1; }
+  40% { transform: scale(1.35); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.85; }
+}
+@keyframes pu-mask-out {
+  0% { opacity: 1; transform: scale(1); max-height: 4rem; margin-top: 0; }
+  70% { opacity: 0; transform: scale(0.92); }
+  100% { opacity: 0; transform: scale(0.9); max-height: 0; margin: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+}
+@keyframes pu-timer-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); color: var(--ok); }
+  100% { transform: scale(1); }
+}
+@keyframes pu-toast-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .powerups button.is-activating,
+  .powerups button .count.is-consumed,
+  .answers button.is-masking,
+  .timer.is-extended,
+  #answer-status.is-pu-toast {
+    animation: none !important;
+  }
+  .answers button.is-masking {
+    opacity: 0;
+  }
 }
 
 button.is-busy {

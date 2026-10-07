@@ -46,8 +46,34 @@
     .withAutomaticReconnect()
     .build();
 
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const activePowerUps = new Set();
+  let prevInventory = {};
+
   function countFor(id) {
     return inventory[id] ?? 0;
+  }
+
+  function powerUpButton(id) {
+    return powerupsEl.querySelector(`button[data-powerup="${id}"]`);
+  }
+
+  function flashClass(el, className, ms = 420) {
+    if (!el) return;
+    el.classList.remove(className);
+    // force reflow so re-trigger works
+    void el.offsetWidth;
+    el.classList.add(className);
+    window.setTimeout(() => el.classList.remove(className), ms);
+  }
+
+  function showPuToast(text) {
+    answerStatus.className = "is-pu-toast";
+    answerStatus.textContent = text;
+  }
+
+  function bumpTimer() {
+    flashClass(qTimer, "is-extended", 560);
   }
 
   function refreshPowerUpButtons() {
@@ -58,10 +84,14 @@
       const n = countFor(id);
       const countSpan = btn.querySelector(".count");
       if (countSpan) countSpan.textContent = ` (${n})`;
-      btn.disabled = lock || n <= 0;
+      const keepActive = activePowerUps.has(id);
+      btn.classList.toggle("is-active", keepActive);
+      btn.disabled = (lock || n <= 0) && !keepActive;
+      if (keepActive) btn.disabled = true;
     });
     const anyStock = PLAYER_POWERUPS.some((p) => countFor(p.id) > 0);
-    powerupsEl.classList.toggle("hidden", !questionOpen || !anyStock);
+    const anyActive = activePowerUps.size > 0;
+    powerupsEl.classList.toggle("hidden", !questionOpen || (!anyStock && !anyActive));
   }
 
   function ensurePowerUpButtons() {
@@ -80,6 +110,8 @@
 
   function usePowerUp(id) {
     if (answered || !questionOpen || countFor(id) <= 0) return;
+    const btn = powerUpButton(id);
+    flashClass(btn, "is-activating", 400);
     connection.invoke("UsePowerUp", id);
   }
 
@@ -88,8 +120,42 @@
     const buttons = [...answers.querySelectorAll("button")];
     indexes.forEach((i) => {
       const btn = buttons[i];
-      if (btn) btn.classList.add("hidden");
+      if (!btn || btn.classList.contains("is-masked")) return;
+      if (reducedMotion) {
+        btn.classList.add("is-masked", "hidden");
+        return;
+      }
+      btn.classList.add("is-masking");
+      window.setTimeout(() => {
+        btn.classList.remove("is-masking");
+        btn.classList.add("is-masked", "hidden");
+      }, 420);
     });
+  }
+
+  function animateInventoryConsume(nextCounts) {
+    PLAYER_POWERUPS.forEach((p) => {
+      const before = prevInventory[p.id] ?? 0;
+      const after = nextCounts[p.id] ?? 0;
+      if (after < before) {
+        const btn = powerUpButton(p.id);
+        const countSpan = btn?.querySelector(".count");
+        flashClass(countSpan, "is-consumed", 450);
+      }
+    });
+    prevInventory = { ...nextCounts };
+  }
+
+  function markPowerUpActive(id) {
+    if (id === "double" || id === "shield") {
+      activePowerUps.add(id);
+    }
+    refreshPowerUpButtons();
+  }
+
+  function clearActivePowerUps() {
+    activePowerUps.clear();
+    powerupsEl.querySelectorAll("button.is-active").forEach((b) => b.classList.remove("is-active"));
   }
 
   connection.on("JoinError", (msg) => {
@@ -97,24 +163,47 @@
   });
 
   connection.on("InventoryUpdate", (msg) => {
-    inventory = msg.counts || {};
+    const next = msg.counts || {};
     ensurePowerUpButtons();
+    if (Object.keys(prevInventory).length) {
+      animateInventoryConsume(next);
+    } else {
+      prevInventory = { ...next };
+    }
+    inventory = next;
     refreshPowerUpButtons();
   });
 
   connection.on("PowerUpUsed", (msg) => {
     if (!msg.ok) return;
+    const id = msg.powerUpId;
+    const btn = powerUpButton(id);
+    if (btn) flashClass(btn, "is-activating", 400);
+
     if (msg.endsAtUtc) {
       endsAt = new Date(msg.endsAtUtc);
-      if (questionOpen) startTimer();
+      if (questionOpen) {
+        startTimer();
+        bumpTimer();
+      }
     }
     if (msg.maskedWrongIndexes && msg.maskedWrongIndexes.length) {
       applyMaskedOptions(msg.maskedWrongIndexes);
+      showPuToast("50/50 — zwei Optionen entfernt");
+    } else if (id === "extra_time") {
+      showPuToast("Extra-Zeit — +5 Sekunden");
+    } else if (id === "double") {
+      showPuToast("Double aktiv — nächste richtige Antwort ×2");
+      markPowerUpActive("double");
+    } else if (id === "shield") {
+      showPuToast("Shield aktiv");
+      markPowerUpActive("shield");
     }
   });
 
   connection.on("PowerUpError", (msg) => {
     if (questionOpen) {
+      answerStatus.className = "error";
       answerStatus.textContent = msg.error || "Power-Up fehlgeschlagen";
     }
   });
@@ -122,10 +211,16 @@
   connection.on("ArenaEvent", (msg) => {
     if (msg.endsAtUtc) {
       endsAt = new Date(msg.endsAtUtc);
-      if (questionOpen) startTimer();
+      if (questionOpen) {
+        startTimer();
+        bumpTimer();
+      }
     }
-    if (msg.powerUpId === "boost_all" && questionOpen) {
-      answerStatus.textContent = "Team-Boost aktiv — Punkte ×1,5";
+    if (!questionOpen) return;
+    if (msg.powerUpId === "boost_all") {
+      showPuToast("Team-Boost aktiv — Punkte ×1,5");
+    } else if (msg.powerUpId === "time_plus") {
+      showPuToast("Host: Zeit +5 Sekunden");
     }
   });
 
@@ -166,6 +261,7 @@
     clearAutoAdvanceCountdown();
     answered = false;
     questionOpen = true;
+    clearActivePowerUps();
     waitPanel.classList.add("hidden");
     boardPanel.classList.add("hidden");
     questionPanel.classList.remove("hidden");
@@ -221,8 +317,9 @@
     questionOpen = false;
     stopTimer();
     qTimer.textContent = "0s";
-    qTimer.classList.remove("is-urgent", "is-critical");
+    qTimer.classList.remove("is-urgent", "is-critical", "is-extended");
     disableAnswers();
+    clearActivePowerUps();
     powerupsEl.classList.add("hidden");
     if (!answered) {
       answerStatus.className = "status-warn";
