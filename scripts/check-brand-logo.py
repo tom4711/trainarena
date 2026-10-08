@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BRAND = ROOT / "docs" / "brand"
 ICON_PNG = BRAND / "logo-icon.png"
+ARENA_PNG = BRAND / "logo-icon-arena.png"
 BANNER_PNG = BRAND / "banner.png"
 APP_ICON = ROOT / "src" / "TrainArena" / "wwwroot" / "assets" / "brand" / "logo-icon.png"
 FAVICON = ROOT / "src" / "TrainArena" / "wwwroot" / "assets" / "brand" / "favicon.png"
@@ -22,7 +23,11 @@ def png_size(path: Path) -> tuple[int, int]:
 
 
 def main() -> None:
-    for path, expected in ((ICON_PNG, (4096, 4096)), (BANNER_PNG, (3840, 2160))):
+    for path, expected in (
+        (ICON_PNG, (4096, 4096)),
+        (ARENA_PNG, (4096, 4096)),
+        (BANNER_PNG, (3840, 2160)),
+    ):
         if not path.is_file():
             sys.exit(f"missing {path}")
         actual = png_size(path)

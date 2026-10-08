@@ -42,6 +42,10 @@ public class BrandAssetsTests : IClassFixture<TrainArenaWebAppFactory>
         AssertPngMaster(Path.Combine("docs", "brand", "banner.png"), 3840, 2160);
 
     [Fact]
+    public void DocsLogoIconArenaPng_IsMasterSize() =>
+        AssertPngMaster(Path.Combine("docs", "brand", "logo-icon-arena.png"), 4096, 4096);
+
+    [Fact]
     public void SvgRedraws_AreNotPresent()
     {
         var root = RepoRoot();
