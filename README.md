@@ -1,6 +1,8 @@
 # TrainArena
 
-![TrainArena — Live-Quiz für Ausbildung](docs/brand/banner.png)
+<p align="center">
+  <img src="docs/brand/banner.png" alt="TrainArena — Live-Quiz für Ausbildung" width="820" />
+</p>
 
 Self-hosted Live-Quiz für **Ausbilder ↔ Azubis** (LAN-first, Kahoot-Alternative).
 

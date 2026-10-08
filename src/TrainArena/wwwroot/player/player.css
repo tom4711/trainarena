@@ -536,5 +536,6 @@ button.secondary {
   object-fit: contain;
   flex-shrink: 0;
   display: block;
-  filter: drop-shadow(0 8px 16px rgba(10, 92, 214, 0.28));
+  /* Transparent PNG mark — soft lift on dark player chrome */
+  filter: drop-shadow(0 6px 14px rgba(10, 205, 222, 0.22));
 }
