@@ -1,6 +1,4 @@
 using System.Net;
-using System.Text;
-using System.Xml.Linq;
 
 namespace TrainArena.Tests;
 
@@ -23,45 +21,33 @@ public class BrandAssetsTests : IClassFixture<TrainArenaWebAppFactory>
         throw new InvalidOperationException("Could not find repository root (TrainArena.sln).");
     }
 
-    private static void AssertSvgIsWellFormedUtf8(string path)
+    private static void AssertPngMaster(string relativePath, int expectedWidth, int expectedHeight)
     {
+        var path = Path.Combine(RepoRoot(), relativePath);
         Assert.True(File.Exists(path), $"Missing {path}");
         var bytes = File.ReadAllBytes(path);
-        var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
-        _ = utf8.GetString(bytes);
-        XDocument.Load(path);
+        Assert.True(bytes.Length > 8 && bytes[0] == 0x89 && bytes[1] == (byte)'P');
+        var width = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+        var height = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+        Assert.Equal(expectedWidth, width);
+        Assert.Equal(expectedHeight, height);
     }
 
     [Fact]
-    public void LogoIconSvg_ExistsOnDisk()
-    {
-        var path = Path.Combine(RepoRoot(), "src", "TrainArena", "wwwroot", "assets", "brand", "logo-icon.svg");
-        Assert.True(File.Exists(path), $"Missing {path}");
-        var svg = File.ReadAllText(path);
-        Assert.Contains("TrainArena", svg);
-        Assert.Contains("#0032C3", svg);
-        Assert.Contains("#0ACDDE", svg);
-    }
+    public void DocsLogoIconPng_IsMasterSize() =>
+        AssertPngMaster(Path.Combine("docs", "brand", "logo-icon.png"), 4096, 4096);
 
     [Fact]
-    public void LogoIconSvg_IsWellFormedUtf8() =>
-        AssertSvgIsWellFormedUtf8(Path.Combine(RepoRoot(), "src", "TrainArena", "wwwroot", "assets", "brand", "logo-icon.svg"));
+    public void DocsBannerPng_IsMasterSize() =>
+        AssertPngMaster(Path.Combine("docs", "brand", "banner.png"), 3840, 2160);
 
     [Fact]
-    public void BannerSvg_IsWellFormedUtf8()
+    public void SvgRedraws_AreNotPresent()
     {
-        var path = Path.Combine(RepoRoot(), "docs", "brand", "banner.svg");
-        AssertSvgIsWellFormedUtf8(path);
-        var text = File.ReadAllText(path);
-        Assert.Contains("Live-Quiz für Ausbildung", text);
-    }
-
-    [Fact]
-    public async Task LogoIconSvg_IsServed()
-    {
-        var res = await _client.GetAsync("/assets/brand/logo-icon.svg");
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        Assert.Contains("svg", res.Content.Headers.ContentType?.MediaType ?? "", StringComparison.OrdinalIgnoreCase);
+        var root = RepoRoot();
+        Assert.False(File.Exists(Path.Combine(root, "docs", "brand", "logo-icon.svg")));
+        Assert.False(File.Exists(Path.Combine(root, "docs", "brand", "banner.svg")));
+        Assert.False(File.Exists(Path.Combine(root, "src", "TrainArena", "wwwroot", "assets", "brand", "logo-icon.svg")));
     }
 
     [Fact]

@@ -38,11 +38,14 @@ Ein Branding-Set für TrainArena, das **klar zur Unternehmensmarke passt** (Geom
 
 ## Asset-Set
 
+Referenzprozess: Finanzübersicht Branch `docs/finanzuebersicht-brand-logo` (Commit `c36785c`) —
+**PNG-Master sind kanonisch**; SVG-Redraws werden nicht ausgeliefert (verlieren den freigegebenen Entwurf).
+
 | Asset | Inhalt | Primärer Einsatz |
 |-------|--------|------------------|
-| `logo-icon.svg` (+ `favicon.png` 32×32) | TA-Monogramm (Konzept A) | Favicon, Host-/Player-/Editor-Header |
-| `banner.svg` + `banner.png` (~1280×640) | Arena-Rahmen + Monogramm + Wordmark + Tagline | GitHub README (`banner.png`), Archiv/Edit (`banner.svg`) |
-| Farbleiste | Kommentarblock in den SVGs + Kurznotiz in dieser Spec (Marken-DNA) | spätere UI-Anbindung |
+| `docs/brand/logo-icon.png` (4096×4096) | TA-Monogramm (Konzept A) | Brand-Master |
+| `docs/brand/banner.png` (3840×2160) | Arena-Rahmen + Monogramm + Wordmark + Tagline | GitHub README |
+| `wwwroot/.../logo-icon.png` + `favicon.png` | Downscale vom Icon-Master | Host-/Player-/Editor-Header, Favicon |
 
 ### Icon (Konzept A)
 
@@ -65,10 +68,11 @@ Ein Branding-Set für TrainArena, das **klar zur Unternehmensmarke passt** (Geom
 
 ## Dateiorte (Umsetzung)
 
-- `src/TrainArena/wwwroot/assets/brand/logo-icon.svg` — App-Icon / Header
-- `src/TrainArena/wwwroot/assets/brand/favicon.png` — Favicon (aus Icon gerastert)
-- `docs/brand/banner.svg` — editierbares Banner
-- `docs/brand/banner.png` — README-Einbindung (`![TrainArena](docs/brand/banner.png)`)
+- `docs/brand/logo-icon.png` — Icon-Master 4096×4096
+- `docs/brand/banner.png` — Banner-Master 3840×2160 (README)
+- `src/TrainArena/wwwroot/assets/brand/logo-icon.png` — App-Header
+- `src/TrainArena/wwwroot/assets/brand/favicon.png` — Favicon
+- `scripts/check-brand-logo.py` — Größen-/PNG-Check (wie Finanz)
 - Favicon- und Header-Links in Host-Layout, Player-`index.html`, Editor-Seiten
 
 ## Nicht-Ziele
