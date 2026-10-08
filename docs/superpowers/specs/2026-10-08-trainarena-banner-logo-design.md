@@ -1,7 +1,7 @@
 # TrainArena Banner & Logo — Design Spec
 
 **Datum:** 2026-10-08  
-**Status:** Approved for implementation planning (Thomas, 2026-10-08) — Spec-Review ausstehend  
+**Status:** Implemented on branch cursor/trainarena-banner-logo-062a (assets + wiring)  
 **Produkt:** TrainArena (`trainarena`) — MIT OSS, self-hosted Live-Quiz  
 **Bezugsmarke:** Thomas Menzl Softwareentwicklung ([thomasmenzl.de](https://thomasmenzl.de))  
 **Branch:** `cursor/trainarena-banner-logo-062a`
