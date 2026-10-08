@@ -1,14 +1,12 @@
 # TrainArena Brand
 
-Canonical assets are **PNG**.
+Same approach as Finanzuebersicht: **vector SVG for the mark**, PNG exports for app/README.
 
 | File | Role |
 |------|------|
-| `logo-icon-source.png` | Exact Konzept-A mark (source) |
-| `../src/TrainArena/wwwroot/assets/brand/logo-icon.png` | App header / favicon source |
-| `logo-icon-arena.png` | Same A-mark inside arena hex (optional) |
-| `banner.png` | README hero: **same Logo-A mark** + arena frame + wordmark |
+| `../src/TrainArena/wwwroot/assets/brand/logo-icon.svg` | Hand-traced SVG from Konzept-A draft (vtracer, like a cleaned vectorization) |
+| `../src/TrainArena/wwwroot/assets/brand/logo-icon.png` | App header raster from that SVG |
+| `logo-icon-source.png` | Approved draft reference |
+| `banner.png` | README hero: **same draft A-mark** + arena hex + wordmark |
 
-Banner monogram = Logo A (not the older divergent banner A). Arena hex / A-extension framing from Konzept D.
-
-Spec: `../superpowers/specs/2026-10-08-trainarena-banner-logo-design.md`.
+Banner monogram = draft Logo A (identical pixels to `logo-icon-source.png`).

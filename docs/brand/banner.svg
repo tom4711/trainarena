@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- TrainArena banner: Logo-A mark + arena frame. PNG canonical. Colors: #0032C3 #0ACDDE -->
+<!-- TrainArena banner: Logo-A draft mark + arena frame. PNG canonical. Colors: #0032C3 #0ACDDE -->
 <svg viewBox="0 0 2560 1280" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-label="TrainArena">
-  <title>TrainArena</title>
-  <image width="2560" height="1280" href="banner.png" xlink:href="banner.png"/>
-  <!-- Live-Quiz für Ausbildung -->
+<title>TrainArena</title>
+<image width="2560" height="1280" href="banner.png" xlink:href="banner.png"/>
+<!-- Live-Quiz für Ausbildung -->
 </svg>
