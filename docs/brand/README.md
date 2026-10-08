@@ -1,12 +1,12 @@
 # TrainArena Brand
 
-Same approach as Finanzuebersicht: **vector SVG for the mark**, PNG exports for app/README.
+Same approach as Finanzuebersicht `appiconfg.svg`: **hand-authored geometric SVG** for the mark; PNG exports for app/README.
 
 | File | Role |
 |------|------|
-| `../src/TrainArena/wwwroot/assets/brand/logo-icon.svg` | Hand-traced SVG from Konzept-A draft (vtracer, like a cleaned vectorization) |
-| `../src/TrainArena/wwwroot/assets/brand/logo-icon.png` | App header raster from that SVG |
+| `../src/TrainArena/wwwroot/assets/brand/logo-icon.svg` | Hand-authored TA monogram (Konzept A polygons) |
+| `../src/TrainArena/wwwroot/assets/brand/logo-icon.png` | App header raster (draft pixels) |
 | `logo-icon-source.png` | Approved draft reference |
-| `banner.png` | README hero: **same draft A-mark** + arena hex + wordmark |
+| `banner.svg` / `banner.png` | README hero: same mark + arena hex + wordmark |
 
-Banner monogram = draft Logo A (identical pixels to `logo-icon-source.png`).
+Colors: `#0032C3` → `#0ACDDE`, wordmark `#152038`.
