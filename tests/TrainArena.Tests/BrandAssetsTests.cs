@@ -1,5 +1,6 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
+using System.Text;
+using System.Xml.Linq;
 
 namespace TrainArena.Tests;
 
@@ -9,17 +10,50 @@ public class BrandAssetsTests : IClassFixture<TrainArenaWebAppFactory>
 
     public BrandAssetsTests(TrainArenaWebAppFactory factory) => _client = factory.CreateClient();
 
+    internal static string RepoRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null)
+        {
+            if (File.Exists(Path.Combine(dir, "TrainArena.sln")))
+                return dir;
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        throw new InvalidOperationException("Could not find repository root (TrainArena.sln).");
+    }
+
+    private static void AssertSvgIsWellFormedUtf8(string path)
+    {
+        Assert.True(File.Exists(path), $"Missing {path}");
+        var bytes = File.ReadAllBytes(path);
+        var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+        _ = utf8.GetString(bytes);
+        XDocument.Load(path);
+    }
+
     [Fact]
     public void LogoIconSvg_ExistsOnDisk()
     {
-        var path = Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "TrainArena", "wwwroot", "assets", "brand", "logo-icon.svg"));
+        var path = Path.Combine(RepoRoot(), "src", "TrainArena", "wwwroot", "assets", "brand", "logo-icon.svg");
         Assert.True(File.Exists(path), $"Missing {path}");
         var svg = File.ReadAllText(path);
         Assert.Contains("TrainArena", svg);
         Assert.Contains("#0032C3", svg);
         Assert.Contains("#0ACDDE", svg);
+    }
+
+    [Fact]
+    public void LogoIconSvg_IsWellFormedUtf8() =>
+        AssertSvgIsWellFormedUtf8(Path.Combine(RepoRoot(), "src", "TrainArena", "wwwroot", "assets", "brand", "logo-icon.svg"));
+
+    [Fact]
+    public void BannerSvg_IsWellFormedUtf8()
+    {
+        var path = Path.Combine(RepoRoot(), "docs", "brand", "banner.svg");
+        AssertSvgIsWellFormedUtf8(path);
+        var text = File.ReadAllText(path);
+        Assert.Contains("Live-Quiz für Ausbildung", text);
     }
 
     [Fact]
@@ -33,8 +67,7 @@ public class BrandAssetsTests : IClassFixture<TrainArenaWebAppFactory>
     [Fact]
     public void FaviconPng_ExistsOnDisk()
     {
-        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-        var path = Path.Combine(repoRoot, "src", "TrainArena", "wwwroot", "assets", "brand", "favicon.png");
+        var path = Path.Combine(RepoRoot(), "src", "TrainArena", "wwwroot", "assets", "brand", "favicon.png");
         Assert.True(File.Exists(path), $"Missing {path}");
         Assert.True(new FileInfo(path).Length > 100);
     }
