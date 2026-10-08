@@ -10,6 +10,7 @@ public static class PowerUpCatalog
         [PowerUpId.Double] = new(PowerUpId.Double, PowerUpKind.Player, "Double", false),
         [PowerUpId.ExtraTime] = new(PowerUpId.ExtraTime, PowerUpKind.Player, "Extra-Zeit", false),
         [PowerUpId.Shield] = new(PowerUpId.Shield, PowerUpKind.Player, "Shield", false),
+        [PowerUpId.Disrupt] = new(PowerUpId.Disrupt, PowerUpKind.Player, "Störimpuls", true),
         [PowerUpId.BoostAll] = new(PowerUpId.BoostAll, PowerUpKind.Host, "Team-Boost", false),
         [PowerUpId.TimePlus] = new(PowerUpId.TimePlus, PowerUpKind.Host, "Zeit +5", false),
     };

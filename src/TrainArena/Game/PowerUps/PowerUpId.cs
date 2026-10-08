@@ -6,6 +6,7 @@ public enum PowerUpId
     Double,
     ExtraTime,
     Shield,
+    Disrupt,
     BoostAll,
     TimePlus
 }

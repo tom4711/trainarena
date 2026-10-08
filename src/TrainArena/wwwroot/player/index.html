@@ -48,6 +48,21 @@
       <p id="board-auto-advance" class="timer hidden" aria-live="polite"></p>
       <p id="done" class="hidden">Runde beendet — danke!</p>
     </section>
+
+    <div id="target-picker" class="target-picker hidden" role="dialog" aria-modal="true" aria-labelledby="target-picker-title">
+      <div class="target-picker-card">
+        <h2 id="target-picker-title">Störimpuls — Ziel wählen</h2>
+        <p class="hint">Wen willst du stören? (noch nicht geantwortet)</p>
+        <div id="target-list" class="target-list"></div>
+        <button id="btn-target-cancel" type="button" class="secondary">Abbrechen</button>
+      </div>
+    </div>
+
+    <div id="fx-overlay" class="fx-overlay hidden" aria-live="assertive" aria-atomic="true">
+      <div class="fx-burst" aria-hidden="true"></div>
+      <p id="fx-title" class="fx-title"></p>
+      <p id="fx-sub" class="fx-sub"></p>
+    </div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>

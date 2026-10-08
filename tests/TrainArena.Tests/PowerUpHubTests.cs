@@ -35,7 +35,7 @@ public class PowerUpHubTests : IClassFixture<TrainArenaWebAppFactory>
 
         var powerUpUsed = WaitFor<PowerUpUsedMessage>(player, "PowerUpUsed");
         var inventoryAfterUse = WaitFor<InventoryUpdateMessage>(player, "InventoryUpdate");
-        await player.InvokeAsync("UsePowerUp", "fifty_fifty");
+        await player.InvokeAsync("UsePowerUp", "fifty_fifty", null);
 
         var used = await powerUpUsed;
         Assert.True(used.Ok);
@@ -70,10 +70,48 @@ public class PowerUpHubTests : IClassFixture<TrainArenaWebAppFactory>
         await answerAccepted;
 
         var powerUpError = WaitFor<PowerUpErrorMessage>(player1, "PowerUpError");
-        await player1.InvokeAsync("UsePowerUp", "double");
+        await player1.InvokeAsync("UsePowerUp", "double", null);
         var err = await powerUpError;
 
         Assert.Contains("answered", err.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task UsePowerUp_Disrupt_EmitsHitFxAndBlocksWithShield()
+    {
+        await using var host = await ConnectAsync();
+        await using var attacker = await ConnectAsync();
+        await using var defender = await ConnectAsync();
+
+        var hostRoomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync("CreateRoom", SeedData.AusbildungBasicsQuizId, null, null);
+        var room = await hostRoomCreated;
+
+        await attacker.InvokeAsync("JoinRoom", room.Code, "Ada");
+        await defender.InvokeAsync("JoinRoom", room.Code, "Bob");
+
+        var q = WaitFor<QuestionStartedMessage>(attacker, "QuestionStarted");
+        await host.InvokeAsync("StartGame");
+        await q;
+
+        var shieldFx = WaitFor<PowerUpFxMessage>(host, "PowerUpFx");
+        await defender.InvokeAsync("UsePowerUp", "shield", null);
+        var shieldUp = await shieldFx;
+        Assert.Equal("shield_up", shieldUp.Kind);
+
+        var launchFx = WaitFor<PowerUpFxMessage>(host, "PowerUpFx");
+        var used = WaitFor<PowerUpUsedMessage>(attacker, "PowerUpUsed");
+        await attacker.InvokeAsync("UsePowerUp", "disrupt", "Bob");
+        var launch = await launchFx;
+        Assert.Equal("attack_launch", launch.Kind);
+        Assert.Equal("Ada", launch.ActorNickname);
+        Assert.Equal("Bob", launch.TargetNickname);
+
+        var usedMsg = await used;
+        Assert.True(usedMsg.Ok);
+        Assert.Equal("disrupt", usedMsg.PowerUpId);
+        Assert.True(usedMsg.BlockedByShield);
+        Assert.Equal("Bob", usedMsg.TargetNickname);
     }
 
     private async Task<HubConnection> ConnectAsync()

@@ -267,7 +267,8 @@ public sealed class GameSession
 
     public (bool ok, string? error, PowerUpUseResult? result) TryUsePowerUp(
         string connectionId,
-        PowerUpId powerUpId)
+        PowerUpId powerUpId,
+        string? targetNickname = null)
     {
         lock (_gate)
         {
@@ -314,10 +315,53 @@ public sealed class GameSession
                 return (false, "Already used a self-effect this question", null);
             }
 
-            state.Inventory[powerUpId]--;
-
             int[]? masked = null;
             DateTimeOffset? newEndsAt = null;
+            string? target = null;
+            var blocked = false;
+            string? fxKind = null;
+
+            if (powerUpId == PowerUpId.Disrupt)
+            {
+                var resolved = ResolveDisruptTarget(player.Nickname, targetNickname);
+                if (resolved.error is not null)
+                {
+                    return (false, resolved.error, null);
+                }
+
+                target = resolved.targetNickname!;
+                if (!_powerUps.TryGetValue(target, out var targetState))
+                {
+                    return (false, "Target not found", null);
+                }
+
+                state.Inventory[powerUpId]--;
+                if (targetState.HasShield)
+                {
+                    targetState.HasShield = false;
+                    blocked = true;
+                    fxKind = "attack_blocked";
+                }
+                else
+                {
+                    targetState.DisruptedThisQuestion = true;
+                    fxKind = "attack_hit";
+                }
+
+                return (
+                    true,
+                    null,
+                    new PowerUpUseResult(
+                        powerUpId,
+                        null,
+                        null,
+                        player.Nickname,
+                        target,
+                        blocked,
+                        fxKind));
+            }
+
+            state.Inventory[powerUpId]--;
 
             switch (powerUpId)
             {
@@ -340,11 +384,45 @@ public sealed class GameSession
                     break;
                 case PowerUpId.Shield:
                     state.HasShield = true;
+                    fxKind = "shield_up";
                     break;
             }
 
-            return (true, null, new PowerUpUseResult(powerUpId, masked, newEndsAt));
+            return (
+                true,
+                null,
+                new PowerUpUseResult(powerUpId, masked, newEndsAt, player.Nickname, null, false, fxKind));
         }
+    }
+
+    private (string? targetNickname, string? error) ResolveDisruptTarget(string actorNickname, string? requested)
+    {
+        var candidates = _players
+            .Where(p =>
+                p.IsConnected
+                && !string.Equals(p.Nickname, actorNickname, StringComparison.OrdinalIgnoreCase)
+                && !_answersThisQuestion.ContainsKey(p.Nickname))
+            .Select(p => p.Nickname)
+            .ToList();
+
+        if (candidates.Count == 0)
+        {
+            return (null, "No valid target");
+        }
+
+        if (string.IsNullOrWhiteSpace(requested))
+        {
+            return (candidates[Random.Shared.Next(candidates.Count)], null);
+        }
+
+        var match = candidates.FirstOrDefault(n =>
+            string.Equals(n, requested.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (match is null)
+        {
+            return (null, "Invalid target");
+        }
+
+        return (match, null);
     }
 
     public (bool ok, string? error, int points) SubmitAnswer(
@@ -383,18 +461,23 @@ public sealed class GameSession
 
             _answersThisQuestion[player.Nickname] = optionIndex;
             var correct = optionIndex == CurrentQuestion.CorrectIndex;
-            _correctThisQuestion[player.Nickname] = correct;
+            var disrupted = _powerUps.TryGetValue(player.Nickname, out var puState) && puState.DisruptedThisQuestion;
+            // Disrupted answers never score and do not count for streak.
+            var countsAsCorrect = correct && !disrupted;
+            _correctThisQuestion[player.Nickname] = countsAsCorrect;
             var elapsed = serverUtc - QuestionStartedAtUtc.Value;
-            var points = Scoring.Score(correct, elapsed, _questionScoreLimit);
+            var points = Scoring.Score(countsAsCorrect, elapsed, _questionScoreLimit);
+            if (puState is not null)
+            {
+                puState.DisruptedThisQuestion = false;
+            }
+
             if (points > 0)
             {
-                if (_powerUps.TryGetValue(player.Nickname, out var pu))
+                if (puState is not null && puState.DoubleActive)
                 {
-                    if (pu.DoubleActive)
-                    {
-                        points *= 2;
-                        pu.DoubleActive = false;
-                    }
+                    points *= 2;
+                    puState.DoubleActive = false;
                 }
 
                 if (_boostAllActive)
@@ -402,9 +485,9 @@ public sealed class GameSession
                     points = (int)Math.Floor(points * 1.5);
                 }
             }
-            else if (_powerUps.TryGetValue(player.Nickname, out var puWrong))
+            else if (puState is not null)
             {
-                puWrong.DoubleActive = false;
+                puState.DoubleActive = false;
             }
 
             player.Score += points;
@@ -679,6 +762,7 @@ public sealed class GameSession
             state.DoubleActive = false;
             state.MaskedWrongIndexes = null;
             state.UsedExtraTimeThisQuestion = false;
+            state.DisruptedThisQuestion = false;
         }
 
         _roomExtraTimeExtendedThisQuestion = false;

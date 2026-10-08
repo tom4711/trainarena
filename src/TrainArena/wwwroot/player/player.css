@@ -394,3 +394,127 @@ button.is-busy {
   opacity: 0.7;
   pointer-events: none;
 }
+
+.powerups button.is-active[data-powerup="disrupt"],
+.powerups button[data-powerup="disrupt"].is-activating {
+  border-color: #fb923c;
+}
+
+button.secondary {
+  background: #334155;
+  color: var(--text);
+}
+
+.target-picker {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  background: color-mix(in srgb, #020617 55%, transparent);
+}
+.target-picker.hidden { display: none !important; }
+.target-picker-card {
+  width: min(100%, 28rem);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1rem 1.15rem;
+  animation: panel-in 180ms ease-out;
+}
+.target-picker-card h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+}
+.target-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0.85rem 0 0.65rem;
+}
+.target-list button {
+  margin-top: 0;
+  background: #243047;
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+}
+
+.fx-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  text-align: center;
+  pointer-events: none;
+  background: color-mix(in srgb, #020617 58%, transparent);
+  animation: fx-veil 950ms ease-out forwards;
+}
+.fx-overlay.hidden { display: none !important; }
+.fx-burst {
+  width: min(78vw, 16rem);
+  height: min(78vw, 16rem);
+  border-radius: 50%;
+  margin-bottom: 0.85rem;
+  animation: fx-burst 950ms ease-out forwards;
+}
+.fx-overlay.is-shield_up .fx-burst {
+  background: radial-gradient(circle, #67e8f9 0%, transparent 65%);
+  box-shadow: 0 0 3.5rem #22d3ee;
+}
+.fx-overlay.is-shield_break .fx-burst {
+  background: radial-gradient(circle, #f87171 0%, #67e8f9 35%, transparent 70%);
+  box-shadow: 0 0 3.5rem #f43f5e;
+}
+.fx-overlay.is-attack_launch .fx-burst {
+  background: radial-gradient(circle, #fb923c 0%, transparent 65%);
+  box-shadow: 0 0 3.5rem #f97316;
+}
+.fx-overlay.is-attack_hit .fx-burst {
+  background: radial-gradient(circle, #ef4444 0%, #7f1d1d 55%, transparent 70%);
+  box-shadow: 0 0 4rem #dc2626;
+}
+.fx-overlay.is-attack_blocked .fx-burst {
+  background: radial-gradient(circle, #a7f3d0 0%, #67e8f9 40%, transparent 70%);
+  box-shadow: 0 0 3.5rem #34d399;
+}
+.fx-title {
+  margin: 0;
+  font-size: clamp(1.45rem, 7vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.55);
+}
+.fx-sub {
+  margin: 0.4rem 0 0;
+  font-size: 1.02rem;
+  color: #e2e8f0;
+  max-width: 22rem;
+}
+@keyframes fx-veil {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes fx-burst {
+  0% { transform: scale(0.35); opacity: 0.25; }
+  40% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1.2); opacity: 0.85; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-overlay,
+  .fx-burst,
+  .target-picker-card {
+    animation: none !important;
+  }
+  .fx-overlay {
+    background: color-mix(in srgb, #020617 75%, transparent);
+  }
+  .fx-burst { opacity: 0.55; transform: none; }
+}

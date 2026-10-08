@@ -498,6 +498,84 @@ a { color: var(--accent); }
   }
 }
 
+/* Full-screen competitive FX */
+.fx-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  text-align: center;
+  pointer-events: none;
+  background: color-mix(in srgb, #020617 55%, transparent);
+  animation: fx-veil 900ms ease-out forwards;
+}
+.fx-overlay.hidden { display: none !important; }
+.fx-burst {
+  width: min(70vw, 18rem);
+  height: min(70vw, 18rem);
+  border-radius: 50%;
+  margin-bottom: 1rem;
+  filter: blur(2px);
+  animation: fx-burst 900ms ease-out forwards;
+}
+.fx-overlay.is-shield_up .fx-burst {
+  background: radial-gradient(circle, #67e8f9 0%, transparent 65%);
+  box-shadow: 0 0 4rem #22d3ee;
+}
+.fx-overlay.is-shield_break .fx-burst {
+  background: radial-gradient(circle, #f87171 0%, #67e8f9 35%, transparent 70%);
+  box-shadow: 0 0 4rem #f43f5e;
+}
+.fx-overlay.is-attack_launch .fx-burst {
+  background: radial-gradient(circle, #fb923c 0%, transparent 65%);
+  box-shadow: 0 0 4rem #f97316;
+}
+.fx-overlay.is-attack_hit .fx-burst {
+  background: radial-gradient(circle, #ef4444 0%, #7f1d1d 55%, transparent 70%);
+  box-shadow: 0 0 4.5rem #dc2626;
+}
+.fx-overlay.is-attack_blocked .fx-burst {
+  background: radial-gradient(circle, #a7f3d0 0%, #67e8f9 40%, transparent 70%);
+  box-shadow: 0 0 4rem #34d399;
+}
+.fx-title {
+  margin: 0;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+}
+.fx-sub {
+  margin: 0.45rem 0 0;
+  font-size: clamp(1rem, 2.8vw, 1.25rem);
+  color: #e2e8f0;
+  max-width: 28rem;
+}
+@keyframes fx-veil {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes fx-burst {
+  0% { transform: scale(0.35); opacity: 0.25; }
+  40% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1.2); opacity: 0.85; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-overlay,
+  .fx-burst {
+    animation: none !important;
+  }
+  .fx-overlay {
+    background: color-mix(in srgb, #020617 72%, transparent);
+  }
+  .fx-burst { opacity: 0.55; transform: none; }
+}
+
 @media (max-width: 420px) {
   .pu-starters { grid-template-columns: 1fr; }
   .button-row button { flex-basis: 100%; }

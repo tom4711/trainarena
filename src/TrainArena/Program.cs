@@ -6,7 +6,13 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        options.EnableDetailedErrors = true;
+    }
+});
 builder.Services.AddSingleton<RoomCodeGenerator>();
 builder.Services.AddSingleton<GameSessionStore>();
 builder.Services.AddSingleton(sp =>

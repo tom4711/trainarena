@@ -8,6 +8,8 @@ public sealed class PlayerPowerUpState
     public bool DoubleActive { get; set; }
     public int[]? MaskedWrongIndexes { get; set; } // length 2 when fifty_fifty applied
     public bool UsedExtraTimeThisQuestion { get; set; }
+    /// <summary>Next answer this question scores 0 and counts as wrong for streak.</summary>
+    public bool DisruptedThisQuestion { get; set; }
 
     public bool HasSelfEffectActive =>
         DoubleActive || MaskedWrongIndexes is not null || UsedExtraTimeThisQuestion;

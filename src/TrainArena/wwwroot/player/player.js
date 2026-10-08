@@ -25,7 +25,14 @@
     { id: "double", label: "Double" },
     { id: "extra_time", label: "Extra-Zeit" },
     { id: "shield", label: "Shield" },
+    { id: "disrupt", label: "Störimpuls" },
   ];
+
+  const targetPicker = $("target-picker");
+  const targetList = $("target-list");
+  const fxOverlay = $("fx-overlay");
+  const fxTitle = $("fx-title");
+  const fxSub = $("fx-sub");
 
   let startedAt = null;
   let endsAt = null;
@@ -37,6 +44,10 @@
   let boardWaitingForHost = false;
   let roomCode = sessionStorage.getItem(STORAGE_CODE) || $("code").value.trim().toUpperCase();
   let nickname = sessionStorage.getItem(STORAGE_NICK) || "";
+  let lobbyPlayers = [];
+  let fxTimer = null;
+  const fxQueue = [];
+  let fxShowing = false;
 
   if (roomCode) $("code").value = roomCode;
   if (nickname) $("nickname").value = nickname;
@@ -108,11 +119,78 @@
     });
   }
 
+  function showFx(kind, title, sub) {
+    fxQueue.push({ kind, title, sub });
+    if (!fxShowing) drainFxQueue();
+  }
+
+  function drainFxQueue() {
+    if (!fxOverlay || fxQueue.length === 0) {
+      fxShowing = false;
+      return;
+    }
+    fxShowing = true;
+    const { kind, title, sub } = fxQueue.shift();
+    if (fxTimer) clearTimeout(fxTimer);
+    fxOverlay.className = `fx-overlay is-${kind}`;
+    fxTitle.textContent = title;
+    fxSub.textContent = sub || "";
+    fxOverlay.classList.remove("hidden");
+    const ms = reducedMotion ? 1600 : 1100;
+    fxTimer = window.setTimeout(() => {
+      fxOverlay.classList.add("hidden");
+      fxOverlay.className = "fx-overlay hidden";
+      drainFxQueue();
+    }, ms);
+  }
+
+  function hideTargetPicker() {
+    targetPicker?.classList.add("hidden");
+    if (targetList) targetList.innerHTML = "";
+  }
+
+  function openTargetPicker() {
+    const opponents = lobbyPlayers.filter(
+      (p) => p && p.toLowerCase() !== nickname.toLowerCase(),
+    );
+    if (!targetList || !targetPicker) {
+      invokeDisrupt(null);
+      return;
+    }
+    if (opponents.length === 0) {
+      answerStatus.className = "error";
+      answerStatus.textContent = "Kein gültiges Ziel";
+      return;
+    }
+    targetList.innerHTML = "";
+    opponents.forEach((name) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = name;
+      btn.addEventListener("click", () => {
+        hideTargetPicker();
+        invokeDisrupt(name);
+      });
+      targetList.appendChild(btn);
+    });
+    targetPicker.classList.remove("hidden");
+  }
+
+  function invokeDisrupt(targetNickname) {
+    const btn = powerUpButton("disrupt");
+    flashClass(btn, "is-activating", 400);
+    connection.invoke("UsePowerUp", "disrupt", targetNickname || null);
+  }
+
   function usePowerUp(id) {
     if (answered || !questionOpen || countFor(id) <= 0) return;
+    if (id === "disrupt") {
+      openTargetPicker();
+      return;
+    }
     const btn = powerUpButton(id);
     flashClass(btn, "is-activating", 400);
-    connection.invoke("UsePowerUp", id);
+    connection.invoke("UsePowerUp", id, null);
   }
 
   function applyMaskedOptions(indexes) {
@@ -198,6 +276,58 @@
     } else if (id === "shield") {
       showPuToast("Shield aktiv");
       markPowerUpActive("shield");
+    } else if (id === "disrupt") {
+      if (msg.blockedByShield) {
+        showPuToast(`Schild blockt — ${msg.targetNickname || "Ziel"} geschützt`);
+      } else {
+        showPuToast(`Störimpuls trifft ${msg.targetNickname || "Ziel"}`);
+      }
+    }
+  });
+
+  connection.on("PowerUpFx", (msg) => {
+    const kind = msg?.kind;
+    const actor = msg?.actorNickname || "?";
+    const target = msg?.targetNickname || "?";
+    const me = nickname;
+    if (kind === "shield_up") {
+      showFx(kind, "Schild aktiv", actor === me ? "Du bist geschützt" : `${actor} ist geschützt`);
+      if (actor === me) markPowerUpActive("shield");
+    } else if (kind === "shield_break") {
+      showFx(
+        kind,
+        "Schild zerstört",
+        actor === me ? "Dein Schild ist gebrochen" : `Schild von ${actor} zerstört`,
+      );
+      if (actor === me) {
+        activePowerUps.delete("shield");
+        refreshPowerUpButtons();
+      }
+    } else if (kind === "attack_launch") {
+      showFx(
+        kind,
+        "Störimpuls!",
+        actor === me ? `Du greifst ${target} an` : `${actor} greift ${target} an`,
+      );
+    } else if (kind === "attack_hit") {
+      showFx(
+        kind,
+        target === me ? "Du wurdest gestört!" : "Treffer!",
+        target === me
+          ? "Deine nächste Antwort zählt nicht"
+          : `${target} ist gestört`,
+      );
+      if (target === me) {
+        showPuToast("Gestört — nächste Antwort zählt nicht");
+      }
+    } else if (kind === "attack_blocked") {
+      showFx(
+        kind,
+        "Geblockt!",
+        target === me
+          ? "Dein Schild hat gehalten"
+          : `${target} blockt den Angriff`,
+      );
     }
   });
 
@@ -224,11 +354,16 @@
     }
   });
 
-  connection.on("LobbyState", () => {
+  connection.on("LobbyState", (msg) => {
+    lobbyPlayers = (msg?.players || [])
+      .filter((p) => p && p.isConnected !== false)
+      .map((p) => p.nickname)
+      .filter(Boolean);
     joinPanel.classList.add("hidden");
     waitPanel.classList.remove("hidden");
     questionPanel.classList.add("hidden");
     powerupsEl.classList.add("hidden");
+    hideTargetPicker();
     if (boardPanel.classList.contains("hidden") === false && !questionOpen) {
       // keep board if mid-round sync already showed it
     } else {
@@ -498,6 +633,7 @@
       $("nickname").focus();
     }
   });
+  $("btn-target-cancel")?.addEventListener("click", () => hideTargetPicker());
 
   connection.onreconnected(async () => {
     if (!roomCode || !nickname) return;

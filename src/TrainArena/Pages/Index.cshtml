@@ -38,6 +38,7 @@
                     <label>Double <input type="number" id="pu-double" min="0" max="9" value="1" /></label>
                     <label>Extra-Zeit <input type="number" id="pu-extra" min="0" max="9" value="0" /></label>
                     <label>Shield <input type="number" id="pu-shield" min="0" max="9" value="1" /></label>
+                    <label>Störimpuls <input type="number" id="pu-disrupt" min="0" max="9" value="1" /></label>
                 </div>
             </fieldset>
             <fieldset id="auto-advance-setup" class="powerup-setup">
@@ -90,6 +91,12 @@
             <button id="btn-next" type="button" class="hidden">Nächste Frage</button>
             <p id="finished" class="hidden">Runde beendet. Danke!</p>
         </section>
+
+        <div id="fx-overlay" class="fx-overlay hidden" aria-live="assertive" aria-atomic="true">
+            <div class="fx-burst" aria-hidden="true"></div>
+            <p id="fx-title" class="fx-title"></p>
+            <p id="fx-sub" class="fx-sub"></p>
+        </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>

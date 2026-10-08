@@ -6,6 +6,7 @@ public class PowerUpIdParserTests
 {
     [Theory]
     [InlineData("fifty_fifty", PowerUpId.FiftyFifty)]
+    [InlineData("disrupt", PowerUpId.Disrupt)]
     [InlineData("double", PowerUpId.Double)]
     [InlineData("extra_time", PowerUpId.ExtraTime)]
     [InlineData("shield", PowerUpId.Shield)]
