@@ -1,14 +1,14 @@
 # TrainArena Brand
 
-**Canonical assets are PNG**, taken from the approved Konzept A / D drafts (upscaled, not redesigned).
+Canonical assets are **PNG**.
 
 | File | Role |
 |------|------|
-| `logo-icon-source.png` | Exact draft icon A |
-| `logo-icon-4x.png` | 4× upscaled draft icon |
-| `banner-source.png` | Exact draft banner D |
-| `banner-4x.png` / `banner.png` | Hi-res README banner |
-| `../src/TrainArena/wwwroot/assets/brand/logo-icon.png` | App header mark |
-| `../src/TrainArena/wwwroot/assets/brand/favicon.png` | Tab icon |
+| `logo-icon-source.png` | Exact Konzept-A mark (source) |
+| `../src/TrainArena/wwwroot/assets/brand/logo-icon.png` | App header / favicon source |
+| `logo-icon-arena.png` | Same A-mark inside arena hex (optional) |
+| `banner.png` | README hero: **same Logo-A mark** + arena frame + wordmark |
 
-SVG files are optional wrappers only. Spec: `../superpowers/specs/2026-10-08-trainarena-banner-logo-design.md`.
+Banner monogram = Logo A (not the older divergent banner A). Arena hex / A-extension framing from Konzept D.
+
+Spec: `../superpowers/specs/2026-10-08-trainarena-banner-logo-design.md`.
