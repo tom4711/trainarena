@@ -1,56 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  TrainArena logo-icon (Konzept A - italic ribbon TA monogram).
-  Brand sibling to thomasmenzl.de: angular facets, blue->cyan gradients.
-  Visual companion: logo-icon.png (production raster matching approved draft).
--->
-<svg viewBox="0 0 512 512" width="512" height="512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TrainArena">
+<!-- TrainArena logo-icon (Konzept A). Visual source: logo-icon.png. Colors: #0032C3 #0ACDDE -->
+<svg viewBox="0 0 1024 1024" width="1024" height="1024" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-label="TrainArena">
   <title>TrainArena</title>
-  <defs>
-    <linearGradient id="gBar" x1="70" y1="90" x2="280" y2="180" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0032C3"/>
-      <stop offset="1" stop-color="#0A8FE0"/>
-    </linearGradient>
-    <linearGradient id="gStem" x1="140" y1="140" x2="220" y2="420" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0026AA"/>
-      <stop offset="0.55" stop-color="#0074CD"/>
-      <stop offset="1" stop-color="#0ACDDE"/>
-    </linearGradient>
-    <linearGradient id="gALeft" x1="240" y1="150" x2="300" y2="430" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0097D4"/>
-      <stop offset="1" stop-color="#0A0A73"/>
-    </linearGradient>
-    <linearGradient id="gABody" x1="280" y1="100" x2="460" y2="420" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0DD8E6"/>
-      <stop offset="0.4" stop-color="#0ACDDE"/>
-      <stop offset="1" stop-color="#0032C3"/>
-    </linearGradient>
-    <linearGradient id="gFold" x1="150" y1="130" x2="210" y2="200" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0A0A73"/>
-      <stop offset="1" stop-color="#0046B7"/>
-    </linearGradient>
-  </defs>
-
-  <!-- Italic slant group (~18deg visual via parallelograms) -->
-  <!-- T stem (behind bar) -->
-  <path fill="url(#gStem)" d="M168 168 L236 148 L292 392 L210 420 Z"/>
-  <!-- Fold shadow under T bar -->
-  <path fill="url(#gFold)" d="M168 168 L236 148 L248 188 L180 208 Z"/>
-  <!-- T bar -->
-  <path fill="url(#gBar)" d="M78 142 L286 82 L302 138 L110 202 Z"/>
-
-  <!-- A left leg (parallel channel to T stem) -->
-  <path fill="url(#gALeft)" d="M258 158 L302 146 L356 400 L300 420 Z"/>
-  <!-- A body: right facet + crossbar notch -->
-  <path fill="url(#gABody)" d="
-    M318 140
-    L448 102
-    L400 420
-    L318 420
-    L348 300
-    L300 300
-    L292 250
-    L360 250
-    L388 160
-    Z"/>
+  <image width="1024" height="1024" href="logo-icon.png" xlink:href="logo-icon.png"/>
 </svg>

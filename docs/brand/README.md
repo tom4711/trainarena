@@ -1,15 +1,15 @@
 # TrainArena Brand
 
-Hybrid-Set aligned with approved drafts (Konzept A icon, Konzept D banner):
+Production rasters are taken directly from the approved Konzept A / D drafts (not a simplified redraw).
 
 | Asset | Path | Role |
 |-------|------|------|
-| App mark (PNG) | `src/TrainArena/wwwroot/assets/brand/logo-icon.png` | Host/Editor/Player header (matches draft look) |
-| App mark (SVG) | `src/TrainArena/wwwroot/assets/brand/logo-icon.svg` | Vector sibling / SVG favicon |
-| Favicon | `src/TrainArena/wwwroot/assets/brand/favicon.png` | 32×32 tab icon |
-| Banner PNG | `banner.png` | README hero (canonical raster) |
-| Banner SVG | `banner.svg` | Editable vector companion |
+| App mark (PNG) | `src/TrainArena/wwwroot/assets/brand/logo-icon.png` | Host/Editor/Player header |
+| App mark (SVG) | `…/logo-icon.svg` | Thin wrapper → `logo-icon.png` |
+| Favicon | `…/favicon.png` | 32×32 from icon |
+| Banner PNG | `banner.png` | README hero (canonical) |
+| Banner SVG | `banner.svg` | Thin wrapper → `banner.png` |
 
 Spec: `../superpowers/specs/2026-10-08-trainarena-banner-logo-design.md`
 
-Primary accents: `#0032C3` → `#0ACDDE` (sibling to thomasmenzl.de). Wordmark: **TrainArena**. Tagline: *Live-Quiz für Ausbildung*.
+Wordmark: **TrainArena**. Tagline: *Live-Quiz für Ausbildung*. Accents: `#0032C3` → `#0ACDDE`.
