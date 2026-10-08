@@ -43,24 +43,31 @@ Referenzprozess: Finanzübersicht Branch `docs/finanzuebersicht-brand-logo` (Com
 
 | Asset | Inhalt | Primärer Einsatz |
 |-------|--------|------------------|
-| `docs/brand/logo-icon.png` (4096×4096) | Reines TA-Monogramm (Konzept A) | Brand-Master |
-| `docs/brand/logo-icon-arena.png` (4096×4096) | TA + Arena-Kranz (ohne Wordmark) | Brand-Master |
-| `docs/brand/banner.png` (3840×2160) | Arena-Mark + Wordmark (Logo-A) + Tagline | GitHub README |
-| `wwwroot/.../logo-icon.png` + `favicon.png` | Downscale vom Icon-Master | Host-/Player-/Editor-Header, Favicon |
+| `docs/brand/logo-icon.png` (4096×4096 RGBA) | Reines TA-Monogramm ohne Kranz (Konzept A) | Brand-Master, App-Header |
+| `docs/brand/logo-icon-arena.png` (4096×4096 RGBA) | TA + Hex-Kranz (ohne Wordmark) | Brand-Master / optionales Mark |
+| `docs/brand/banner.png` (3840×2160 RGBA) | Kranz-Mark + Wordmark (Logo-A) + Tagline, ohne Strahlen | GitHub README |
+| `wwwroot/.../logo-icon.png` + `favicon.png` | Downscale vom Icon-Master (transparent) | Host-/Player-/Editor-Header, Favicon |
+
+Alle Master: **transparenter Hintergrund** für Hell-/Dunkel-Flächen.
 
 ### Icon (Konzept A)
 
 - Nur **T + A**, interlocking/adjacent, gleiche visuelle Sprache wie TM
-- Transparenter Hintergrund; mittig mit bescheidenem Padding
+- Transparenter RGBA-Hintergrund; mittig mit bescheidenem Padding
 - Muss bei **16×16 / 32×32** noch als Marke lesbar sein
-- Kein Wordmark im Icon-File
+- Kein Wordmark im Icon-File; kein Hex-Kranz
 
-### Banner (Konzept D)
+### Arena-Mark (Kranz)
 
-- Dasselbe Monogramm **innerhalb** eines **dezenten**, angularen Arena-/Stadion-Rahmens (Outline/Ring, sekundär zum Monogramm)
-- Wordmark **TrainArena** in klarer Sans-Serif, Farbe `#152038` auf hell `#f7f8fb`
-- Eine Zeile Tagline in Muted (`#5b6b88`): *Live-Quiz für Ausbildung*
-- Generöse Ränder; ruhige Komposition; Rahmen nicht dominant
+- Dasselbe TA wie das Pure-Icon, plus segmentierter Hex-Kranz
+- Ohne Wordmark; RGBA transparent
+
+### Banner (Konzept D, vereinfacht)
+
+- Kranz-Mark + Wordmark **TrainArena** (Logo-A-Glyphe im Schriftzug) + Tagline
+- **Keine** Strahlen / feinen Dekorelemente — nur Mark + Text
+- Wordmark `#152038`, Tagline muted `#5b6b88`; Hintergrund transparent (nicht `#f7f8fb`)
+- Generöse Ränder; ruhige Komposition
 
 ### Varianten (Backlog)
 

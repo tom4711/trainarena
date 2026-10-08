@@ -31,6 +31,9 @@ public class BrandAssetsTests : IClassFixture<TrainArenaWebAppFactory>
         var height = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
         Assert.Equal(expectedWidth, width);
         Assert.Equal(expectedHeight, height);
+        // IHDR color type at byte 25: 4=greyscale+alpha, 6=RGBA
+        var colorType = bytes[25];
+        Assert.True(colorType is 4 or 6, $"{relativePath} must be RGBA/transparent (color type {colorType})");
     }
 
     [Fact]
