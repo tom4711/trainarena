@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TrainArena banner (Konzept D)  TA monogram in subtle arena frame + wordmark + tagline.
+  Light surface #f7f8fb; wordmark #152038; tagline #5b6b88.
+-->
+<svg viewBox="0 0 1280 640" width="1280" height="640" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TrainArena  Live-Quiz für Ausbildung">
+  <title>TrainArena  Live-Quiz für Ausbildung</title>
+  <defs>
+    <linearGradient id="bGradBar" x1="80" y1="120" x2="420" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0032C3"/>
+      <stop offset="1" stop-color="#0ACDDE"/>
+    </linearGradient>
+    <linearGradient id="bGradStem" x1="200" y1="200" x2="200" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0026AA"/>
+      <stop offset="1" stop-color="#019FDE"/>
+    </linearGradient>
+    <linearGradient id="bGradALeft" x1="380" y1="140" x2="500" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0DD8E6"/>
+      <stop offset="0.45" stop-color="#0097D4"/>
+      <stop offset="1" stop-color="#0A0A73"/>
+    </linearGradient>
+    <linearGradient id="bGradARight" x1="520" y1="140" x2="700" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0ACDDE"/>
+      <stop offset="0.5" stop-color="#0046B7"/>
+      <stop offset="1" stop-color="#0032C3"/>
+    </linearGradient>
+    <linearGradient id="bGradCross" x1="430" y1="340" x2="620" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0074CD"/>
+      <stop offset="1" stop-color="#09CCE7"/>
+    </linearGradient>
+    <linearGradient id="arenaStroke" x1="200" y1="80" x2="1080" y2="560" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0a5cd6"/>
+      <stop offset="1" stop-color="#00b6c9"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="640" fill="#f7f8fb"/>
+  <!-- faint cool wash -->
+  <ellipse cx="640" cy="200" rx="520" ry="220" fill="#0a5cd6" opacity="0.06"/>
+
+  <!-- subtle angular arena frame (secondary) -->
+  <g fill="none" stroke="url(#arenaStroke)" stroke-width="10" stroke-linejoin="round" opacity="0.55">
+    <path d="M180 140 L640 70 L1100 140 L1040 500 L640 570 L240 500 Z"/>
+    <path d="M280 200 L640 150 L1000 200 L960 450 L640 500 L320 450 Z" opacity="0.85"/>
+  </g>
+
+  <!-- TA mark, scaled/centered left-of-center -->
+  <g transform="translate(210,90) scale(0.55)">
+    <path fill="url(#bGradStem)" d="M155 200 L255 200 L255 430 L250 438 L160 520 L155 520 Z"/>
+    <path fill="url(#bGradBar)" d="M80 90 L420 90 L412 105 L368 185 L358 198 L352 200 L80 200 Z"/>
+    <path fill="url(#bGradALeft)" d="M505 100 L575 100 L500 520 L420 520 L425 505 Z"/>
+    <path fill="url(#bGradARight)" d="M575 100 L720 100 L655 520 L560 520 L625 180 L590 180 Z"/>
+    <path fill="url(#bGradCross)" d="M455 330 L615 330 L608 360 L448 360 Z"/>
+  </g>
+
+  <!-- Wordmark + tagline -->
+  <text x="720" y="300" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="72" font-weight="700" fill="#152038">TrainArena</text>
+  <text x="720" y="360" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="28" font-weight="500" fill="#5b6b88">Live-Quiz für Ausbildung</text>
+</svg>
