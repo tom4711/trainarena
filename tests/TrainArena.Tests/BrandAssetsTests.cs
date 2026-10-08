@@ -29,4 +29,20 @@ public class BrandAssetsTests : IClassFixture<TrainArenaWebAppFactory>
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         Assert.Contains("svg", res.Content.Headers.ContentType?.MediaType ?? "", StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void FaviconPng_ExistsOnDisk()
+    {
+        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var path = Path.Combine(repoRoot, "src", "TrainArena", "wwwroot", "assets", "brand", "favicon.png");
+        Assert.True(File.Exists(path), $"Missing {path}");
+        Assert.True(new FileInfo(path).Length > 100);
+    }
+
+    [Fact]
+    public async Task FaviconPng_IsServed()
+    {
+        var res = await _client.GetAsync("/assets/brand/favicon.png");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+    }
 }
