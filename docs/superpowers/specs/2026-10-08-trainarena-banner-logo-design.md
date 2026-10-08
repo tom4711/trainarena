@@ -43,8 +43,9 @@ Referenzprozess: Finanzübersicht Branch `docs/finanzuebersicht-brand-logo` (Com
 
 | Asset | Inhalt | Primärer Einsatz |
 |-------|--------|------------------|
-| `docs/brand/logo-icon.png` (4096×4096) | TA-Monogramm (Konzept A) | Brand-Master |
-| `docs/brand/banner.png` (3840×2160) | Arena-Rahmen + Monogramm + Wordmark + Tagline | GitHub README |
+| `docs/brand/logo-icon.png` (4096×4096) | Reines TA-Monogramm (Konzept A) | Brand-Master |
+| `docs/brand/logo-icon-arena.png` (4096×4096) | TA + Arena-Kranz (ohne Wordmark) | Brand-Master |
+| `docs/brand/banner.png` (3840×2160) | Arena-Mark + Wordmark (Logo-A) + Tagline | GitHub README |
 | `wwwroot/.../logo-icon.png` + `favicon.png` | Downscale vom Icon-Master | Host-/Player-/Editor-Header, Favicon |
 
 ### Icon (Konzept A)
