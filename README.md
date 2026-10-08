@@ -1,5 +1,9 @@
 # TrainArena
 
+<p align="center">
+  <img src="docs/brand/banner.png" alt="TrainArena — Live-Quiz für Ausbildung" width="820" />
+</p>
+
 Self-hosted Live-Quiz für **Ausbilder ↔ Azubis** (LAN-first, Kahoot-Alternative).
 
 Ein ASP.NET-Core-Prozess: Host/Editor (Razor) · Player (HTML/JS) · SignalR · SQLite.

@@ -518,3 +518,24 @@ button.secondary {
   }
   .fx-burst { opacity: 0.55; transform: none; }
 }
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 0.25rem;
+}
+
+.brand-row h1 {
+  margin: 0;
+}
+
+.brand-mark {
+  width: 2.75rem;
+  height: 2.75rem;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
+  /* Transparent PNG mark — soft lift on dark player chrome */
+  filter: drop-shadow(0 6px 14px rgba(10, 205, 222, 0.22));
+}

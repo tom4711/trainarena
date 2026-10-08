@@ -1,0 +1,112 @@
+# TrainArena Banner & Logo — Design Spec
+
+**Datum:** 2026-10-08  
+**Status:** Implemented on branch cursor/trainarena-banner-logo-062a (assets + wiring)  
+**Produkt:** TrainArena (`trainarena`) — MIT OSS, self-hosted Live-Quiz  
+**Bezugsmarke:** Thomas Menzl Softwareentwicklung ([thomasmenzl.de](https://thomasmenzl.de))  
+**Branch:** `cursor/trainarena-banner-logo-062a`
+
+---
+
+## Ziel
+
+Ein Branding-Set für TrainArena, das **klar zur Unternehmensmarke passt** (Geometrie + Blau→Cyan), aber als **eigenes OSS-Produktzeichen** erkennbar bleibt — kein TM-Klon, keine Firmen-Übernahme-Optik.
+
+## Entscheidungen (gelockt)
+
+| Feld | Entscheidung |
+|------|----------------|
+| Scope | **Hybrid-Set (Option 3):** Icon = Konzept A, Banner = Konzept D |
+| Verwandtschaft | **A** — deutlich verwandt: gleiche Verläufe + eckige Geometrie wie TM |
+| Icon-Motiv | **TA-Monogramm** (Konzept A), ohne Arena-Rahmen |
+| Banner-Motiv | **TA-Monogramm in dezentem angularen Arena-Rahmen** + Wordmark (Konzept D) |
+| Tagline | **ja** — *Live-Quiz für Ausbildung* (nur auf dem Banner) |
+| Wordmark | **TrainArena** (Produktname gelockt) |
+| UI-Redesign | **nicht** im Scope — nur Assets + README-/Favicon-Einbindung |
+| Dunkle Banner-Variante | **nicht** im Primärset (Backlog) |
+
+## Marken-DNA (Referenz thomasmenzl.de)
+
+- Monogramm aus **eckigen polygonalen Flächen** (kein weiches Rounded-Consumer-Icon)
+- Verläufe Blau → Cyan, u. a.:
+  - `#0032C3` → `#0ACDDE`
+  - `#0026AA` → `#019FDE`
+  - tiefes Navy `#0A0A73` → Cyan `#0DD8E6`
+- UI-Accents (Site): `#0a5cd6` / `#00b6c9` (light), `#4da8ff` / `#35e0e6` (dark)
+- Flächen: hell `#f7f8fb`, Text Navy `#152038`, Dark-BG `#0b1020`
+- Kein Lila, kein Neon-Glow-Spam, keine Fotocollagen
+
+## Asset-Set
+
+Referenzprozess: Finanzübersicht Branch `docs/finanzuebersicht-brand-logo` (Commit `c36785c`) —
+**PNG-Master sind kanonisch**; SVG-Redraws werden nicht ausgeliefert (verlieren den freigegebenen Entwurf).
+
+| Asset | Inhalt | Primärer Einsatz |
+|-------|--------|------------------|
+| `docs/brand/logo-icon.png` (4096×4096 RGBA) | Reines TA-Monogramm ohne Kranz (Konzept A) | Brand-Master, App-Header |
+| `docs/brand/logo-icon-arena.png` (4096×4096 RGBA) | TA + Hex-Kranz (ohne Wordmark) | Brand-Master / optionales Mark |
+| `docs/brand/banner.png` (3840×2160 RGBA) | Kranz-Mark + Wordmark (Logo-A) + Tagline, ohne Strahlen | GitHub README |
+| `wwwroot/.../logo-icon.png` + `favicon.png` | Downscale vom Icon-Master (transparent) | Host-/Player-/Editor-Header, Favicon |
+
+Alle Master: **transparenter Hintergrund** für Hell-/Dunkel-Flächen.
+
+### Icon (Konzept A)
+
+- Nur **T + A**, interlocking/adjacent, gleiche visuelle Sprache wie TM
+- Transparenter RGBA-Hintergrund; mittig mit bescheidenem Padding
+- Muss bei **16×16 / 32×32** noch als Marke lesbar sein
+- Kein Wordmark im Icon-File; kein Hex-Kranz
+
+### Arena-Mark (Kranz)
+
+- Dasselbe TA wie das Pure-Icon, plus segmentierter Hex-Kranz
+- Ohne Wordmark; RGBA transparent
+
+### Banner (Konzept D, vereinfacht)
+
+- Kranz-Mark + Wordmark **TrainArena** (Logo-A-Glyphe im Schriftzug) + Tagline
+- **Keine** Strahlen / feinen Dekorelemente — nur Mark + Text
+- Wordmark `#152038`, Tagline muted `#5b6b88`; Hintergrund transparent (nicht `#f7f8fb`)
+- Generöse Ränder; ruhige Komposition
+
+### Varianten (Backlog)
+
+- Dunkle Banner-Variante auf `#0b1020` mit hellerem Wordmark — nach Primärset
+- Wordmark-lowercase `trainarena` — **abgelehnt** (bleibt **TrainArena**)
+
+## Dateiorte (Umsetzung)
+
+- `docs/brand/logo-icon.png` — Icon-Master 4096×4096
+- `docs/brand/banner.png` — Banner-Master 3840×2160 (README)
+- `src/TrainArena/wwwroot/assets/brand/logo-icon.png` — App-Header
+- `src/TrainArena/wwwroot/assets/brand/favicon.png` — Favicon
+- `scripts/check-brand-logo.py` — Größen-/PNG-Check (wie Finanz)
+- Favicon- und Header-Links in Host-Layout, Player-`index.html`, Editor-Seiten
+
+## Nicht-Ziele
+
+- Vollständiges Redesign von Host/Player/Editor-CSS
+- Ersetzen oder Ableiten des TM-Unternehmenslogos
+- App-Store-Assets / Marketing-Website
+- Animationen als Pflichtteil des Logos
+
+## Abnahmekriterien
+
+1. Icon und Banner teilen **dieselbe** TA-Form und Farbverläufe.
+2. Icon ohne Arena-Rahmen; Banner mit dezentem Arena-Rahmen.
+3. Optisch als Geschwister zu thomasmenzl.de erkennbar, aber als „TrainArena“ lesbar.
+4. README zeigt das Banner; App-Header/Favicon nutzen das Icon.
+5. Assets sind SVG (primär) und für GitHub ein PNG-Banner; MIT-kompatibel (eigenes Werk).
+
+## Konzept-Referenzen (Braindump)
+
+Während der Abstimmung erzeugte Entwürfe (Artefakte, nicht final):
+
+- Konzept A Icon / Banner
+- Konzept D Icon / Banner
+
+Finale Vektoren werden im Implementation-Plan als saubere SVGs (handgeführt oder nachgezogen) geliefert — nicht ungeprüft als reine Raster-AI-Exports.
+
+## Offene Punkte
+
+Keine. Dunkle Banner-Variante = Backlog.
