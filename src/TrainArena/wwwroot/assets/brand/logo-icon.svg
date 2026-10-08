@@ -1,43 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  TrainArena logo-icon (Konzept A - TA monogram).
-  Brand sibling to thomasmenzl.de TM mark: angular facets, blue->cyan gradients.
-  Colors: #0032C3 #0ACDDE #0026AA #019FDE #0A0A73 #0DD8E6 #0074CD #09CCE7 #0046B7 #0097D4
+  TrainArena logo-icon (Konzept A - italic ribbon TA monogram).
+  Brand sibling to thomasmenzl.de: angular facets, blue->cyan gradients.
+  Visual companion: logo-icon.png (production raster matching approved draft).
 -->
-<svg viewBox="40 40 720 520" width="720" height="520" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TrainArena">
+<svg viewBox="0 0 512 512" width="512" height="512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TrainArena">
   <title>TrainArena</title>
   <defs>
-    <linearGradient id="gradBar" x1="80" y1="120" x2="420" y2="120" gradientUnits="userSpaceOnUse">
+    <linearGradient id="gBar" x1="70" y1="90" x2="280" y2="180" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#0032C3"/>
+      <stop offset="1" stop-color="#0A8FE0"/>
+    </linearGradient>
+    <linearGradient id="gStem" x1="140" y1="140" x2="220" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0026AA"/>
+      <stop offset="0.55" stop-color="#0074CD"/>
       <stop offset="1" stop-color="#0ACDDE"/>
     </linearGradient>
-    <linearGradient id="gradStem" x1="200" y1="200" x2="200" y2="520" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0026AA"/>
-      <stop offset="1" stop-color="#019FDE"/>
-    </linearGradient>
-    <linearGradient id="gradALeft" x1="380" y1="140" x2="500" y2="520" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0DD8E6"/>
-      <stop offset="0.45" stop-color="#0097D4"/>
+    <linearGradient id="gALeft" x1="240" y1="150" x2="300" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0097D4"/>
       <stop offset="1" stop-color="#0A0A73"/>
     </linearGradient>
-    <linearGradient id="gradARight" x1="520" y1="140" x2="700" y2="520" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0ACDDE"/>
-      <stop offset="0.5" stop-color="#0046B7"/>
+    <linearGradient id="gABody" x1="280" y1="100" x2="460" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0DD8E6"/>
+      <stop offset="0.4" stop-color="#0ACDDE"/>
       <stop offset="1" stop-color="#0032C3"/>
     </linearGradient>
-    <linearGradient id="gradCross" x1="430" y1="340" x2="620" y2="340" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0074CD"/>
-      <stop offset="1" stop-color="#09CCE7"/>
+    <linearGradient id="gFold" x1="150" y1="130" x2="210" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0A0A73"/>
+      <stop offset="1" stop-color="#0046B7"/>
     </linearGradient>
   </defs>
-  <!-- T stem -->
-  <path fill="url(#gradStem)" d="M155 200 L255 200 L255 430 L250 438 L160 520 L155 520 Z"/>
+
+  <!-- Italic slant group (~18deg visual via parallelograms) -->
+  <!-- T stem (behind bar) -->
+  <path fill="url(#gStem)" d="M168 168 L236 148 L292 392 L210 420 Z"/>
+  <!-- Fold shadow under T bar -->
+  <path fill="url(#gFold)" d="M168 168 L236 148 L248 188 L180 208 Z"/>
   <!-- T bar -->
-  <path fill="url(#gradBar)" d="M80 90 L420 90 L412 105 L368 185 L358 198 L352 200 L80 200 Z"/>
-  <!-- A left leg -->
-  <path fill="url(#gradALeft)" d="M505 100 L575 100 L500 520 L420 520 L425 505 Z"/>
-  <!-- A right leg -->
-  <path fill="url(#gradARight)" d="M575 100 L720 100 L655 520 L560 520 L625 180 L590 180 Z"/>
-  <!-- A crossbar -->
-  <path fill="url(#gradCross)" d="M455 330 L615 330 L608 360 L448 360 Z"/>
+  <path fill="url(#gBar)" d="M78 142 L286 82 L302 138 L110 202 Z"/>
+
+  <!-- A left leg (parallel channel to T stem) -->
+  <path fill="url(#gALeft)" d="M258 158 L302 146 L356 400 L300 420 Z"/>
+  <!-- A body: right facet + crossbar notch -->
+  <path fill="url(#gABody)" d="
+    M318 140
+    L448 102
+    L400 420
+    L318 420
+    L348 300
+    L300 300
+    L292 250
+    L360 250
+    L388 160
+    Z"/>
 </svg>

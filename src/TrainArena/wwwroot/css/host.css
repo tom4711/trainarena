@@ -595,7 +595,8 @@ a { color: var(--accent); }
 
 .brand-mark {
   width: 2.75rem;
-  height: auto;
+  height: 2.75rem;
+  object-fit: contain;
   flex-shrink: 0;
   display: block;
   filter: drop-shadow(0 8px 16px rgba(10, 92, 214, 0.28));

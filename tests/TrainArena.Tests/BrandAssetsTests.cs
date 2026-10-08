@@ -65,6 +65,22 @@ public class BrandAssetsTests : IClassFixture<TrainArenaWebAppFactory>
     }
 
     [Fact]
+    public void LogoIconPng_ExistsOnDisk()
+    {
+        var path = Path.Combine(RepoRoot(), "src", "TrainArena", "wwwroot", "assets", "brand", "logo-icon.png");
+        Assert.True(File.Exists(path), $"Missing {path}");
+        Assert.True(new FileInfo(path).Length > 1000);
+    }
+
+    [Fact]
+    public async Task LogoIconPng_IsServed()
+    {
+        var res = await _client.GetAsync("/assets/brand/logo-icon.png");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Contains("png", res.Content.Headers.ContentType?.MediaType ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void FaviconPng_ExistsOnDisk()
     {
         var path = Path.Combine(RepoRoot(), "src", "TrainArena", "wwwroot", "assets", "brand", "favicon.png");
