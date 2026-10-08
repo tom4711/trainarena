@@ -24,6 +24,17 @@ Dann im Browser — am besten über die **LAN-IP** (nicht nur `localhost`), dami
 2. Spieler: Code scannen oder eingeben + Nickname → warten  
 3. Host: **Quiz starten** → nach jeder Frage **Weiter**, oder beim Raumerstellen **Automatisch weiter** (3/5/10 s nach der Rangliste, standardmäßig aus)
 
+### Screenshots
+
+| | |
+|:--|:--|
+| ![Host: Raum einrichten mit Power-Ups](docs/screenshots/01-host-setup-powerups.png) | ![Host-Lobby mit Code, QR und Spielern](docs/screenshots/02-host-lobby.png) |
+| *Host: Quiz, Power-Ups und Auto-Weiter* | *Lobby: Raumcode, QR, verbundene Spieler* |
+| ![Spieler: Beitritt (mobil)](docs/screenshots/03-player-join.png) | ![Host: Live-Frage mit Arena-Power-Ups](docs/screenshots/04-host-live-question.png) |
+| *Spieler: Code + Nickname (mobil)* | *Host live: Frage, Timer, Team-Boost / Zeit+5* |
+| ![Spieler: Frage mit Power-Ups](docs/screenshots/05-player-question-powerups.png) | ![Spieler: Schild-FX](docs/screenshots/06-player-shield-fx.png) |
+| *Spieler: Frage inkl. Störimpuls & Shield* | *Arena-FX: Schild aktiv* |
+
 ### Firewall / LAN / UX
 
 - Port freigeben (Dev-Standard: **5175**, siehe `src/TrainArena/Properties/launchSettings.json`).
