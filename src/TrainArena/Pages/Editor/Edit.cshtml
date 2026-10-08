@@ -9,6 +9,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/assets/brand/favicon.png" type="image/png" />
+    <link rel="icon" href="/assets/brand/logo-icon.svg" type="image/svg+xml" />
     <title>Quiz bearbeiten — @quiz.Title</title>
     <link rel="stylesheet" href="/css/host.css" />
     <style>
@@ -27,7 +29,10 @@
 </head>
 <body>
 <main class="host">
-    <h1>Quiz bearbeiten</h1>
+    <div class="brand-row">
+        <img class="brand-mark" src="/assets/brand/logo-icon.svg" width="64" height="46" alt="" />
+        <h1>Quiz bearbeiten</h1>
+    </div>
     <p class="tagline"><a href="/Editor">← Alle Quizzes</a> · <a href="/">Host</a></p>
 
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))
