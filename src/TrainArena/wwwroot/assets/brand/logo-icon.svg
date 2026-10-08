@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TrainArena logo-icon (Konzept A)  TA monogram.
+  Brand sibling to thomasmenzl.de TM mark: angular facets, blue’cyan gradients.
+  Colors: #0032C3 #0ACDDE #0026AA #019FDE #0A0A73 #0DD8E6 #0074CD #09CCE7 #0046B7 #0097D4
+-->
+<svg viewBox="40 40 720 520" width="720" height="520" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TrainArena">
+  <title>TrainArena</title>
+  <defs>
+    <linearGradient id="gradBar" x1="80" y1="120" x2="420" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0032C3"/>
+      <stop offset="1" stop-color="#0ACDDE"/>
+    </linearGradient>
+    <linearGradient id="gradStem" x1="200" y1="200" x2="200" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0026AA"/>
+      <stop offset="1" stop-color="#019FDE"/>
+    </linearGradient>
+    <linearGradient id="gradALeft" x1="380" y1="140" x2="500" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0DD8E6"/>
+      <stop offset="0.45" stop-color="#0097D4"/>
+      <stop offset="1" stop-color="#0A0A73"/>
+    </linearGradient>
+    <linearGradient id="gradARight" x1="520" y1="140" x2="700" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0ACDDE"/>
+      <stop offset="0.5" stop-color="#0046B7"/>
+      <stop offset="1" stop-color="#0032C3"/>
+    </linearGradient>
+    <linearGradient id="gradCross" x1="430" y1="340" x2="620" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0074CD"/>
+      <stop offset="1" stop-color="#09CCE7"/>
+    </linearGradient>
+  </defs>
+  <!-- T stem -->
+  <path fill="url(#gradStem)" d="M155 200 L255 200 L255 430 L250 438 L160 520 L155 520 Z"/>
+  <!-- T bar -->
+  <path fill="url(#gradBar)" d="M80 90 L420 90 L412 105 L368 185 L358 198 L352 200 L80 200 Z"/>
+  <!-- A left leg -->
+  <path fill="url(#gradALeft)" d="M505 100 L575 100 L500 520 L420 520 L425 505 Z"/>
+  <!-- A right leg -->
+  <path fill="url(#gradARight)" d="M575 100 L720 100 L655 520 L560 520 L625 180 L590 180 Z"/>
+  <!-- A crossbar -->
+  <path fill="url(#gradCross)" d="M455 330 L615 330 L608 360 L448 360 Z"/>
+</svg>
