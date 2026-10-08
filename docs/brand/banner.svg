@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  TrainArena banner (Konzept D) — TA monogram in subtle arena frame + wordmark + tagline.
+  TrainArena banner (Konzept D) - TA monogram in subtle arena frame + wordmark + tagline.
   Light surface #f7f8fb; wordmark #152038; tagline #5b6b88.
 -->
-<svg viewBox="0 0 1280 640" width="1280" height="640" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TrainArena — Live-Quiz für Ausbildung">
-  <title>TrainArena — Live-Quiz für Ausbildung</title>
+<svg viewBox="0 0 1280 640" width="1280" height="640" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TrainArena - Live-Quiz fuer Ausbildung">
+  <title>TrainArena - Live-Quiz fuer Ausbildung</title>
   <defs>
     <linearGradient id="bGradBar" x1="80" y1="120" x2="420" y2="120" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#0032C3"/>
@@ -44,8 +44,8 @@
     <path d="M280 200 L640 150 L1000 200 L960 450 L640 500 L320 450 Z" opacity="0.85"/>
   </g>
 
-  <!-- TA mark, scaled/centered left-of-center -->
-  <g transform="translate(210,90) scale(0.55)">
+  <!-- TA mark, scaled/centered inside inner arena frame -->
+  <g transform="translate(248,108) scale(0.48)">
     <path fill="url(#bGradStem)" d="M155 200 L255 200 L255 430 L250 438 L160 520 L155 520 Z"/>
     <path fill="url(#bGradBar)" d="M80 90 L420 90 L412 105 L368 185 L358 198 L352 200 L80 200 Z"/>
     <path fill="url(#bGradALeft)" d="M505 100 L575 100 L500 520 L420 520 L425 505 Z"/>
@@ -54,6 +54,6 @@
   </g>
 
   <!-- Wordmark + tagline -->
-  <text x="720" y="300" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="72" font-weight="700" fill="#152038">TrainArena</text>
-  <text x="720" y="360" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="28" font-weight="500" fill="#5b6b88">Live-Quiz für Ausbildung</text>
+  <text x="660" y="300" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="64" font-weight="700" fill="#152038">TrainArena</text>
+  <text x="660" y="360" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="28" font-weight="500" fill="#5b6b88">Live-Quiz für Ausbildung</text>
 </svg>
