@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- TrainArena logo-icon (Konzept A). Visual source: logo-icon.png. Colors: #0032C3 #0ACDDE -->
-<svg viewBox="0 0 1024 1024" width="1024" height="1024" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-label="TrainArena">
+<!-- TrainArena: PNG is canonical (logo-icon.png). Colors: #0032C3 #0ACDDE -->
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-label="TrainArena">
   <title>TrainArena</title>
   <image width="1024" height="1024" href="logo-icon.png" xlink:href="logo-icon.png"/>
 </svg>
