@@ -161,7 +161,7 @@ Wettbewerbs-Power-Ups (Schild / Störimpuls) senden Full-Screen-Overlays an Host
 |----------|---------|--------|
 | **CI** (`.github/workflows/ci.yml`) | PR + Push `main` | `dotnet restore` / `build` / `test` |
 | **CI** Docker-Job | nur Push `main` | `docker build` mit MinVer-Version (Smoke, kein Registry-Push) |
-| **Release** (`.github/workflows/release.yml`) | Tag `v*` (oder manuell) | self-contained Publish für win-x64, linux-x64, osx-arm64, osx-x64 → Release-Assets / Artifacts |
+| **Release** (`.github/workflows/release.yml`) | Tag `v*` (oder manuell) | self-contained Publish; macOS auf `macos-14` mit Developer-ID-Signatur + Notary (siehe `docs/MACOS_SIGNING.md`) |
 
 ### Versionierung
 
