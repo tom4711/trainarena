@@ -52,6 +52,7 @@ jobs:
         id: ver
         run: |
           set -euo pipefail
+          dotnet restore src/TrainArena/TrainArena.csproj
           ver=$(dotnet msbuild src/TrainArena/TrainArena.csproj /t:MinVer -getProperty:MinVerVersion -nologo | tr -d '[:space:]')
           echo "version=$ver" >> "$GITHUB_OUTPUT"
           echo "MinVer Version=$ver"
