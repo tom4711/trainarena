@@ -7,6 +7,24 @@ public static class QuizRules
 {
     public const int MinOptions = 2;
     public const int MaxOptions = 6;
+    public const string TrueLabel = "Wahr";
+    public const string FalseLabel = "Falsch";
+
+    /// <summary>
+    /// Trims each slot and drops trailing empty slots. Interior empties are kept as "" so
+    /// <see cref="ValidateQuestion"/> reports the gap instead of silently losing later options.
+    /// </summary>
+    public static List<string> CollectOptions(IEnumerable<string?> raw)
+    {
+        ArgumentNullException.ThrowIfNull(raw);
+        var list = raw.Select(o => o?.Trim() ?? "").ToList();
+        while (list.Count > 0 && list[^1].Length == 0)
+        {
+            list.RemoveAt(list.Count - 1);
+        }
+
+        return list;
+    }
 
     public static string? ValidateQuestion(
         string text,
@@ -42,6 +60,12 @@ public static class QuizRules
         if (kind == QuestionDisplayKind.TrueFalse && options.Count != 2)
         {
             return "Wahr/Falsch erlaubt genau zwei Optionen.";
+        }
+
+        if (kind == QuestionDisplayKind.TrueFalse
+            && (options[0] != TrueLabel || options[1] != FalseLabel))
+        {
+            return "Wahr/Falsch erfordert die Optionen Wahr und Falsch.";
         }
 
         if (correctIndex < 0 || correctIndex >= options.Count)

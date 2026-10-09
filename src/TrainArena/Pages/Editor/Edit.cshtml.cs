@@ -73,21 +73,12 @@ public sealed class EditModel : PageModel
 
         if (kind == QuestionDisplayKind.TrueFalse)
         {
-            option0 = "Wahr";
-            option1 = "Falsch";
+            option0 = QuizRules.TrueLabel;
+            option1 = QuizRules.FalseLabel;
             option2 = option3 = option4 = option5 = "";
         }
 
-        var options = new List<string>();
-        foreach (var opt in new[] { option0, option1, option2, option3, option4, option5 })
-        {
-            if (string.IsNullOrWhiteSpace(opt))
-            {
-                break;
-            }
-
-            options.Add(opt.Trim());
-        }
+        var options = QuizRules.CollectOptions([option0, option1, option2, option3, option4, option5]);
 
         var error = QuizRules.ValidateQuestion(text, options, correctIndex, kind);
         if (error is not null)

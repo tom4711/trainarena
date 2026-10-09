@@ -91,6 +91,78 @@ public class QuizPersistenceTests
         }
     }
 
+    [Fact]
+    public async Task EnsureSchema_UpgradesLegacyQuestionsTable()
+    {
+        var dbPath = Path.Combine(Path.GetTempPath(), $"legacy-{Guid.NewGuid():N}.db");
+        var quizId = Guid.NewGuid();
+        try
+        {
+            await using (var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}"))
+            {
+                await conn.OpenAsync();
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"""
+                    CREATE TABLE Quizzes (Id TEXT NOT NULL PRIMARY KEY, Title TEXT NOT NULL);
+                    CREATE TABLE Questions (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        QuizId TEXT NOT NULL,
+                        Text TEXT NOT NULL,
+                        Option0 TEXT NOT NULL,
+                        Option1 TEXT NOT NULL,
+                        Option2 TEXT NOT NULL,
+                        Option3 TEXT NOT NULL,
+                        CorrectIndex INTEGER NOT NULL,
+                        TimeLimitSeconds INTEGER NOT NULL,
+                        SortOrder INTEGER NOT NULL
+                    );
+                    INSERT INTO Quizzes VALUES ('{quizId}', 'Legacy');
+                    INSERT INTO Questions VALUES ('{Guid.NewGuid()}', '{quizId}', 'Alt?', 'a', 'b', 'c', 'd', 2, 20, 0);
+                    """;
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            await using (var db = CreateDb(dbPath))
+            {
+                await db.EnsureSchemaAsync();
+            }
+
+            await using (var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}"))
+            {
+                await conn.OpenAsync();
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = "PRAGMA table_info('Questions');";
+                var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    columns.Add(reader.GetString(1));
+                }
+
+                Assert.Contains("Option4", columns);
+                Assert.Contains("Option5", columns);
+                Assert.Contains("DisplayKind", columns);
+                Assert.Contains("ImagePath", columns);
+            }
+
+            await using (var db = CreateDb(dbPath))
+            {
+                var q = await db.Questions.SingleAsync(x => x.Text == "Alt?");
+                Assert.Equal("Alt?", q.Text);
+                Assert.Equal(2, q.CorrectIndex);
+                Assert.Equal("", q.Option4);
+                Assert.Equal("", q.Option5);
+                Assert.Equal(QuestionDisplayKind.Mc, q.DisplayKind);
+                Assert.Equal(4, QuizRules.GetFilledOptions(q).Count);
+            }
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            File.Delete(dbPath);
+        }
+    }
+
     private static AppDbContext CreateDb(string path)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()

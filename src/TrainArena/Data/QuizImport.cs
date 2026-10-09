@@ -67,8 +67,8 @@ public static class QuizImport
                 continue;
             }
 
-            var filled = BuildFilledOptions([o0, o1, o2, o3, o4, o5]);
-            if (filled is null)
+            var filled = QuizRules.CollectOptions([o0, o1, o2, o3, o4, o5]);
+            if (filled.Any(string.IsNullOrEmpty))
             {
                 errors.Add($"Zeile {rowNumber}: Antwortoptionen dürfen keine Lücken haben. — übersprungen.");
                 continue;
@@ -124,29 +124,6 @@ public static class QuizImport
         };
         QuizRules.ApplyOptions(entity, q.Options);
         return entity;
-    }
-
-    private static List<string>? BuildFilledOptions(string[] rawOptions)
-    {
-        var filled = new List<string>();
-        var sawEmpty = false;
-        foreach (var raw in rawOptions)
-        {
-            if (string.IsNullOrWhiteSpace(raw))
-            {
-                sawEmpty = true;
-                continue;
-            }
-
-            if (sawEmpty)
-            {
-                return null;
-            }
-
-            filled.Add(raw.Trim());
-        }
-
-        return filled;
     }
 
     private sealed record ColumnMap(

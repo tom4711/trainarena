@@ -70,6 +70,103 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         Assert.Contains(done.Entries, e => e.Nickname == "Azubi1");
     }
 
+    [Fact]
+    public async Task TrueFalseAndTwoOptionMcQuiz_ScoresCorrectAnswersEndToEnd()
+    {
+        var quizId = await SeedTwoOptionQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var player = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync("CreateRoom", quizId, null, null);
+        var room = await roomCreated;
+
+        var joined = WaitFor<PlayerJoinedMessage>(host, "PlayerJoined");
+        await player.InvokeAsync("JoinRoom", room.Code, "Azubi2");
+        await joined;
+
+        var q1 = WaitFor<QuestionStartedMessage>(player, "QuestionStarted");
+        var a1 = WaitFor<AnswerAcceptedMessage>(player, "AnswerAccepted");
+        var end1 = WaitFor<QuestionEndedMessage>(player, "QuestionEnded");
+        var board1 = WaitFor<LeaderboardMessage>(player, "Leaderboard");
+
+        await host.InvokeAsync("StartGame");
+        var first = await q1;
+        Assert.Equal(["Wahr", "Falsch"], first.Options);
+
+        await player.InvokeAsync("SubmitAnswer", 1);
+        var accepted1 = await a1;
+        Assert.True(accepted1.Ok);
+        Assert.True(accepted1.Points > 0);
+        await end1;
+        var lb1 = await board1;
+        Assert.True(lb1.HasMoreQuestions);
+
+        var q2 = WaitFor<QuestionStartedMessage>(player, "QuestionStarted");
+        var a2 = WaitFor<AnswerAcceptedMessage>(player, "AnswerAccepted");
+        var end2 = WaitFor<QuestionEndedMessage>(player, "QuestionEnded");
+        var board2 = WaitFor<LeaderboardMessage>(player, "Leaderboard");
+        var finished = WaitFor<GameFinishedMessage>(player, "GameFinished");
+
+        await host.InvokeAsync("NextQuestion");
+        var second = await q2;
+        Assert.Equal(2, second.Options.Length);
+
+        await player.InvokeAsync("SubmitAnswer", 0);
+        var accepted2 = await a2;
+        Assert.True(accepted2.Ok);
+        Assert.True(accepted2.Points > 0);
+        await end2;
+        var lb2 = await board2;
+        Assert.False(lb2.HasMoreQuestions);
+
+        await host.InvokeAsync("NextQuestion");
+        var done = await finished;
+        var entry = Assert.Single(done.Entries, e => e.Nickname == "Azubi2");
+        Assert.Equal(accepted1.Points + accepted2.Points, entry.Score);
+    }
+
+    private async Task<Guid> SeedTwoOptionQuizAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var id = Guid.NewGuid();
+        db.Quizzes.Add(new Quiz
+        {
+            Id = id,
+            Title = "TwoOptions Round",
+            Questions =
+            [
+                new Question
+                {
+                    Id = Guid.NewGuid(),
+                    QuizId = id,
+                    Text = "Stimmt das?",
+                    Option0 = "Wahr",
+                    Option1 = "Falsch",
+                    CorrectIndex = 1,
+                    DisplayKind = QuestionDisplayKind.TrueFalse,
+                    TimeLimitSeconds = 30,
+                    SortOrder = 0
+                },
+                new Question
+                {
+                    Id = Guid.NewGuid(),
+                    QuizId = id,
+                    Text = "Ja oder Nein?",
+                    Option0 = "Ja",
+                    Option1 = "Nein",
+                    CorrectIndex = 0,
+                    TimeLimitSeconds = 30,
+                    SortOrder = 1
+                }
+            ]
+        });
+        await db.SaveChangesAsync();
+        return id;
+    }
+
     private async Task<Guid> SeedTwoQuestionQuizAsync()
     {
         using var scope = _factory.Services.CreateScope();

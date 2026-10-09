@@ -374,12 +374,7 @@ public sealed class GameSession
                 case PowerUpId.FiftyFifty:
                 {
                     var optionCount = CurrentQuestion.Options.Length;
-                    var maskCount = optionCount >= 4 ? 2 : optionCount == 3 ? 1 : 0;
-                    if (maskCount == 0)
-                    {
-                        return (false, "50/50 requires at least 3 options", null);
-                    }
-
+                    var maskCount = optionCount >= 4 ? 2 : 1;
                     masked = PickWrongIndexes(CurrentQuestion.CorrectIndex, optionCount, maskCount);
                     state.MaskedWrongIndexes = masked;
                     break;

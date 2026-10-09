@@ -105,4 +105,38 @@ public class QuizRulesTests
         });
         Assert.Equal("/uploads/abc.png", demo.ImageUrl);
     }
+
+    [Fact]
+    public void CollectOptions_KeepsInteriorGapSoValidationFails()
+    {
+        var options = QuizRules.CollectOptions(["A", "B", "", "D", null, " "]);
+        Assert.Equal(["A", "B", "", "D"], options);
+        Assert.Equal(
+            "Antwortoptionen dürfen keine Lücken haben.",
+            QuizRules.ValidateQuestion("Q?", options, 0));
+    }
+
+    [Fact]
+    public void CollectOptions_TrimsAndDropsTrailingEmpties()
+    {
+        var options = QuizRules.CollectOptions([" A ", "B", "", null, "  "]);
+        Assert.Equal(["A", "B"], options);
+        Assert.Null(QuizRules.ValidateQuestion("Q?", options, 1));
+    }
+
+    [Theory]
+    [InlineData("Ja", "Nein")]
+    [InlineData("Falsch", "Wahr")]
+    [InlineData("wahr", "falsch")]
+    public void ValidateQuestion_TrueFalseRequiresExactLabels(string a, string b)
+    {
+        var error = QuizRules.ValidateQuestion("Q?", [a, b], 0, QuestionDisplayKind.TrueFalse);
+        Assert.Equal("Wahr/Falsch erfordert die Optionen Wahr und Falsch.", error);
+    }
+
+    [Fact]
+    public void ValidateQuestion_TrueFalseAcceptsWahrFalsch()
+    {
+        Assert.Null(QuizRules.ValidateQuestion("Q?", ["Wahr", "Falsch"], 1, QuestionDisplayKind.TrueFalse));
+    }
 }
