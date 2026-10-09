@@ -13,6 +13,29 @@ public class GameSessionQuestionTests
     };
 
     [Fact]
+    public void StartQuestion_AcceptsTwoToSixOptions()
+    {
+        var s = new GameSession("ABC123", "host", Guid.NewGuid());
+        s.TryJoin("Ada", "p1");
+        var q = new DemoQuestion { Text = "Q?", Options = ["a", "b"], CorrectIndex = 1, TimeLimitSeconds = 20 };
+        s.SetQuestions([q]);
+        Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
+    }
+
+    [Fact]
+    public void SubmitAnswer_RejectsIndexPastOptionCount()
+    {
+        var s = new GameSession("ABC123", "host", Guid.NewGuid());
+        s.TryJoin("Ada", "p1");
+        var q = new DemoQuestion { Text = "Q?", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+        s.SetQuestions([q]);
+        Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
+        var (ok, err, _) = s.SubmitAnswer("p1", 2, DateTimeOffset.UtcNow);
+        Assert.False(ok);
+        Assert.Contains("Invalid option", err!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void StartQuestion_RequiresPlayer()
     {
         var session = new GameSessionStore(new RoomCodeGenerator()).Create("host", Guid.Parse("11111111-1111-1111-1111-111111111111"));
