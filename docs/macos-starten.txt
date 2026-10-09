@@ -1,0 +1,20 @@
+TrainArena auf macOS starten
+============================
+
+macOS blockiert unsignierte Downloads (Gatekeeper) — das ist normal ohne
+Apple-Developer-Zertifikat / Notarisierung. Die App selbst ist in Ordnung.
+
+Sofort im Terminal (im entpackten Ordner):
+
+  xattr -cr .
+  chmod +x TrainArena
+  ./TrainArena
+
+Danach im Browser: http://127.0.0.1:5175/  (oder deine LAN-IP)
+
+Alternativ ohne Terminal:
+  Systemeinstellungen → Datenschutz & Sicherheit → unten „Dennoch öffnen“
+  (erscheint oft erst, nachdem der Block-Dialog einmal kam).
+
+Apple-Silicon: trainarena-osx-arm64.tar.gz
+Intel-Mac:     trainarena-osx-x64.tar.gz

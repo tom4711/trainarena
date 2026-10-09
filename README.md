@@ -86,6 +86,20 @@ Ohne .NET-SDK und ohne Docker: unter [Releases](https://github.com/tom4711/train
 
 Entpacken, Binary starten (`TrainArena.exe` bzw. `./TrainArena`), dann Browser auf `http://<lan-ip>:5175/`. Firewall-Port **5175** freigeben. SQLite liegt standardmäßig neben der App (`trainarena.db`); optional `TRAINARENA_DB` setzen.
 
+### macOS: „nicht geöffnet“ / Gatekeeper
+
+Ohne Apple-Developer-Signatur blockiert macOS den Download. Zum Testen im entpackten Ordner:
+
+```bash
+xattr -cr .
+chmod +x TrainArena
+./TrainArena
+```
+
+Oder: **Systemeinstellungen → Datenschutz & Sicherheit → Dennoch öffnen** (nach dem ersten Block-Dialog). Details liegen auch als `macos-starten.txt` in den macOS-Archiven.
+
+Nahtloses Doppelklick-Starten bräuchte ein bezahltes Apple Developer ID + Notarisierung — für Self-host/OSS bewusst nicht vorgesehen.
+
 Release bauen: Git-Tag `v*` pushen (z. B. `git tag v1.0.0 && git push origin v1.0.0`) — Workflow **Release** erzeugt die Archive und hängt sie an den GitHub Release. Trockenlauf ohne Tag: Actions → **Release** → **Run workflow**.
 
 ## Docker (LAN self-host)

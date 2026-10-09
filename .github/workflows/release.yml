@@ -69,6 +69,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
+          if [[ "${{ matrix.rid }}" == osx-* ]]; then
+            cp docs/macos-starten.txt "publish/${{ matrix.rid }}/macos-starten.txt"
+          fi
           if [[ "${{ matrix.rid }}" == win-x64 ]]; then
             (cd "publish/${{ matrix.rid }}" && zip -r "../../dist/${{ matrix.artifact }}" .)
           else
