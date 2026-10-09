@@ -68,6 +68,10 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         await host.InvokeAsync("NextQuestion");
         var done = await finished;
         Assert.Contains(done.Entries, e => e.Nickname == "Azubi1");
+        Assert.Equal(2, done.Review.Count);
+        Assert.Equal(0, done.Review[0].Index);
+        Assert.Equal(1, done.Review[1].Index);
+        Assert.Equal(done.Review[0].Options.Length, done.Review[0].Counts.Length);
     }
 
     [Fact]
