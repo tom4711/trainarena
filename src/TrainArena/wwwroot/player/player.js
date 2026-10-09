@@ -60,6 +60,11 @@
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const activePowerUps = new Set();
   let prevInventory = {};
+  let currentOptionCount = 0;
+
+  function fiftyFiftyAllowed() {
+    return currentOptionCount >= 3;
+  }
 
   function countFor(id) {
     return inventory[id] ?? 0;
@@ -96,8 +101,9 @@
       const countSpan = btn.querySelector(".count");
       if (countSpan) countSpan.textContent = ` (${n})`;
       const keepActive = activePowerUps.has(id);
+      const fiftyBlocked = id === "fifty_fifty" && !fiftyFiftyAllowed();
       btn.classList.toggle("is-active", keepActive);
-      btn.disabled = (lock || n <= 0) && !keepActive;
+      btn.disabled = (lock || n <= 0 || fiftyBlocked) && !keepActive;
       if (keepActive) btn.disabled = true;
     });
     const anyStock = PLAYER_POWERUPS.some((p) => countFor(p.id) > 0);
@@ -184,6 +190,7 @@
 
   function usePowerUp(id) {
     if (answered || !questionOpen || countFor(id) <= 0) return;
+    if (id === "fifty_fifty" && !fiftyFiftyAllowed()) return;
     if (id === "disrupt") {
       openTargetPicker();
       return;
@@ -267,7 +274,8 @@
     }
     if (msg.maskedWrongIndexes && msg.maskedWrongIndexes.length) {
       applyMaskedOptions(msg.maskedWrongIndexes);
-      showPuToast("50/50 — zwei Optionen entfernt");
+      const n = msg.maskedWrongIndexes.length;
+      showPuToast(n === 1 ? "50/50 — eine Option entfernt" : "50/50 — zwei Optionen entfernt");
     } else if (id === "extra_time") {
       showPuToast("Extra-Zeit — +5 Sekunden");
     } else if (id === "double") {
@@ -355,6 +363,7 @@
   });
 
   connection.on("LobbyState", (msg) => {
+    currentOptionCount = 0;
     lobbyPlayers = (msg?.players || [])
       .filter((p) => p && p.isConnected !== false)
       .map((p) => p.nickname)
@@ -396,6 +405,7 @@
     clearAutoAdvanceCountdown();
     answered = false;
     questionOpen = true;
+    currentOptionCount = (msg.options || []).length;
     clearActivePowerUps();
     waitPanel.classList.add("hidden");
     boardPanel.classList.add("hidden");
@@ -450,6 +460,7 @@
 
   connection.on("QuestionEnded", () => {
     questionOpen = false;
+    currentOptionCount = 0;
     stopTimer();
     qTimer.textContent = "0s";
     qTimer.classList.remove("is-urgent", "is-critical", "is-extended");
