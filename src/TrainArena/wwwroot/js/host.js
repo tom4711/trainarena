@@ -20,6 +20,8 @@
   const boardHint = $("board-hint");
   const boardAutoAdvance = $("board-auto-advance");
   const finishedEl = $("finished");
+  const reviewEl = $("review");
+  const reviewList = $("review-list");
   const qrWrap = $("qr-wrap");
   const qrCanvas = $("qr-canvas");
   const joinUrlEl = $("join-url");
@@ -112,6 +114,48 @@
     if (kind) lobbyStatus.classList.add(kind);
   }
 
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
+  function clearReview() {
+    reviewEl.classList.add("hidden");
+    reviewList.innerHTML = "";
+  }
+
+  function renderReview(items) {
+    reviewList.innerHTML = "";
+    if (!items || !items.length) {
+      reviewEl.classList.add("hidden");
+      return;
+    }
+    items.forEach((r) => {
+      const pct =
+        r.answeredCount > 0
+          ? Math.round((100 * r.correctCount) / r.answeredCount) + " %"
+          : "—";
+      const block = document.createElement("article");
+      block.className = "review-item";
+      const opts = (r.options || [])
+        .map((opt, i) => {
+          const count = (r.counts && r.counts[i]) || 0;
+          const correct = i === r.correctIndex ? "is-correct" : "";
+          return `<li class="${correct}"><span class="opt-index">${i + 1}</span> ${escapeHtml(opt)} <span class="muted">× ${count}</span></li>`;
+        })
+        .join("");
+      block.innerHTML = `
+      <h4>${r.index + 1}. ${escapeHtml(r.text)}</h4>
+      <p class="muted">${pct} richtig · ${r.answeredCount} von ${r.playerCount} geantwortet</p>
+      <ol class="options review-options">${opts}</ol>`;
+      reviewList.appendChild(block);
+    });
+    reviewEl.classList.remove("hidden");
+  }
+
   function renderBoardEntries(entries) {
     boardList.innerHTML = "";
     (entries || []).forEach((e, i) => {
@@ -181,6 +225,7 @@
   }
 
   connection.on("RoomCreated", (msg) => {
+    clearReview();
     showJoinArtifacts(msg.code);
     btnCreate.disabled = true;
     quizSelect.disabled = true;
@@ -245,6 +290,7 @@
     boardHint.classList.add("hidden");
     btnNext.classList.add("hidden");
     finishedEl.classList.add("hidden");
+    clearReview();
     questionOpen = true;
     hostArenaUsed = false;
     btnBoost.classList.remove("is-spent", "is-activating");
@@ -310,6 +356,9 @@
 
   connection.on("GameFinished", (msg) => {
     clearAutoAdvanceCountdown();
+    setup.classList.add("hidden");
+    live.classList.remove("hidden");
+    btnStart.classList.add("hidden");
     setArenaVisible(false);
     renderBoardEntries(msg.entries);
     board.classList.remove("hidden");
@@ -317,6 +366,7 @@
     btnNext.classList.add("hidden");
     finishedEl.classList.remove("hidden");
     progressEl.textContent = "Finale";
+    renderReview(msg.review);
   });
 
   function flashClass(el, className, ms = 420) {

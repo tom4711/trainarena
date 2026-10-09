@@ -68,6 +68,55 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         await host.InvokeAsync("NextQuestion");
         var done = await finished;
         Assert.Contains(done.Entries, e => e.Nickname == "Azubi1");
+        Assert.Equal(2, done.Review.Count);
+        Assert.Equal(0, done.Review[0].Index);
+        Assert.Equal(1, done.Review[1].Index);
+        Assert.Equal(done.Review[0].Options.Length, done.Review[0].Counts.Length);
+    }
+
+    [Fact]
+    public async Task RejoinHost_AfterFinished_RestoresReview()
+    {
+        var quizId = await SeedTwoQuestionQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var player = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync("CreateRoom", quizId, null, null);
+        var room = await roomCreated;
+
+        var joined = WaitFor<PlayerJoinedMessage>(host, "PlayerJoined");
+        await player.InvokeAsync("JoinRoom", room.Code, "Azubi3");
+        await joined;
+
+        var q1 = WaitFor<QuestionStartedMessage>(player, "QuestionStarted");
+        var end1 = WaitFor<QuestionEndedMessage>(player, "QuestionEnded");
+        await host.InvokeAsync("StartGame");
+        await q1;
+        await player.InvokeAsync("SubmitAnswer", 0);
+        await end1;
+
+        var q2 = WaitFor<QuestionStartedMessage>(player, "QuestionStarted");
+        var end2 = WaitFor<QuestionEndedMessage>(player, "QuestionEnded");
+        await host.InvokeAsync("NextQuestion");
+        await q2;
+        await player.InvokeAsync("SubmitAnswer", 1);
+        await end2;
+
+        var finished = WaitFor<GameFinishedMessage>(player, "GameFinished");
+        await host.InvokeAsync("NextQuestion");
+        await finished;
+
+        await using var rejoinedHost = await ConnectAsync();
+        var restored = WaitFor<GameFinishedMessage>(rejoinedHost, "GameFinished");
+        await rejoinedHost.InvokeAsync("RejoinHost", room.Code);
+        var done = await restored;
+
+        Assert.Equal(2, done.Review.Count);
+        Assert.Equal(0, done.Review[0].Index);
+        Assert.Equal(1, done.Review[1].Index);
+        Assert.Contains(done.Entries, e => e.Nickname == "Azubi3");
     }
 
     [Fact]

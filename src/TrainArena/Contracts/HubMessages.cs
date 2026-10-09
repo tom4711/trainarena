@@ -33,7 +33,19 @@ public sealed record LeaderboardMessage(
     int TotalQuestions,
     bool HasMoreQuestions);
 
-public sealed record GameFinishedMessage(IReadOnlyList<LeaderboardEntryDto> Entries);
+public sealed record QuestionReviewDto(
+    int Index,
+    string Text,
+    string[] Options,
+    int CorrectIndex,
+    int[] Counts,
+    int AnsweredCount,
+    int PlayerCount,
+    int CorrectCount);
+
+public sealed record GameFinishedMessage(
+    IReadOnlyList<LeaderboardEntryDto> Entries,
+    IReadOnlyList<QuestionReviewDto> Review);
 
 public sealed record PowerUpConfigDto(
     bool Enabled,

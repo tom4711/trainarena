@@ -366,6 +366,46 @@ button.secondary {
   color: var(--ok);
 }
 
+.review {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--panel-border);
+}
+.review h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.review-item {
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+.review-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.review-item h4 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+.review-item > .muted {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+.review-options {
+  margin-top: 0.5rem;
+}
+.review-options li {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.review-options .muted {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
 a { color: var(--accent); }
 
 .powerup-setup {

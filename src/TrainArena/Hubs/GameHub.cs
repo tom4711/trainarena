@@ -661,7 +661,7 @@ public sealed class GameHub : Hub
             return;
         }
 
-        var finished = new GameFinishedMessage(ToLeaderboard(session).Entries);
+        var finished = ToFinished(session);
         if (viaHubContext)
         {
             await _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync("GameFinished", finished);
@@ -704,9 +704,7 @@ public sealed class GameHub : Hub
                 await Clients.Caller.SendAsync("Leaderboard", ToLeaderboard(session));
                 break;
             case GamePhase.Finished:
-                await Clients.Caller.SendAsync(
-                    "GameFinished",
-                    new GameFinishedMessage(ToLeaderboard(session).Entries));
+                await Clients.Caller.SendAsync("GameFinished", ToFinished(session));
                 break;
         }
     }
@@ -727,6 +725,20 @@ public sealed class GameHub : Hub
             session.QuestionIndex,
             session.QuestionCount,
             session.HasMoreQuestions);
+
+    private static IReadOnlyList<QuestionReviewDto> ToReview(GameSession session) =>
+        session.Review.Select(r => new QuestionReviewDto(
+            r.QuestionIndex,
+            r.Text,
+            r.Options,
+            r.CorrectIndex,
+            r.Counts,
+            r.AnsweredCount,
+            r.PlayerCount,
+            r.CorrectCount)).ToList();
+
+    private static GameFinishedMessage ToFinished(GameSession session) =>
+        new(ToLeaderboard(session).Entries, ToReview(session));
 
     private async Task SendInventoryUpdateToCaller(GameSession session, string nickname)
     {
