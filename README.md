@@ -60,13 +60,18 @@ Im Editor unter einem Quiz: **Import CSV / Kahoot**.
 **TrainArena-CSV** (Header-Zeile Pflicht):
 
 ```csv
-Question,OptionA,OptionB,OptionC,OptionD,Correct,TimeLimitSeconds
-Wie viele Bundesländer?,14,15,16,17,C,20
+Question,OptionA,OptionB,OptionC,OptionD,OptionE,OptionF,Correct,TimeLimitSeconds
+Wie viele Bundesländer?,14,15,16,17,,,C,20
+Zwei Antworten?,Ja,Nein,,,,,A,15
 ```
 
-`Correct`: `A`–`D` oder `0`–`3` (auch `1`–`4`). `TimeLimitSeconds` optional (Default 20).
+Mindestens **zwei** der Spalten `OptionA`…`OptionF` ausfüllen (ohne Lücken dazwischen); `OptionE` / `OptionF` optional für 5–6 Antworten.
 
-**Kahoot-ähnlich:** Excel-Vorlage als CSV speichern mit Spalten `Question`, `Answer 1`…`Answer 4`, `Time limit`, `Correct answer(s)` (1-basiert). Kein natives `.xlsx` — bei Bedarf vorher als CSV exportieren. Ungültige Zeilen werden übersprungen.
+`Correct`: Buchstabe `A`–`F` oder Index `0`–`5` (auch `1`–`6`). `TimeLimitSeconds` optional (Default 20). Import erzeugt immer Multiple-Choice-Fragen (`DisplayKind=Mc`).
+
+**Kahoot-ähnlich:** Excel-Vorlage als CSV speichern mit Spalten `Question`, `Answer 1`…`Answer 6` (mindestens zwei ausgefüllt), `Time limit`, `Correct answer(s)` (1-basiert). Kein natives `.xlsx` — bei Bedarf vorher als CSV exportieren. Ungültige Zeilen werden übersprungen.
+
+**Editor (zusätzlich zum Import):** Fragetyp **Multiple Choice** (2–6 Optionen, genau eine richtig) oder **Wahr/Falsch** (fest „Wahr“ / „Falsch“, korrekte Seite wählen). **50/50** im Spiel skaliert mit der Antwortanzahl: bei ≥4 Optionen werden zwei falsche ausgeblendet, bei 3 eine; bei 2 Optionen (Wahr/Falsch) ist 50/50 deaktiviert.
 
 ## Docker (LAN self-host)
 
@@ -89,7 +94,7 @@ Stoppen: `docker compose down` (Volumes bleiben). Volumes mit löschen: `docker 
 
 ## Features (aktueller Stand)
 
-- Text-MC-Editor (4 Optionen, 1 richtig) + optionale Bilder
+- Text-MC-Editor (2–6 Optionen, 1 richtig) + Wahr/Falsch + optionale Bilder
 - CSV- / Kahoot-ähnlicher Import
 - Host-Raum + Code/QR-Join, Live-Runde, Server-Timer, Rangliste
 - **Auto-Advance:** optional beim Raumerstellen — nach der Rangliste automatisch weiter (3/5/10 s; Host kann weiterhin manuell **Weiter** drücken)
@@ -106,7 +111,7 @@ Während einer offenen Frage (vor der eigenen Antwort), inkl. Inventar-Buttons u
 
 | Power-Up | Wirkung |
 |----------|---------|
-| **50/50** | Zwei falsche Optionen ausblenden |
+| **50/50** | Falsche Optionen ausblenden (2 bei ≥4 Antworten, 1 bei 3; nicht bei Wahr/Falsch) |
 | **Double** | Nächste richtige Antwort ×2 |
 | **Extra-Zeit** | +5 s Fragezeit (einmalig pro Frage für den Raum) |
 | **Shield** | Blockt den nächsten **Störimpuls** gegen dich und wird dabei verbraucht |
