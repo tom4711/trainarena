@@ -96,6 +96,7 @@ public sealed class GameSession
         {
             _quizQuestions = questions.ToList();
             QuestionIndex = -1;
+            _review.Clear();
         }
     }
 
@@ -792,7 +793,7 @@ public sealed class GameSession
             }
         }
 
-        var playerCount = _players.Count(p => p.IsConnected);
+        var playerCount = Math.Max(_players.Count(p => p.IsConnected), _answersThisQuestion.Count);
         _review.Add(new QuestionReviewStat
         {
             QuestionIndex = QuestionIndex,

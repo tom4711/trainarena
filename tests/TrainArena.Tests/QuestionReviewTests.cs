@@ -52,6 +52,33 @@ public class QuestionReviewTests
     }
 
     [Fact]
+    public void Reveal_AnsweredThenDisconnected_PlayerCountNotBelowAnswered()
+    {
+        var (s, q0, _) = TwoQuestionRoom();
+        Assert.True(s.StartQuestion(q0, DateTimeOffset.UtcNow).ok);
+        s.SubmitAnswer("p1", 0, DateTimeOffset.UtcNow);
+        s.SubmitAnswer("p2", 1, DateTimeOffset.UtcNow);
+        s.MarkDisconnected("p2");
+        Assert.True(s.ForceEndQuestion());
+
+        Assert.Equal(2, s.Review[0].AnsweredCount);
+        Assert.Equal(2, s.Review[0].PlayerCount);
+    }
+
+    [Fact]
+    public void SetQuestions_ClearsPreviousReview()
+    {
+        var (s, q0, _) = TwoQuestionRoom();
+        Assert.True(s.StartQuestion(q0, DateTimeOffset.UtcNow).ok);
+        Assert.True(s.ForceEndQuestion());
+        Assert.Single(s.Review);
+
+        s.SetQuestions([q0]);
+
+        Assert.Empty(s.Review);
+    }
+
+    [Fact]
     public void Reveal_DisruptedCorrectPick_CountsAsCorrect()
     {
         var cfg = PowerUpRoomConfig.CreateDefault();

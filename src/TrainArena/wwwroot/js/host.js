@@ -356,6 +356,9 @@
 
   connection.on("GameFinished", (msg) => {
     clearAutoAdvanceCountdown();
+    setup.classList.add("hidden");
+    live.classList.remove("hidden");
+    btnStart.classList.add("hidden");
     setArenaVisible(false);
     renderBoardEntries(msg.entries);
     board.classList.remove("hidden");
