@@ -48,15 +48,14 @@ jobs:
         run: |
           set -euo pipefail
           dotnet restore src/TrainArena/TrainArena.csproj
-          extra=()
           if [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME}" == v* ]]; then
             ver="${GITHUB_REF_NAME#v}"
-            extra+=(-p:MinVerVersionOverride="$ver")
             echo "Publishing tag version $ver"
           else
             ver=$(dotnet msbuild src/TrainArena/TrainArena.csproj /t:MinVer -getProperty:MinVerVersion -nologo | tr -d '[:space:]')
             echo "Publishing MinVer Version=$ver"
           fi
+          # Always pass VersionOverride — avoids empty-array + set -u on macOS bash 3.2.
           dotnet publish src/TrainArena/TrainArena.csproj \
             -c Release \
             -r "${{ matrix.rid }}" \
@@ -66,7 +65,7 @@ jobs:
             -p:EnableCompressionInSingleFile=true \
             -p:DebugType=None \
             -p:DebugSymbols=false \
-            "${extra[@]}" \
+            -p:MinVerVersionOverride="$ver" \
             -o "publish/${{ matrix.rid }}"
 
       - name: Sign and notarize (macOS)
