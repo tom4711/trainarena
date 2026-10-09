@@ -24,6 +24,7 @@ public sealed class GameSession
     private List<DemoQuestion> _quizQuestions = new();
     private readonly Dictionary<string, bool> _correctThisQuestion =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<QuestionReviewStat> _review = [];
     private bool _roomExtraTimeExtendedThisQuestion;
     private int _hostEventsUsedThisQuestion;
     private bool _boostAllActive;
@@ -54,6 +55,17 @@ public sealed class GameSession
     public DateTimeOffset? QuestionStartedAtUtc { get; private set; }
     public DateTimeOffset? QuestionEndsAtUtc { get; private set; }
     public int QuestionIndex { get; private set; } = -1;
+
+    public IReadOnlyList<QuestionReviewStat> Review
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _review.ToList();
+            }
+        }
+    }
 
     public int QuestionCount
     {
@@ -753,8 +765,45 @@ public sealed class GameSession
 
     private void TransitionQuestionToReveal()
     {
+        CaptureReviewStatUnlocked();
         ClearDoubleActiveForAllPlayers();
         Phase = GamePhase.Reveal;
+    }
+
+    private void CaptureReviewStatUnlocked()
+    {
+        if (CurrentQuestion is null)
+        {
+            return;
+        }
+
+        var options = CurrentQuestion.Options;
+        var counts = new int[options.Length];
+        var correct = 0;
+        foreach (var (_, optionIndex) in _answersThisQuestion)
+        {
+            if (optionIndex >= 0 && optionIndex < counts.Length)
+            {
+                counts[optionIndex]++;
+                if (optionIndex == CurrentQuestion.CorrectIndex)
+                {
+                    correct++;
+                }
+            }
+        }
+
+        var playerCount = _players.Count(p => p.IsConnected);
+        _review.Add(new QuestionReviewStat
+        {
+            QuestionIndex = QuestionIndex,
+            Text = CurrentQuestion.Text,
+            Options = options.ToArray(),
+            CorrectIndex = CurrentQuestion.CorrectIndex,
+            Counts = counts,
+            AnsweredCount = _answersThisQuestion.Count,
+            PlayerCount = playerCount,
+            CorrectCount = correct
+        });
     }
 
     private void ClearDoubleActiveForAllPlayers()
