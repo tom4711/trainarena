@@ -1,0 +1,21 @@
+TrainArena auf macOS starten
+============================
+
+Signierte Releases (CI mit Developer ID + Notary): Archiv entpacken, dann:
+
+  chmod +x TrainArena
+  ./TrainArena
+
+Browser: http://127.0.0.1:5175/  (oder LAN-IP)
+
+Falls Gatekeeper bei einer älteren/unsignierten Build noch blockiert:
+
+  xattr -cr .
+  ./TrainArena
+
+Oder: Systemeinstellungen → Datenschutz & Sicherheit → „Dennoch öffnen“.
+
+Apple-Silicon: trainarena-osx-arm64.tar.gz
+Intel-Mac:     trainarena-osx-x64.tar.gz
+
+Details: docs/MACOS_SIGNING.md
