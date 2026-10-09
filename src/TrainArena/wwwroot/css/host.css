@@ -158,6 +158,15 @@ button.secondary {
 .hint { font-size: 0.88rem; line-height: 1.4; }
 .hidden { display: none !important; }
 
+.app-version {
+  margin: 1.75rem 0 0;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+  opacity: 0.85;
+  letter-spacing: 0.02em;
+}
+
 .status {
   margin: 0.65rem 0 0;
   color: var(--muted);

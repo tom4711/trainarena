@@ -629,6 +629,19 @@
     }
   }
 
+  const appVersionEl = $("app-version");
+  if (appVersionEl) {
+    fetch("/health")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.version) {
+          appVersionEl.textContent = `v${data.version}`;
+          appVersionEl.hidden = false;
+        }
+      })
+      .catch(() => {});
+  }
+
   $("btn-join").addEventListener("click", () => {
     tryJoin();
   });

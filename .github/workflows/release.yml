@@ -32,6 +32,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -40,6 +42,9 @@ jobs:
 
       - name: Publish self-contained
         run: |
+          set -euo pipefail
+          ver=$(dotnet msbuild src/TrainArena/TrainArena.csproj /t:MinVer -getProperty:MinVerVersion -nologo | tr -d '[:space:]')
+          echo "Publishing MinVer Version=$ver"
           dotnet publish src/TrainArena/TrainArena.csproj \
             -c Release \
             -r "${{ matrix.rid }}" \

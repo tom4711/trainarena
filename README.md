@@ -158,8 +158,19 @@ Wettbewerbs-Power-Ups (Schild / Störimpuls) senden Full-Screen-Overlays an Host
 | Workflow | Trigger | Inhalt |
 |----------|---------|--------|
 | **CI** (`.github/workflows/ci.yml`) | PR + Push `main` | `dotnet restore` / `build` / `test` |
-| **CI** Docker-Job | nur Push `main` | `docker build` (Smoke, kein Registry-Push) |
+| **CI** Docker-Job | nur Push `main` | `docker build` mit MinVer-Version (Smoke, kein Registry-Push) |
 | **Release** (`.github/workflows/release.yml`) | Tag `v*` (oder manuell) | self-contained Publish für win-x64, linux-x64, osx-arm64, osx-x64 → Release-Assets / Artifacts |
+
+### Versionierung
+
+[MinVer](https://github.com/adamralph/minver) liest SemVer aus Git-Tags mit Prefix `v` (z. B. `v1.2.0`). CI/Release checken mit `fetch-depth: 0`. Die Version steht im Binary, unter `/health` (`version`) und dezent in Host-, Editor- und Player-UI.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0   # baut Release-Assets mit Version 1.0.0
+```
+
+Zwischen Tags: `1.0.1-alpha.0.N` (Höhe seit dem letzten Tag). Docker lokal: `docker build --build-arg APP_VERSION=1.0.0 .` (ohne Arg: `0.0.0`).
 
 ## Cloud Agent
 

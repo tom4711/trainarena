@@ -37,6 +37,15 @@ body {
   padding-bottom: max(2.75rem, env(safe-area-inset-bottom));
 }
 
+.app-version {
+  margin: 1.75rem 0 0;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+  opacity: 0.85;
+  letter-spacing: 0.02em;
+}
+
 h1 {
   margin: 0;
   font-size: clamp(1.65rem, 6vw, 2rem);

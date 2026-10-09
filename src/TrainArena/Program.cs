@@ -1,3 +1,4 @@
+using TrainArena;
 using TrainArena.Data;
 using TrainArena.Data.Entities;
 using TrainArena.Game;
@@ -48,7 +49,12 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapRazorPages();
 app.MapHub<GameHub>("/hubs/game");
-app.MapGet("/health", () => Results.Ok(new { status = "ok", app = "TrainArena" }));
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "ok",
+    app = "TrainArena",
+    version = AppVersion.Display,
+}));
 app.MapGet("/api/quizzes", async (AppDbContext db) =>
 {
     var list = await db.Quizzes
