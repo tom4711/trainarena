@@ -4,7 +4,12 @@ using TrainArena.Game;
 using TrainArena.Hubs;
 using Microsoft.EntityFrameworkCore;
 
-var builder = WebApplication.CreateBuilder(args);
+// Published / single-file: content must come from the binary directory, not the caller's cwd.
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory,
+});
 builder.Services.AddRazorPages();
 builder.Services.AddSignalR(options =>
 {
