@@ -64,7 +64,7 @@ public sealed class EditModel : PageModel
             return NotFound();
         }
 
-        var error = QuizRules.ValidateQuestion(text, option0, option1, option2, option3, correctIndex);
+        var error = QuizRules.ValidateQuestion(text, [option0, option1, option2, option3], correctIndex);
         if (error is not null)
         {
             ErrorMessage = error;

@@ -78,7 +78,7 @@ public static class QuizImport
                 continue;
             }
 
-            var validation = QuizRules.ValidateQuestion(text, o0, o1, o2, o3, correctIndex);
+            var validation = QuizRules.ValidateQuestion(text, [o0, o1, o2, o3], correctIndex);
             if (validation is not null)
             {
                 errors.Add($"Zeile {rowNumber}: {validation} — übersprungen.");
