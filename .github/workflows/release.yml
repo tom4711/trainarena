@@ -27,6 +27,8 @@ jobs:
             artifact: trainarena-linux-x64.tar.gz
           - rid: osx-arm64
             artifact: trainarena-osx-arm64.tar.gz
+          - rid: osx-x64
+            artifact: trainarena-osx-x64.tar.gz
 
     steps:
       - uses: actions/checkout@v4

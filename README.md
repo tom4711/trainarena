@@ -82,6 +82,7 @@ Ohne .NET-SDK und ohne Docker: unter [Releases](https://github.com/tom4711/train
 | Windows x64 | `trainarena-win-x64.zip` |
 | Linux x64 | `trainarena-linux-x64.tar.gz` |
 | macOS Apple Silicon | `trainarena-osx-arm64.tar.gz` |
+| macOS Intel | `trainarena-osx-x64.tar.gz` |
 
 Entpacken, Binary starten (`TrainArena.exe` bzw. `./TrainArena`), dann Browser auf `http://<lan-ip>:5175/`. Firewall-Port **5175** freigeben. SQLite liegt standardmäßig neben der App (`trainarena.db`); optional `TRAINARENA_DB` setzen.
 
@@ -158,7 +159,7 @@ Wettbewerbs-Power-Ups (Schild / Störimpuls) senden Full-Screen-Overlays an Host
 |----------|---------|--------|
 | **CI** (`.github/workflows/ci.yml`) | PR + Push `main` | `dotnet restore` / `build` / `test` |
 | **CI** Docker-Job | nur Push `main` | `docker build` (Smoke, kein Registry-Push) |
-| **Release** (`.github/workflows/release.yml`) | Tag `v*` (oder manuell) | self-contained Publish für win-x64, linux-x64, osx-arm64 → Release-Assets / Artifacts |
+| **Release** (`.github/workflows/release.yml`) | Tag `v*` (oder manuell) | self-contained Publish für win-x64, linux-x64, osx-arm64, osx-x64 → Release-Assets / Artifacts |
 
 ## Cloud Agent
 
