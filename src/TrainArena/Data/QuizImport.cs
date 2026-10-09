@@ -10,10 +10,7 @@ public sealed record QuizImportResult(
 
 public sealed record ImportedQuestion(
     string Text,
-    string Option0,
-    string Option1,
-    string Option2,
-    string Option3,
+    IReadOnlyList<string> Options,
     int CorrectIndex,
     int TimeLimitSeconds);
 
@@ -59,26 +56,31 @@ public static class QuizImport
             var o1 = Get(cells, map.Option1);
             var o2 = Get(cells, map.Option2);
             var o3 = Get(cells, map.Option3);
+            var o4 = map.Option4 is int eIdx ? Get(cells, eIdx) : "";
+            var o5 = map.Option5 is int fIdx ? Get(cells, fIdx) : "";
             var correctRaw = Get(cells, map.Correct);
             var timeRaw = map.TimeLimit is int tIdx ? Get(cells, tIdx) : "";
 
-            if (string.IsNullOrWhiteSpace(text)
-                || string.IsNullOrWhiteSpace(o0)
-                || string.IsNullOrWhiteSpace(o1)
-                || string.IsNullOrWhiteSpace(o2)
-                || string.IsNullOrWhiteSpace(o3))
+            if (string.IsNullOrWhiteSpace(text))
             {
                 errors.Add($"Zeile {rowNumber}: ungültig oder unvollständig — übersprungen.");
                 continue;
             }
 
-            if (!TryParseCorrect(correctRaw, map.CorrectIsOneBased, out var correctIndex))
+            var filled = BuildFilledOptions([o0, o1, o2, o3, o4, o5]);
+            if (filled is null)
+            {
+                errors.Add($"Zeile {rowNumber}: Antwortoptionen dürfen keine Lücken haben. — übersprungen.");
+                continue;
+            }
+
+            if (!TryParseCorrect(correctRaw, map.CorrectIsOneBased, filled.Count, out var correctIndex))
             {
                 errors.Add($"Zeile {rowNumber}: korrekte Antwort ungültig — übersprungen.");
                 continue;
             }
 
-            var validation = QuizRules.ValidateQuestion(text, [o0, o1, o2, o3], correctIndex);
+            var validation = QuizRules.ValidateQuestion(text, filled, correctIndex);
             if (validation is not null)
             {
                 errors.Add($"Zeile {rowNumber}: {validation} — übersprungen.");
@@ -95,10 +97,7 @@ public static class QuizImport
 
             questions.Add(new ImportedQuestion(
                 text.Trim(),
-                o0.Trim(),
-                o1.Trim(),
-                o2.Trim(),
-                o3.Trim(),
+                filled,
                 correctIndex,
                 seconds));
         }
@@ -111,19 +110,44 @@ public static class QuizImport
         return new QuizImportResult(questions, errors);
     }
 
-    public static Question ToEntity(ImportedQuestion q, Guid quizId, int sortOrder) => new()
+    public static Question ToEntity(ImportedQuestion q, Guid quizId, int sortOrder)
     {
-        Id = Guid.NewGuid(),
-        QuizId = quizId,
-        Text = q.Text,
-        Option0 = q.Option0,
-        Option1 = q.Option1,
-        Option2 = q.Option2,
-        Option3 = q.Option3,
-        CorrectIndex = q.CorrectIndex,
-        TimeLimitSeconds = q.TimeLimitSeconds,
-        SortOrder = sortOrder
-    };
+        var entity = new Question
+        {
+            Id = Guid.NewGuid(),
+            QuizId = quizId,
+            Text = q.Text,
+            CorrectIndex = q.CorrectIndex,
+            TimeLimitSeconds = q.TimeLimitSeconds,
+            SortOrder = sortOrder,
+            DisplayKind = QuestionDisplayKind.Mc
+        };
+        QuizRules.ApplyOptions(entity, q.Options);
+        return entity;
+    }
+
+    private static List<string>? BuildFilledOptions(string[] rawOptions)
+    {
+        var filled = new List<string>();
+        var sawEmpty = false;
+        foreach (var raw in rawOptions)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                sawEmpty = true;
+                continue;
+            }
+
+            if (sawEmpty)
+            {
+                return null;
+            }
+
+            filled.Add(raw.Trim());
+        }
+
+        return filled;
+    }
 
     private sealed record ColumnMap(
         int Question,
@@ -131,6 +155,8 @@ public static class QuizImport
         int Option1,
         int Option2,
         int Option3,
+        int? Option4,
+        int? Option5,
         int Correct,
         int? TimeLimit,
         bool CorrectIsOneBased);
@@ -145,12 +171,20 @@ public static class QuizImport
         var b = IndexOfAny(norm, "optionb", "option1", "b");
         var c = IndexOfAny(norm, "optionc", "option2", "c");
         var d = IndexOfAny(norm, "optiond", "option3", "d");
+        var e = IndexOfAny(norm, "optione", "option4", "e");
+        var f = IndexOfAny(norm, "optionf", "option5", "f");
         var correct = IndexOfAny(norm, "correct", "correctindex", "richtig", "richtigeantwort");
         var time = IndexOfAny(norm, "timelimitseconds", "timelimit", "zeit", "zeitlimit");
 
         if (q >= 0 && a >= 0 && b >= 0 && c >= 0 && d >= 0 && correct >= 0)
         {
-            return new ColumnMap(q, a, b, c, d, correct, time >= 0 ? time : null, CorrectIsOneBased: false);
+            return new ColumnMap(
+                q, a, b, c, d,
+                e >= 0 ? e : null,
+                f >= 0 ? f : null,
+                correct,
+                time >= 0 ? time : null,
+                CorrectIsOneBased: false);
         }
 
         // Kahoot-like: Question, Answer 1..4, Correct answer(s), Time limit
@@ -159,12 +193,20 @@ public static class QuizImport
         b = IndexOfAny(norm, "answer2");
         c = IndexOfAny(norm, "answer3");
         d = IndexOfAny(norm, "answer4");
+        e = IndexOfAny(norm, "answer5");
+        f = IndexOfAny(norm, "answer6");
         correct = IndexOfAny(norm, "correctanswers", "correctanswer");
         time = IndexOfAny(norm, "timelimit");
 
         if (q >= 0 && a >= 0 && b >= 0 && c >= 0 && d >= 0 && correct >= 0)
         {
-            return new ColumnMap(q, a, b, c, d, correct, time >= 0 ? time : null, CorrectIsOneBased: true);
+            return new ColumnMap(
+                q, a, b, c, d,
+                e >= 0 ? e : null,
+                f >= 0 ? f : null,
+                correct,
+                time >= 0 ? time : null,
+                CorrectIsOneBased: true);
         }
 
         return null;
@@ -203,7 +245,7 @@ public static class QuizImport
     private static string Get(IReadOnlyList<string> cells, int index) =>
         index >= 0 && index < cells.Count ? cells[index] : "";
 
-    private static bool TryParseCorrect(string raw, bool oneBased, out int index)
+    private static bool TryParseCorrect(string raw, bool oneBased, int optionCount, out int index)
     {
         index = -1;
         if (string.IsNullOrWhiteSpace(raw))
@@ -220,10 +262,10 @@ public static class QuizImport
         if (token.Length == 1 && char.IsLetter(token[0]))
         {
             var letter = char.ToUpperInvariant(token[0]);
-            if (letter is >= 'A' and <= 'D')
+            if (letter is >= 'A' and <= 'F')
             {
                 index = letter - 'A';
-                return true;
+                return index < optionCount;
             }
         }
 
@@ -234,7 +276,7 @@ public static class QuizImport
 
         if (oneBased)
         {
-            if (n is >= 1 and <= 4)
+            if (n is >= 1 and <= 6 && n <= optionCount)
             {
                 index = n - 1;
                 return true;
@@ -243,14 +285,14 @@ public static class QuizImport
             return false;
         }
 
-        // TrainArena: prefer 0–3; also accept 1–4 as convenience
-        if (n is >= 0 and <= 3)
+        // TrainArena: prefer 0–5; also accept 1–6 as convenience
+        if (n is >= 0 and <= 5 && n < optionCount)
         {
             index = n;
             return true;
         }
 
-        if (n is >= 1 and <= 4)
+        if (n is >= 1 and <= 6 && n <= optionCount)
         {
             index = n - 1;
             return true;

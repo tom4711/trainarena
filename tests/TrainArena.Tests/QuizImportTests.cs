@@ -19,7 +19,7 @@ public class QuizImportTests
         Assert.Empty(result.Errors);
         Assert.Equal(2, result.Questions.Count);
         Assert.Equal("Wie viele Bundesländer?", result.Questions[0].Text);
-        Assert.Equal("16", result.Questions[0].Option2);
+        Assert.Equal("16", result.Questions[0].Options[2]);
         Assert.Equal(2, result.Questions[0].CorrectIndex);
         Assert.Equal(20, result.Questions[0].TimeLimitSeconds);
         Assert.Equal(0, result.Questions[1].CorrectIndex);
@@ -33,7 +33,7 @@ public class QuizImportTests
             Question,OptionA,OptionB,OptionC,OptionD,Correct
             Gut,a,b,c,d,1
             ,a,b,c,d,0
-            Nur drei,a,b,c,,0
+            Lücke,a,,c,d,0
             """;
 
         var result = QuizImport.Parse(csv);
@@ -42,6 +42,26 @@ public class QuizImportTests
         Assert.Equal("Gut", result.Questions[0].Text);
         Assert.Equal(1, result.Questions[0].CorrectIndex);
         Assert.True(result.Errors.Count >= 2);
+    }
+
+    [Fact]
+    public void ParseCsv_AcceptsTwoOptionsAndOptionalEF()
+    {
+        var csv = """
+            Question,OptionA,OptionB,OptionC,OptionD,OptionE,OptionF,Correct,TimeLimitSeconds
+            Wahr?,Ja,Nein,,,,,A,15
+            Sechs?,a,b,c,d,e,f,F,20
+            """;
+
+        var result = QuizImport.Parse(csv);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(2, result.Questions.Count);
+        Assert.Equal(["Ja", "Nein"], result.Questions[0].Options);
+        Assert.Equal(0, result.Questions[0].CorrectIndex);
+        Assert.Equal(15, result.Questions[0].TimeLimitSeconds);
+        Assert.Equal(6, result.Questions[1].Options.Count);
+        Assert.Equal(5, result.Questions[1].CorrectIndex);
     }
 
     [Fact]
@@ -58,11 +78,27 @@ public class QuizImportTests
         Assert.Empty(result.Errors);
         Assert.Equal(2, result.Questions.Count);
         Assert.Equal("Farbe der Ampel bei Stop?", result.Questions[0].Text);
-        Assert.Equal("Rot", result.Questions[0].Option0);
+        Assert.Equal("Rot", result.Questions[0].Options[0]);
         Assert.Equal(0, result.Questions[0].CorrectIndex);
         Assert.Equal(20, result.Questions[0].TimeLimitSeconds);
         Assert.Equal(1, result.Questions[1].CorrectIndex);
         Assert.Equal(30, result.Questions[1].TimeLimitSeconds);
+    }
+
+    [Fact]
+    public void ParseKahootLikeCsv_AcceptsTwoAnswers()
+    {
+        var csv = """
+            Question,Answer 1,Answer 2,Answer 3,Answer 4,Time limit,Correct answer(s)
+            Himmel blau?,Wahr,Falsch,,,20,1
+            """;
+
+        var result = QuizImport.Parse(csv);
+
+        Assert.Empty(result.Errors);
+        Assert.Single(result.Questions);
+        Assert.Equal(["Wahr", "Falsch"], result.Questions[0].Options);
+        Assert.Equal(0, result.Questions[0].CorrectIndex);
     }
 
     [Fact]
