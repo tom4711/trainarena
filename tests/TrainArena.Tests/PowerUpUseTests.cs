@@ -79,6 +79,35 @@ public class PowerUpUseTests
     }
 
     [Fact]
+    public void FiftyFifty_OnThreeOptions_MasksOneWrong()
+    {
+        var s = new GameSession("ABC123", "host", Guid.NewGuid(), PowerUpRoomConfig.CreateDefault());
+        s.TryJoin("Ada", "p1");
+        var q = new DemoQuestion { Text = "Q?", Options = ["a", "b", "c"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+        s.SetQuestions([q]);
+        Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
+        var (ok, err, result) = s.TryUsePowerUp("p1", PowerUpId.FiftyFifty);
+        Assert.True(ok, err);
+        Assert.NotNull(result!.MaskedWrongIndexes);
+        Assert.Single(result.MaskedWrongIndexes!);
+        Assert.DoesNotContain(0, result.MaskedWrongIndexes);
+    }
+
+    [Fact]
+    public void FiftyFifty_OnTwoOptions_Rejected()
+    {
+        var s = new GameSession("ABC123", "host", Guid.NewGuid(), PowerUpRoomConfig.CreateDefault());
+        s.TryJoin("Ada", "p1");
+        var q = new DemoQuestion { Text = "Q?", Options = ["Wahr", "Falsch"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+        s.SetQuestions([q]);
+        Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
+        var (ok, err, _) = s.TryUsePowerUp("p1", PowerUpId.FiftyFifty);
+        Assert.False(ok);
+        Assert.Contains("50/50", err!, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, s.GetPowerUpState("Ada")!.Inventory[PowerUpId.FiftyFifty]);
+    }
+
+    [Fact]
     public void StartQuestion_ClearsPerQuestionFlags_KeepsShield()
     {
         var (s, q) = ActiveRoom();

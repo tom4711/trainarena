@@ -229,12 +229,13 @@ public sealed class GameSession
     public (bool ok, string? error) StartQuestion(DemoQuestion question, DateTimeOffset nowUtc)
     {
         ArgumentNullException.ThrowIfNull(question);
-        if (question.Options.Length != 4)
+        var n = question.Options.Length;
+        if (n is < 2 or > 6)
         {
-            return (false, "Question must have 4 options");
+            return (false, "Question must have 2–6 options");
         }
 
-        if (question.CorrectIndex is < 0 or > 3)
+        if (question.CorrectIndex < 0 || question.CorrectIndex >= n)
         {
             return (false, "Invalid correct index");
         }
@@ -361,14 +362,23 @@ public sealed class GameSession
                         fxKind));
             }
 
+            if (powerUpId == PowerUpId.FiftyFifty && CurrentQuestion.Options.Length < 3)
+            {
+                return (false, "50/50 requires at least 3 options", null);
+            }
+
             state.Inventory[powerUpId]--;
 
             switch (powerUpId)
             {
                 case PowerUpId.FiftyFifty:
-                    masked = PickTwoWrongIndexes(CurrentQuestion.CorrectIndex);
+                {
+                    var optionCount = CurrentQuestion.Options.Length;
+                    var maskCount = optionCount >= 4 ? 2 : 1;
+                    masked = PickWrongIndexes(CurrentQuestion.CorrectIndex, optionCount, maskCount);
                     state.MaskedWrongIndexes = masked;
                     break;
+                }
                 case PowerUpId.Double:
                     state.DoubleActive = true;
                     break;
@@ -454,7 +464,7 @@ public sealed class GameSession
                 return (false, "Already answered", 0);
             }
 
-            if (optionIndex is < 0 or > 3)
+            if (optionIndex < 0 || optionIndex >= CurrentQuestion.Options.Length)
             {
                 return (false, "Invalid option", 0);
             }
@@ -770,15 +780,15 @@ public sealed class GameSession
         _boostAllActive = false;
     }
 
-    private static int[] PickTwoWrongIndexes(int correctIndex)
+    private static int[] PickWrongIndexes(int correctIndex, int optionCount, int maskCount)
     {
-        var wrong = Enumerable.Range(0, 4).Where(i => i != correctIndex).ToList();
+        var wrong = Enumerable.Range(0, optionCount).Where(i => i != correctIndex).ToList();
         for (var i = wrong.Count - 1; i > 0; i--)
         {
             var j = Random.Shared.Next(i + 1);
             (wrong[i], wrong[j]) = (wrong[j], wrong[i]);
         }
 
-        return [wrong[0], wrong[1]];
+        return wrong.Take(maskCount).ToArray();
     }
 }

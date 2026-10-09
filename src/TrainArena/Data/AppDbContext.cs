@@ -32,6 +32,9 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Option1).HasMaxLength(400).IsRequired();
             e.Property(x => x.Option2).HasMaxLength(400).IsRequired();
             e.Property(x => x.Option3).HasMaxLength(400).IsRequired();
+            e.Property(x => x.Option4).HasMaxLength(400).IsRequired();
+            e.Property(x => x.Option5).HasMaxLength(400).IsRequired();
+            e.Property(x => x.DisplayKind).HasConversion<int>();
             e.Property(x => x.ImagePath).HasMaxLength(400);
             e.HasIndex(x => new { x.QuizId, x.SortOrder });
         });
@@ -51,24 +54,40 @@ public sealed class AppDbContext : DbContext
 
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "PRAGMA table_info('Questions');";
-        var hasImagePath = false;
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         await using (var reader = await cmd.ExecuteReaderAsync(ct))
         {
             while (await reader.ReadAsync(ct))
             {
-                var name = reader.GetString(1);
-                if (string.Equals(name, "ImagePath", StringComparison.OrdinalIgnoreCase))
-                {
-                    hasImagePath = true;
-                    break;
-                }
+                columns.Add(reader.GetString(1));
             }
         }
 
-        if (!hasImagePath)
+        if (!columns.Contains("ImagePath"))
         {
             await using var alter = conn.CreateCommand();
             alter.CommandText = "ALTER TABLE Questions ADD COLUMN ImagePath TEXT NULL;";
+            await alter.ExecuteNonQueryAsync(ct);
+        }
+
+        if (!columns.Contains("Option4"))
+        {
+            await using var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE Questions ADD COLUMN Option4 TEXT NOT NULL DEFAULT '';";
+            await alter.ExecuteNonQueryAsync(ct);
+        }
+
+        if (!columns.Contains("Option5"))
+        {
+            await using var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE Questions ADD COLUMN Option5 TEXT NOT NULL DEFAULT '';";
+            await alter.ExecuteNonQueryAsync(ct);
+        }
+
+        if (!columns.Contains("DisplayKind"))
+        {
+            await using var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE Questions ADD COLUMN DisplayKind INTEGER NOT NULL DEFAULT 0;";
             await alter.ExecuteNonQueryAsync(ct);
         }
     }
