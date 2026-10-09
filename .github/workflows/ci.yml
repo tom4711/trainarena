@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -33,10 +35,26 @@ jobs:
 
   docker:
     name: Docker build
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: test
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Resolve app version
+        id: ver
+        run: |
+          set -euo pipefail
+          ver=$(dotnet msbuild src/TrainArena/TrainArena.csproj /t:MinVer -getProperty:MinVerVersion -nologo | tr -d '[:space:]')
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "MinVer Version=$ver"
 
       - name: Build image
-        run: docker build -t trainarena:ci .
+        run: docker build --build-arg APP_VERSION="${{ steps.ver.outputs.version }}" -t trainarena:ci .

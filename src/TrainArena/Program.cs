@@ -1,10 +1,16 @@
+using TrainArena;
 using TrainArena.Data;
 using TrainArena.Data.Entities;
 using TrainArena.Game;
 using TrainArena.Hubs;
 using Microsoft.EntityFrameworkCore;
 
-var builder = WebApplication.CreateBuilder(args);
+// Published / single-file: content must come from the binary directory, not the caller's cwd.
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory,
+});
 builder.Services.AddRazorPages();
 builder.Services.AddSignalR(options =>
 {
@@ -43,7 +49,12 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapRazorPages();
 app.MapHub<GameHub>("/hubs/game");
-app.MapGet("/health", () => Results.Ok(new { status = "ok", app = "TrainArena" }));
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "ok",
+    app = "TrainArena",
+    version = AppVersion.Display,
+}));
 app.MapGet("/api/quizzes", async (AppDbContext db) =>
 {
     var list = await db.Quizzes
