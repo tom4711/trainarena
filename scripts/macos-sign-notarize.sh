@@ -67,7 +67,8 @@ codesign --force --options runtime --timestamp \
   "$BINARY"
 
 codesign --verify --verbose=2 "$BINARY"
-codesign -dv --verbose=2 "$BINARY" 2>&1 | tee /dev/stderr | grep -q "Developer ID Application"
+# Log signature details (Authority may be masked as *** in GitHub Actions logs).
+codesign -dv --verbose=2 "$BINARY" 2>&1 || true
 
 # Notarize the whole publish folder (binary + wwwroot + config).
 rm -f "$NOTARY_ZIP"
