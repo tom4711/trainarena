@@ -362,6 +362,11 @@ public sealed class GameSession
                         fxKind));
             }
 
+            if (powerUpId == PowerUpId.FiftyFifty && CurrentQuestion.Options.Length < 3)
+            {
+                return (false, "50/50 requires at least 3 options", null);
+            }
+
             state.Inventory[powerUpId]--;
 
             switch (powerUpId)

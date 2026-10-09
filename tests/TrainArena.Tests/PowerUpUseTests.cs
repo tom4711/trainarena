@@ -104,6 +104,7 @@ public class PowerUpUseTests
         var (ok, err, _) = s.TryUsePowerUp("p1", PowerUpId.FiftyFifty);
         Assert.False(ok);
         Assert.Contains("50/50", err!, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, s.GetPowerUpState("Ada")!.Inventory[PowerUpId.FiftyFifty]);
     }
 
     [Fact]
