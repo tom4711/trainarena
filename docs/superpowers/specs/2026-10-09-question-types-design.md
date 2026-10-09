@@ -54,7 +54,7 @@ Replace hard-coded “all four required”:
 - Text non-empty  
 - Collect trailing-trimmed options; count must be 2–6 with no gaps  
 - `CorrectIndex` in range  
-- Optional: when `DisplayKind == TrueFalse`, enforce exactly two options (labels may stay editable or fixed — fixed “Wahr”/“Falsch” in v1)
+- When `DisplayKind == TrueFalse`, enforce exactly two options with fixed labels “Wahr” / “Falsch”
 
 ### Mapping
 
