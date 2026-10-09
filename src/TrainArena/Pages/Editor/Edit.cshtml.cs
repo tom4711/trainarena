@@ -50,25 +50,50 @@ public sealed class EditModel : PageModel
     public async Task<IActionResult> OnPostAddQuestionAsync(
         Guid id,
         string text,
-        string option0,
-        string option1,
-        string option2,
-        string option3,
+        string? displayKind,
+        string? option0,
+        string? option1,
+        string? option2,
+        string? option3,
+        string? option4,
+        string? option5,
         int correctIndex,
         int timeLimitSeconds = 20,
         IFormFile? image = null)
     {
-        var quiz = await _db.Quizzes.Include(q => q.Questions).FirstOrDefaultAsync(q => q.Id == id);
+        var quiz = await _db.Quizzes.FirstOrDefaultAsync(q => q.Id == id);
         if (quiz is null)
         {
             return NotFound();
         }
 
-        var error = QuizRules.ValidateQuestion(text, [option0, option1, option2, option3], correctIndex);
+        var kind = string.Equals(displayKind, "TrueFalse", StringComparison.OrdinalIgnoreCase)
+            ? QuestionDisplayKind.TrueFalse
+            : QuestionDisplayKind.Mc;
+
+        if (kind == QuestionDisplayKind.TrueFalse)
+        {
+            option0 = "Wahr";
+            option1 = "Falsch";
+            option2 = option3 = option4 = option5 = "";
+        }
+
+        var options = new List<string>();
+        foreach (var opt in new[] { option0, option1, option2, option3, option4, option5 })
+        {
+            if (string.IsNullOrWhiteSpace(opt))
+            {
+                break;
+            }
+
+            options.Add(opt.Trim());
+        }
+
+        var error = QuizRules.ValidateQuestion(text, options, correctIndex, kind);
         if (error is not null)
         {
             ErrorMessage = error;
-            Quiz = quiz;
+            Quiz = await LoadAsync(id);
             return Page();
         }
 
@@ -83,25 +108,27 @@ public sealed class EditModel : PageModel
             catch (InvalidOperationException ex)
             {
                 ErrorMessage = ex.Message;
-                Quiz = quiz;
+                Quiz = await LoadAsync(id);
                 return Page();
             }
         }
 
-        quiz.Questions.Add(new Question
+        var maxSort = await _db.Questions
+            .Where(q => q.QuizId == id)
+            .MaxAsync(q => (int?)q.SortOrder);
+        var question = new Question
         {
             Id = Guid.NewGuid(),
             QuizId = id,
             Text = text.Trim(),
-            Option0 = option0.Trim(),
-            Option1 = option1.Trim(),
-            Option2 = option2.Trim(),
-            Option3 = option3.Trim(),
+            DisplayKind = kind,
             CorrectIndex = correctIndex,
             TimeLimitSeconds = timeLimitSeconds <= 0 ? 20 : timeLimitSeconds,
-            SortOrder = quiz.Questions.Count == 0 ? 0 : quiz.Questions.Max(q => q.SortOrder) + 1,
+            SortOrder = maxSort is null ? 0 : maxSort.Value + 1,
             ImagePath = imagePath
-        });
+        };
+        QuizRules.ApplyOptions(question, options);
+        _db.Questions.Add(question);
         await _db.SaveChangesAsync();
         return RedirectToPage(new { id });
     }
