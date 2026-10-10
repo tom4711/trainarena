@@ -81,12 +81,13 @@ Ohne .NET-SDK und ohne Docker: unter [Releases](https://github.com/tom4711/train
 |-----------|--------|
 | Windows x64 | `trainarena-win-x64.zip` |
 | Linux x64 | `trainarena-linux-x64.tar.gz` |
-| macOS Apple Silicon | `trainarena-osx-arm64.tar.gz` |
-| macOS Intel | `trainarena-osx-x64.tar.gz` |
+| macOS (Apple Silicon + Intel) | `trainarena-osx-universal.zip` (`TrainArena.app`) |
 
-Entpacken, Binary starten (`TrainArena.exe` bzw. `./TrainArena`), dann Browser auf `http://<lan-ip>:5175/`. Firewall-Port **5175** freigeben. SQLite liegt standardmäßig neben der App (`trainarena.db`); optional `TRAINARENA_DB` setzen.
+Entpacken, Binary starten (`TrainArena.exe` bzw. `./TrainArena` / `TrainArena.app`), dann Browser auf `http://<lan-ip>:5175/`. Firewall-Port **5175** freigeben. SQLite liegt standardmäßig neben der App (`trainarena.db`); unter macOS `.app` in `~/Library/Application Support/TrainArena/`. Optional `TRAINARENA_DB` setzen.
 
-Release bauen: Git-Tag `v*` pushen (z. B. `git tag v1.0.0 && git push origin v1.0.0`) — Workflow **Release** erzeugt die Archive und hängt sie an den GitHub Release. Trockenlauf ohne Tag: Actions → **Release** → **Run workflow**.
+**macOS:** Releases werden in CI als Universal Binary mit Developer ID signiert und notarized (Secrets siehe [`docs/MACOS_SIGNING.md`](docs/MACOS_SIGNING.md)).
+
+Release bauen: Git-Tag `v*` pushen (z. B. `git tag v1.0.1 && git push origin v1.0.1`) — Workflow **Release** erzeugt die Archive. Trockenlauf: Actions → **Release** → **Run workflow**.
 
 ## Docker (LAN self-host)
 
@@ -159,7 +160,7 @@ Wettbewerbs-Power-Ups (Schild / Störimpuls) senden Full-Screen-Overlays an Host
 |----------|---------|--------|
 | **CI** (`.github/workflows/ci.yml`) | PR + Push `main` | `dotnet restore` / `build` / `test` |
 | **CI** Docker-Job | nur Push `main` | `docker build` mit MinVer-Version (Smoke, kein Registry-Push) |
-| **Release** (`.github/workflows/release.yml`) | Tag `v*` (oder manuell) | self-contained Publish für win-x64, linux-x64, osx-arm64, osx-x64 → Release-Assets / Artifacts |
+| **Release** (`.github/workflows/release.yml`) | Tag `v*` (oder manuell) | self-contained Publish; macOS auf `macos-14` mit Developer-ID-Signatur + Notary (siehe `docs/MACOS_SIGNING.md`) |
 
 ### Versionierung
 
