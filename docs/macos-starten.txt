@@ -4,11 +4,13 @@ TrainArena auf macOS starten
 1. ZIP entpacken
 2. TrainArena.app per Doppelklick starten
    (signiert + notarized + stapled — kein Gatekeeper-„Papierkorb“-Dialog)
-3. Browser: http://127.0.0.1:5175/  (oder LAN-IP)
+3. Browser: http://127.0.0.1:5175/  (oder LAN-IP; bei belegt: nächster freier Port)
+
+Universal Binary (Apple Silicon + Intel): trainarena-osx-universal.zip
+
+Daten/DB/Logs: ~/Library/Application Support/TrainArena/
+  (startup.log bei Startproblemen)
 
 Falls macOS beim ersten Start noch nachfragt: „Öffnen“.
-
-Apple-Silicon: trainarena-osx-arm64.zip
-Intel-Mac:     trainarena-osx-x64.zip
 
 Details: docs/MACOS_SIGNING.md

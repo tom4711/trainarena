@@ -27,12 +27,9 @@ jobs:
           - rid: linux-x64
             os: ubuntu-latest
             artifact: trainarena-linux-x64.tar.gz
-          - rid: osx-arm64
+          - rid: osx-universal
             os: macos-14
-            artifact: trainarena-osx-arm64.zip
-          - rid: osx-x64
-            os: macos-14
-            artifact: trainarena-osx-x64.zip
+            artifact: trainarena-osx-universal.zip
 
     steps:
       - uses: actions/checkout@v4
@@ -55,18 +52,40 @@ jobs:
             ver=$(dotnet msbuild src/TrainArena/TrainArena.csproj /t:MinVer -getProperty:MinVerVersion -nologo | tr -d '[:space:]')
             echo "Publishing MinVer Version=$ver"
           fi
-          # Always pass VersionOverride — avoids empty-array + set -u on macOS bash 3.2.
-          dotnet publish src/TrainArena/TrainArena.csproj \
-            -c Release \
-            -r "${{ matrix.rid }}" \
-            --self-contained true \
-            -p:PublishSingleFile=true \
-            -p:IncludeNativeLibrariesForSelfExtract=true \
-            -p:EnableCompressionInSingleFile=true \
-            -p:DebugType=None \
-            -p:DebugSymbols=false \
-            -p:MinVerVersionOverride="$ver" \
-            -o "publish/${{ matrix.rid }}"
+
+          publish_rid() {
+            local rid="$1"
+            local out="$2"
+            # Always pass VersionOverride — avoids empty-array + set -u on macOS bash 3.2.
+            dotnet publish src/TrainArena/TrainArena.csproj \
+              -c Release \
+              -r "$rid" \
+              --self-contained true \
+              -p:PublishSingleFile=true \
+              -p:IncludeNativeLibrariesForSelfExtract=true \
+              -p:EnableCompressionInSingleFile=true \
+              -p:DebugType=None \
+              -p:DebugSymbols=false \
+              -p:MinVerVersionOverride="$ver" \
+              -o "$out"
+          }
+
+          if [[ "${{ matrix.rid }}" == "osx-universal" ]]; then
+            publish_rid osx-arm64 publish/osx-arm64
+            publish_rid osx-x64 publish/osx-x64
+            rm -rf publish/osx-universal
+            cp -R publish/osx-arm64 publish/osx-universal
+            lipo -create \
+              publish/osx-arm64/TrainArena \
+              publish/osx-x64/TrainArena \
+              -output publish/osx-universal/TrainArena
+            chmod +x publish/osx-universal/TrainArena
+            lipo -info publish/osx-universal/TrainArena
+            # Drop arch-specific trees so Pack only sees the universal payload.
+            rm -rf publish/osx-arm64 publish/osx-x64
+          else
+            publish_rid "${{ matrix.rid }}" "publish/${{ matrix.rid }}"
+          fi
 
       - name: Sign and notarize (macOS)
         if: startsWith(matrix.rid, 'osx-')

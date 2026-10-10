@@ -2,7 +2,9 @@
 
 TrainArena-Downloads von GitHub brauchen **Developer ID Application** + Notarisierung (nicht App-Store-`Apple Distribution`).
 
-CI: `.github/workflows/release.yml` baut `osx-*` auf `macos-14`, packt **`TrainArena.app`**, signiert mit Developer ID, notarized und **stapelt** das Ticket (`scripts/macos-sign-notarize.sh`). So akzeptiert Gatekeeper Downloads ohne den „Papierkorb“-Dialog (nackte Binaries lassen sich nicht stapeln).
+CI: `.github/workflows/release.yml` baut auf `macos-14` ein **Universal Binary** (`osx-arm64` + `osx-x64` via `lipo`), packt **`TrainArena.app`**, signiert mit Developer ID, notarized und **stapelt** das Ticket (`scripts/macos-sign-notarize.sh`). So akzeptiert Gatekeeper Downloads ohne den „Papierkorb“-Dialog (nackte Binaries lassen sich nicht stapeln).
+
+Schreibbare Daten (SQLite, Uploads, `startup.log`) liegen unter `~/Library/Application Support/TrainArena/` — nicht im App-Bundle (App Translocation / sealed Resources).
 
 ## Secrets (Repo → Settings → Secrets and variables → Actions)
 
@@ -34,7 +36,7 @@ API-Key-Rechte: mindestens **Developer** / Zugang für Notary (`notarytool`).
 
 1. Secrets setzen  
 2. Actions → **Release** → **Run workflow** (`workflow_dispatch`)  
-3. Artifacts `osx-arm64` / `osx-x64` laden und auf dem Mac starten (ohne `xattr`-Workaround)
+3. Artifact `osx-universal` laden und `TrainArena.app` auf dem Mac starten (ohne `xattr`-Workaround)
 
 Oder nach Merge: Tag `v1.0.1` pushen → Release-Assets sind signiert.
 
