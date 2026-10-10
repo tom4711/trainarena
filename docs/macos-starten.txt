@@ -4,13 +4,19 @@ TrainArena auf macOS starten
 1. ZIP entpacken
 2. TrainArena.app per Doppelklick starten
    (signiert + notarized + stapled — kein Gatekeeper-„Papierkorb“-Dialog)
-3. Browser: http://127.0.0.1:5175/  (oder LAN-IP; bei belegt: nächster freier Port)
+3. Der Browser öffnet sich automatisch mit der Host-Seite
+   (manuell: http://127.0.0.1:5175/ — oder der Port aus der macOS-Benachrichtigung)
 
-Universal Binary (Apple Silicon + Intel): trainarena-osx-universal.zip
+Wichtig: TrainArena ist ein lokaler Webserver, kein Steam-/Game-Server-Dialog.
+Im Browser muss „TrainArena — Host“ / Quiz-Auswahl sichtbar sein.
+
+Falls zwei Prozesse in der Aktivitätsanzeige stehen:
+  → beide beenden, dann TrainArena.app erneut starten.
 
 Daten/DB/Logs: ~/Library/Application Support/TrainArena/
-  (startup.log bei Startproblemen)
+  startup.log  — Startmeldungen / Fehler
+  listen.url   — aktuelle Browser-URL
 
-Falls macOS beim ersten Start noch nachfragt: „Öffnen“.
+Universal Binary (Apple Silicon + Intel): trainarena-osx-universal.zip
 
 Details: docs/MACOS_SIGNING.md

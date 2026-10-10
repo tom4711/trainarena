@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using TrainArena;
 using TrainArena.Data;
 using TrainArena.Data.Entities;
@@ -110,9 +112,106 @@ static void WriteStartupLog(string dataRoot, string message)
     }
 }
 
+static string ToBrowserUrl(string listenUrl)
+{
+    if (!Uri.TryCreate(listenUrl.Replace("0.0.0.0", "127.0.0.1").Replace("[::]", "127.0.0.1"),
+            UriKind.Absolute, out var uri))
+        return "http://127.0.0.1:5175/";
+
+    return $"http://127.0.0.1:{uri.Port}/";
+}
+
+static void OpenInBrowser(string url)
+{
+    try
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            Process.Start(new ProcessStartInfo("open", url) { UseShellExecute = false });
+            return;
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo("xdg-open", url) { UseShellExecute = false });
+    }
+    catch
+    {
+        // ignore — user can open manually
+    }
+}
+
+static void NotifyMac(string title, string message)
+{
+    if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        return;
+
+    try
+    {
+        var script =
+            $"display notification \"{EscapeAppleScript(message)}\" with title \"{EscapeAppleScript(title)}\"";
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "osascript",
+            ArgumentList = { "-e", script },
+            UseShellExecute = false,
+        });
+    }
+    catch
+    {
+        // ignore
+    }
+}
+
+static string EscapeAppleScript(string s) =>
+    s.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+static string ReadListenUrlFile(string dataRoot)
+{
+    try
+    {
+        var path = Path.Combine(dataRoot, "listen.url");
+        if (File.Exists(path))
+            return File.ReadAllText(path).Trim();
+    }
+    catch
+    {
+        // ignore
+    }
+
+    return "http://127.0.0.1:5175/";
+}
+
+static void WriteListenUrlFile(string dataRoot, string browserUrl)
+{
+    try
+    {
+        File.WriteAllText(Path.Combine(dataRoot, "listen.url"), browserUrl + Environment.NewLine);
+    }
+    catch
+    {
+        // ignore
+    }
+}
+
 var hasBundle = TryGetMacAppResources(out var bundleResources);
 var dataRoot = ResolveDataRoot(hasBundle ? bundleResources : null);
 WriteStartupLog(dataRoot, $"Starting TrainArena {AppVersion.Display}; dataRoot={dataRoot}");
+
+// macOS .app: one instance only — a second double-click reopens the browser.
+using var instanceMutex = new Mutex(true, "Local\\TrainArena.SingleInstance", out var createdNew);
+if (hasBundle && !createdNew)
+{
+    var existing = ReadListenUrlFile(dataRoot);
+    WriteStartupLog(dataRoot, $"Another instance is running; opening {existing}");
+    OpenInBrowser(existing);
+    NotifyMac("TrainArena", $"Läuft bereits — Browser öffnet {existing}");
+    return;
+}
 
 try
 {
@@ -148,7 +247,9 @@ try
         ?? "http://0.0.0.0:5175";
     var listenUrl = PickListeningUrl(preferredUrls);
     builder.WebHost.UseUrls(listenUrl);
-    WriteStartupLog(dataRoot, $"Listen URL: {listenUrl}");
+    var browserUrl = ToBrowserUrl(listenUrl);
+    WriteListenUrlFile(dataRoot, browserUrl);
+    WriteStartupLog(dataRoot, $"Listen URL: {listenUrl}; browser: {browserUrl}");
 
     var app = builder.Build();
 
@@ -169,6 +270,7 @@ try
         status = "ok",
         app = "TrainArena",
         version = AppVersion.Display,
+        url = browserUrl,
     }));
     app.MapGet("/api/quizzes", async (AppDbContext db) =>
     {
@@ -180,6 +282,17 @@ try
         return Results.Ok(list);
     });
 
+    // Open Safari/Chrome only for packaged .app (Finder has no console).
+    if (hasBundle)
+    {
+        app.Lifetime.ApplicationStarted.Register(() =>
+        {
+            WriteStartupLog(dataRoot, $"ApplicationStarted — opening {browserUrl}");
+            OpenInBrowser(browserUrl);
+            NotifyMac("TrainArena", $"Bereit: {browserUrl}");
+        });
+    }
+
     WriteStartupLog(dataRoot, "Host starting");
     await app.RunAsync();
 }
@@ -187,6 +300,8 @@ catch (Exception ex)
 {
     WriteStartupLog(dataRoot, $"FATAL: {ex}");
     Console.Error.WriteLine(ex);
+    if (hasBundle)
+        NotifyMac("TrainArena", "Start fehlgeschlagen — siehe startup.log");
     Environment.ExitCode = 1;
     throw;
 }
