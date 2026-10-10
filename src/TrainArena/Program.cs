@@ -5,11 +5,21 @@ using TrainArena.Game;
 using TrainArena.Hubs;
 using Microsoft.EntityFrameworkCore;
 
-// Published / single-file: content must come from the binary directory, not the caller's cwd.
+// Published / single-file: content next to the binary (cwd is unreliable).
+// macOS .app: executable in Contents/MacOS, wwwroot/config in Contents/Resources.
+static string ResolveContentRoot()
+{
+    var baseDir = AppContext.BaseDirectory;
+    var resources = Path.GetFullPath(Path.Combine(baseDir, "..", "Resources"));
+    if (Directory.Exists(Path.Combine(resources, "wwwroot")))
+        return resources;
+    return baseDir;
+}
+
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
-    ContentRootPath = AppContext.BaseDirectory,
+    ContentRootPath = ResolveContentRoot(),
 });
 builder.Services.AddRazorPages();
 builder.Services.AddSignalR(options =>

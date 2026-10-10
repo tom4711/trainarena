@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Wrap publish output in TrainArena.app, Developer-ID-sign, notarize, and staple.
+# Layout: MacOS/ = executable only; Resources/ = wwwroot + config (ContentRoot).
 # Required env:
 #   APPLE_CERTIFICATE_BASE64, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY
 #   APPLE_API_KEY_BASE64, APPLE_API_KEY_ID, APPLE_API_ISSUER_ID
@@ -64,29 +65,31 @@ EXISTING=$(security list-keychains -d user | sed 's/"//g' | tr '\n' ' ')
 security list-keychains -d user -s "$KEYCHAIN" $EXISTING
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PW" "$KEYCHAIN"
 
-# Build .app: ContentRoot = Contents/MacOS (AppContext.BaseDirectory).
 rm -rf "$APP_BUNDLE"
-mkdir -p "$STAGING/TrainArena.app/Contents/MacOS"
-# Move publish payload into MacOS/ (leave staging root clean for bundling).
+MACOS_DIR="$STAGING/TrainArena.app/Contents/MacOS"
+RES_DIR="$STAGING/TrainArena.app/Contents/Resources"
+mkdir -p "$MACOS_DIR" "$RES_DIR"
+
+# Executable only in MacOS/; everything else in Resources/ (required for codesign).
+mv "$BINARY" "$MACOS_DIR/TrainArena"
+chmod +x "$MACOS_DIR/TrainArena"
 shopt -s dotglob nullglob
 for item in "$PUBLISH_DIR"/*; do
   base=$(basename "$item")
   [[ "$base" == "TrainArena.app" ]] && continue
-  mv "$item" "$STAGING/TrainArena.app/Contents/MacOS/"
+  mv "$item" "$RES_DIR/"
 done
 shopt -u dotglob nullglob
 
 sed "s/__VERSION__/${APP_VERSION//\//\\/}/g" "$PLIST_TEMPLATE" \
   > "$STAGING/TrainArena.app/Contents/Info.plist"
 
-chmod +x "$STAGING/TrainArena.app/Contents/MacOS/TrainArena"
-
-# Sign inner binary, then the bundle (required for stapleable .app).
+# Sign Mach-O, then the .app bundle.
 codesign --force --options runtime --timestamp \
   --keychain "$KEYCHAIN" \
   --entitlements "$ENTITLEMENTS" \
   --sign "$APPLE_SIGNING_IDENTITY" \
-  "$STAGING/TrainArena.app/Contents/MacOS/TrainArena"
+  "$MACOS_DIR/TrainArena"
 
 codesign --force --options runtime --timestamp \
   --keychain "$KEYCHAIN" \
@@ -94,7 +97,7 @@ codesign --force --options runtime --timestamp \
   --sign "$APPLE_SIGNING_IDENTITY" \
   "$STAGING/TrainArena.app"
 
-codesign --verify --verbose=2 "$STAGING/TrainArena.app"
+codesign --verify --deep --strict --verbose=2 "$STAGING/TrainArena.app"
 codesign -dv --verbose=2 "$STAGING/TrainArena.app" 2>&1 || true
 
 rm -f "$NOTARY_ZIP"
