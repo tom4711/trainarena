@@ -81,12 +81,11 @@ Ohne .NET-SDK und ohne Docker: unter [Releases](https://github.com/tom4711/train
 |-----------|--------|
 | Windows x64 | `trainarena-win-x64.zip` |
 | Linux x64 | `trainarena-linux-x64.tar.gz` |
-| macOS Apple Silicon | `trainarena-osx-arm64.zip` (`TrainArena.app`) |
-| macOS Intel | `trainarena-osx-x64.zip` (`TrainArena.app`) |
+| macOS (Apple Silicon + Intel) | `trainarena-osx-universal.zip` (`TrainArena.app`) |
 
-Entpacken, Binary starten (`TrainArena.exe` bzw. `./TrainArena`), dann Browser auf `http://<lan-ip>:5175/`. Firewall-Port **5175** freigeben. SQLite liegt standardmäßig neben der App (`trainarena.db`); optional `TRAINARENA_DB` setzen.
+Entpacken, Binary starten (`TrainArena.exe` bzw. `./TrainArena` / `TrainArena.app`), dann Browser auf `http://<lan-ip>:5175/`. Firewall-Port **5175** freigeben. SQLite liegt standardmäßig neben der App (`trainarena.db`); unter macOS `.app` in `~/Library/Application Support/TrainArena/`. Optional `TRAINARENA_DB` setzen.
 
-**macOS:** Releases werden in CI mit Developer ID signiert und notarized (Secrets siehe [`docs/MACOS_SIGNING.md`](docs/MACOS_SIGNING.md)). Ohne Signatur blockiert Gatekeeper — Workaround in `macos-starten.txt` im Archiv.
+**macOS:** Releases werden in CI als Universal Binary mit Developer ID signiert und notarized (Secrets siehe [`docs/MACOS_SIGNING.md`](docs/MACOS_SIGNING.md)).
 
 Release bauen: Git-Tag `v*` pushen (z. B. `git tag v1.0.1 && git push origin v1.0.1`) — Workflow **Release** erzeugt die Archive. Trockenlauf: Actions → **Release** → **Run workflow**.
 
