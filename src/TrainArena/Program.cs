@@ -281,6 +281,13 @@ try
             .ToListAsync();
         return Results.Ok(list);
     });
+    // Host UI only — players use /player. Confirmation is client-side.
+    app.MapPost("/api/shutdown", (IHostApplicationLifetime lifetime) =>
+    {
+        WriteStartupLog(dataRoot, "Shutdown requested via /api/shutdown");
+        lifetime.StopApplication();
+        return Results.Ok(new { status = "stopping" });
+    });
 
     // Open Safari/Chrome only for packaged .app (Finder has no console).
     if (hasBundle)

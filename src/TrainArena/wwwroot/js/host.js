@@ -541,6 +541,25 @@
     }
   });
 
+  const btnShutdown = $("btn-shutdown");
+  if (btnShutdown) {
+    btnShutdown.addEventListener("click", async () => {
+      if (!confirm("TrainArena-Server wirklich beenden?\nOffene Spiele enden sofort."))
+        return;
+      btnShutdown.disabled = true;
+      try {
+        const res = await fetch("/api/shutdown", { method: "POST" });
+        if (!res.ok)
+          throw new Error(`HTTP ${res.status}`);
+        setLobbyStatus("Server wird beendet…", "is-ok");
+        document.body.classList.add("is-shutting-down");
+      } catch (err) {
+        btnShutdown.disabled = false;
+        setLobbyStatus(`Beenden fehlgeschlagen: ${err}`, "is-error");
+      }
+    });
+  }
+
   Promise.all([connection.start(), loadQuizzes()])
     .then(async () => {
       if (!roomCode) {

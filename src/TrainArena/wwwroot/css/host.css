@@ -33,6 +33,11 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
+body.is-shutting-down {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .host {
   max-width: 42rem;
   margin: 0 auto;
@@ -158,8 +163,31 @@ button.secondary {
 .hint { font-size: 0.88rem; line-height: 1.4; }
 .hidden { display: none !important; }
 
+.host-footer {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+#btn-shutdown {
+  width: auto;
+  min-width: 12rem;
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 55%, var(--panel-border));
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+#btn-shutdown:hover:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
 .app-version {
-  margin: 1.75rem 0 0;
+  margin: 0;
   text-align: center;
   font-size: 0.75rem;
   color: var(--muted);

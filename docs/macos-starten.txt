@@ -10,6 +10,7 @@ TrainArena auf macOS starten
 Wichtig: TrainArena ist ein lokaler Webserver, kein Steam-/Game-Server-Dialog.
 Im Browser muss „TrainArena — Host“ / Quiz-Auswahl sichtbar sein.
 
+Beenden: auf der Host-Seite „Server beenden“, oder Dock → Beenden.
 Falls zwei Prozesse in der Aktivitätsanzeige stehen:
   → beide beenden, dann TrainArena.app erneut starten.
 
