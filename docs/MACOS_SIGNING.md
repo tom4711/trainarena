@@ -2,7 +2,7 @@
 
 TrainArena-Downloads von GitHub brauchen **Developer ID Application** + Notarisierung (nicht App-Store-`Apple Distribution`).
 
-CI: `.github/workflows/release.yml` baut `osx-*` auf `macos-14`, signiert und notarized über `scripts/macos-sign-notarize.sh`, wenn die Secrets gesetzt sind.
+CI: `.github/workflows/release.yml` baut `osx-*` auf `macos-14`, packt **`TrainArena.app`**, signiert mit Developer ID, notarized und **stapelt** das Ticket (`scripts/macos-sign-notarize.sh`). So akzeptiert Gatekeeper Downloads ohne den „Papierkorb“-Dialog (nackte Binaries lassen sich nicht stapeln).
 
 ## Secrets (Repo → Settings → Secrets and variables → Actions)
 

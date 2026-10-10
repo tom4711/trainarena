@@ -81,8 +81,8 @@ Ohne .NET-SDK und ohne Docker: unter [Releases](https://github.com/tom4711/train
 |-----------|--------|
 | Windows x64 | `trainarena-win-x64.zip` |
 | Linux x64 | `trainarena-linux-x64.tar.gz` |
-| macOS Apple Silicon | `trainarena-osx-arm64.tar.gz` |
-| macOS Intel | `trainarena-osx-x64.tar.gz` |
+| macOS Apple Silicon | `trainarena-osx-arm64.zip` (`TrainArena.app`) |
+| macOS Intel | `trainarena-osx-x64.zip` (`TrainArena.app`) |
 
 Entpacken, Binary starten (`TrainArena.exe` bzw. `./TrainArena`), dann Browser auf `http://<lan-ip>:5175/`. Firewall-Port **5175** freigeben. SQLite liegt standardmäßig neben der App (`trainarena.db`); optional `TRAINARENA_DB` setzen.
 

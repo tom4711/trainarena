@@ -29,10 +29,10 @@ jobs:
             artifact: trainarena-linux-x64.tar.gz
           - rid: osx-arm64
             os: macos-14
-            artifact: trainarena-osx-arm64.tar.gz
+            artifact: trainarena-osx-arm64.zip
           - rid: osx-x64
             os: macos-14
-            artifact: trainarena-osx-x64.tar.gz
+            artifact: trainarena-osx-x64.zip
 
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +83,12 @@ jobs:
             echo "::error::macOS signing secrets missing. See docs/MACOS_SIGNING.md"
             exit 1
           fi
+          # Version for Info.plist (tag or MinVer from publish step env file).
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME}" == v* ]]; then
+            export APP_VERSION="${GITHUB_REF_NAME#v}"
+          else
+            export APP_VERSION=$(dotnet msbuild src/TrainArena/TrainArena.csproj /t:MinVer -getProperty:MinVerVersion -nologo | tr -d '[:space:]')
+          fi
           chmod +x scripts/macos-sign-notarize.sh
           scripts/macos-sign-notarize.sh "publish/${{ matrix.rid }}"
 
@@ -92,8 +98,9 @@ jobs:
           mkdir -p dist
           if [[ "${{ matrix.rid }}" == osx-* ]]; then
             cp docs/macos-starten.txt "publish/${{ matrix.rid }}/macos-starten.txt"
-          fi
-          if [[ "${{ matrix.rid }}" == win-x64 ]]; then
+            # Zip preserves .app better than tar for Finder; contains stapled TrainArena.app.
+            (cd "publish/${{ matrix.rid }}" && zip -ry "../../dist/${{ matrix.artifact }}" TrainArena.app macos-starten.txt)
+          elif [[ "${{ matrix.rid }}" == win-x64 ]]; then
             (cd "publish/${{ matrix.rid }}" && zip -r "../../dist/${{ matrix.artifact }}" .)
           else
             tar -czf "dist/${{ matrix.artifact }}" -C "publish/${{ matrix.rid }}" .
