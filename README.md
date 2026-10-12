@@ -47,7 +47,7 @@ Dann im Browser — am besten über die **LAN-IP** (nicht nur `localhost`), dami
 
 ### Daten
 
-Quizzes liegen in SQLite (`trainarena.db` neben der App, EF Core). Beim Start werden fehlende Seed-Quizzes angelegt: **Ausbildung Basics** und **C# Grundlagen — Programmierung**. Fragebilder unter `wwwroot/uploads/` (max. **2 MB**, JPEG/PNG/WebP/GIF).
+Quizzes liegen in SQLite (`trainarena.db` neben der App, EF Core). Beim ersten Start wird **Ausbildung Basics** geseedet. Fertige Beispiel-CSVs zum Import liegen unter [`docs/quizzes/`](docs/quizzes/). Fragebilder unter `wwwroot/uploads/` (max. **2 MB**, JPEG/PNG/WebP/GIF).
 
 ```bash
 dotnet test TrainArena.sln
@@ -68,6 +68,8 @@ Zwei Antworten?,Ja,Nein,,,,,A,15
 Mindestens **zwei** der Spalten `OptionA`…`OptionF` ausfüllen (ohne Lücken dazwischen); `OptionE` / `OptionF` optional für 5–6 Antworten.
 
 `Correct`: Buchstabe `A`–`F` oder Index `0`–`5` (auch `1`–`6`). `TimeLimitSeconds` optional (Default 20). Import erzeugt immer Multiple-Choice-Fragen (`DisplayKind=Mc`).
+
+Beispiel: [`docs/quizzes/csharp-grundlagen-programmierung.csv`](docs/quizzes/csharp-grundlagen-programmierung.csv) — im Editor neues Quiz anlegen, dann CSV importieren.
 
 **Kahoot-ähnlich:** Excel-Vorlage als CSV speichern mit Spalten `Question`, `Answer 1`…`Answer 6` (mindestens zwei ausgefüllt), `Time limit`, `Correct answer(s)` (1-basiert). Kein natives `.xlsx` — bei Bedarf vorher als CSV exportieren. Ungültige Zeilen werden übersprungen.
 

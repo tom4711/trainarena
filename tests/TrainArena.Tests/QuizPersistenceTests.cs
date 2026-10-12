@@ -18,41 +18,11 @@ public class QuizPersistenceTests
             await using var db = CreateDb(dbPath);
             await SeedData.EnsureSeededAsync(db);
 
-            var quiz = await db.Quizzes.Include(q => q.Questions)
-                .SingleAsync(q => q.Id == SeedData.AusbildungBasicsQuizId);
+            var quiz = await db.Quizzes.Include(q => q.Questions).SingleAsync();
             Assert.Equal("Ausbildung Basics", quiz.Title);
+            Assert.Equal(SeedData.AusbildungBasicsQuizId, quiz.Id);
             Assert.True(quiz.Questions.Count >= 3);
             Assert.Contains(quiz.Questions, q => q.Text.Contains("Bundesländer"));
-        }
-        finally
-        {
-            File.Delete(dbPath);
-        }
-    }
-
-    [Fact]
-    public async Task EnsureSeeded_WritesCsharpBasicsQuiz()
-    {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"seed-cs-{Guid.NewGuid():N}.db");
-        try
-        {
-            await using var db = CreateDb(dbPath);
-            await SeedData.EnsureSeededAsync(db);
-
-            var quiz = await db.Quizzes.Include(q => q.Questions)
-                .SingleAsync(q => q.Id == SeedData.CsharpBasicsQuizId);
-            Assert.Equal("C# Grundlagen — Programmierung", quiz.Title);
-            Assert.Equal(16, quiz.Questions.Count);
-            Assert.Contains(quiz.Questions, q => q.Text.Contains("Datentyp", StringComparison.OrdinalIgnoreCase)
-                || q.Option0 == "int");
-            Assert.Contains(quiz.Questions, q => q.Text.Contains("foreach", StringComparison.OrdinalIgnoreCase)
-                || q.Option1 == "foreach");
-            Assert.All(quiz.Questions, q =>
-            {
-                Assert.InRange(q.CorrectIndex, 0, 3);
-                Assert.False(string.IsNullOrWhiteSpace(q.Option0));
-                Assert.False(string.IsNullOrWhiteSpace(q.Option1));
-            });
         }
         finally
         {
@@ -70,52 +40,7 @@ public class QuizPersistenceTests
             {
                 await SeedData.EnsureSeededAsync(db);
                 await SeedData.EnsureSeededAsync(db);
-                Assert.Equal(2, await db.Quizzes.CountAsync());
-            }
-        }
-        finally
-        {
-            File.Delete(dbPath);
-        }
-    }
-
-    [Fact]
-    public async Task EnsureSeeded_AddsCsharpQuizWhenOnlyAusbildungExists()
-    {
-        var dbPath = Path.Combine(Path.GetTempPath(), $"seed-migrate-{Guid.NewGuid():N}.db");
-        try
-        {
-            await using (var db = CreateDb(dbPath))
-            {
-                await db.EnsureSchemaAsync();
-                db.Quizzes.Add(new Quiz
-                {
-                    Id = SeedData.AusbildungBasicsQuizId,
-                    Title = "Ausbildung Basics",
-                    Questions =
-                    [
-                        new Question
-                        {
-                            Id = Guid.Parse("11111111-1111-1111-1111-111111111101"),
-                            Text = "Wie viele Bundesländer hat Deutschland?",
-                            Option0 = "14",
-                            Option1 = "15",
-                            Option2 = "16",
-                            Option3 = "17",
-                            CorrectIndex = 2,
-                            TimeLimitSeconds = 20,
-                            SortOrder = 0
-                        }
-                    ]
-                });
-                await db.SaveChangesAsync();
-            }
-
-            await using (var db = CreateDb(dbPath))
-            {
-                await SeedData.EnsureSeededAsync(db);
-                Assert.True(await db.Quizzes.AnyAsync(q => q.Id == SeedData.CsharpBasicsQuizId));
-                Assert.Equal(2, await db.Quizzes.CountAsync());
+                Assert.Equal(1, await db.Quizzes.CountAsync());
             }
         }
         finally

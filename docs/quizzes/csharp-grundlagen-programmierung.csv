@@ -1,0 +1,17 @@
+Question,OptionA,OptionB,OptionC,OptionD,Correct,TimeLimitSeconds
+Welcher C#-Datentyp speichert ganze Zahlen ohne Nachkommastellen?,int,double,bool,string,A,20
+Welcher Typ speichert die Wahrheitswerte true und false?,char,bool,byte,decimal,B,22
+Welcher Typ eignet sich in C# besonders für Geldbeträge (exakte Dezimalzahlen)?,float,double,decimal,int,C,25
+Was beschreibt am besten den Typ string in C#?,Ein Werttyp für einzelne Zeichen,Ein Verweistyp für Textfolgen,Ein ganzzahliger Typ mit 64 Bit,Ein Typ nur für Zahlen mit Komma,B,22
+Welches Schlüsselwort lässt den Compiler den Typ einer lokalen Variable ableiten?,object,dynamic,var,typeof,C,22
+Was gilt für eine mit const deklarierte Konstante?,Sie kann zur Laufzeit beliebig geändert werden,Ihr Wert muss zur Compile-Zeit feststehen,Sie darf nur in Schleifen verwendet werden,Sie speichert immer einen string,B,22
+"Was ist nach int x = 5; int y = x; y = 9; der Wert von x?",9,5,0,Der Code kompiliert nicht,B,25
+Welche Kontrollstruktur prüft eine Bedingung und führt dann einen von zwei Zweigen aus?,for,if / else,foreach,using,B,22
+Wofür eignet sich switch in C# besonders gut?,Zum Öffnen von Dateien,Zur Mehrfachauswahl anhand eines Ausdrucks,Zum Definieren von Klassen,Zum Beenden des Programms,B,22
+"Was liefert der Ausdruck (score >= 50) ? ""Bestanden"" : ""Nicht bestanden"", wenn score = 40?",Bestanden,Nicht bestanden,true,40,B,25
+Welche Schleife eignet sich besonders zum Durchlaufen aller Elemente einer Liste?,goto,foreach,switch,lock,B,22
+Was ist der Hauptunterschied zwischen while und do-while?,do-while gibt es in C# nicht,do-while prüft die Bedingung erst nach dem ersten Durchlauf,while kann keine Variablen ändern,while läuft immer genau einmal,B,25
+Was bewirkt continue in einer Schleife?,Beendet die gesamte Methode,Beendet die Schleife komplett,Springt zum nächsten Schleifendurchlauf,Löscht die Schleifenvariable,C,22
+Was bedeutet der Rückgabetyp void bei einer Methode?,Die Methode gibt einen leeren string zurück,Die Methode gibt keinen Wert zurück,Die Methode darf keine Parameter haben,Die Methode ist veraltet,B,22
+Was macht return in einer Methode mit Rückgabetyp int?,Beendet nur die aktuelle Schleife,Liefert einen int-Wert an den Aufrufer und verlässt die Methode,Deklariert eine neue Variable,Startet die Methode erneut,B,25
+Wann spricht man in C# von Methodenüberladung (Overloading)?,Wenn eine Methode sich selbst aufruft,"Wenn mehrere Methoden denselben Namen, aber unterschiedliche Parameterlisten haben",Wenn eine Methode als async markiert ist,Wenn eine Methode private ist,B,25
