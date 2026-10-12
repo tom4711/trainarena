@@ -47,7 +47,7 @@ Dann im Browser — am besten über die **LAN-IP** (nicht nur `localhost`), dami
 
 ### Daten
 
-Quizzes liegen in SQLite (`trainarena.db` neben der App, EF Core). Beim ersten Start wird **Ausbildung Basics** geseedet. Fragebilder unter `wwwroot/uploads/` (max. **2 MB**, JPEG/PNG/WebP/GIF).
+Quizzes liegen in SQLite (`trainarena.db` neben der App, EF Core). Beim Start werden fehlende Seed-Quizzes angelegt: **Ausbildung Basics** und **C# Grundlagen — Programmierung**. Fragebilder unter `wwwroot/uploads/` (max. **2 MB**, JPEG/PNG/WebP/GIF).
 
 ```bash
 dotnet test TrainArena.sln
