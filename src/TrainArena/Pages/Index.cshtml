@@ -61,6 +61,17 @@
                     </select>
                 </label>
             </fieldset>
+            <fieldset id="exam-setup" class="powerup-setup">
+                <legend>Prüfung / Themen</legend>
+                <label class="inline">
+                    <input type="checkbox" id="exam-enabled" />
+                    Prüfungsmodus (IHK 100 Punkte, ohne Power-Ups)
+                </label>
+                <div id="tag-filter-wrap" class="tag-filter hidden">
+                    <p class="muted">Themen-Filter (optional, ODER):</p>
+                    <div id="tag-filter" class="tag-filter-list"></div>
+                </div>
+            </fieldset>
             <button id="btn-create" type="button" disabled>Raum erstellen</button>
             <p id="room-code" class="code hidden" aria-live="polite"></p>
             <div id="qr-wrap" class="hidden">
@@ -87,6 +98,7 @@
             <p id="arena-status" class="hidden" aria-live="polite"></p>
             <ol id="options" class="options"></ol>
             <p id="reveal" class="reveal hidden"></p>
+            <div id="question-explanation" class="explanation hidden" aria-live="polite"></div>
             <div id="board" class="board hidden">
                 <h3>Rangliste</h3>
                 <ol id="board-list"></ol>

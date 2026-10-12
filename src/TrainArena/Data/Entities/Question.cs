@@ -19,4 +19,13 @@ public sealed class Question
 
     /// <summary>Public URL path under /uploads/… when set.</summary>
     public string? ImagePath { get; set; }
+
+    /// <summary>Optional explanation shown after reveal (or in exam review).</summary>
+    public string? Explanation { get; set; }
+
+    /// <summary>Comma-separated topic tags (normalized lowercase).</summary>
+    public string? Tags { get; set; }
+
+    /// <summary>IHK weight for exam mode; 0 = equal share among questions.</summary>
+    public int Points { get; set; }
 }

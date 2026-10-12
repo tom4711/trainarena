@@ -19,7 +19,10 @@ public sealed record ImportedQuestion(
     int CorrectIndex,
     int TimeLimitSeconds,
     QuestionDisplayKind DisplayKind = QuestionDisplayKind.Mc,
-    ImportedImage? Image = null);
+    ImportedImage? Image = null,
+    string? Explanation = null,
+    IReadOnlyList<string>? Tags = null,
+    int Points = 0);
 
 /// <summary>
 /// Parses TrainArena CSV / Kahoot CSV or JSON quiz packs into questions.
@@ -141,8 +144,16 @@ public static class QuizImport
             TimeLimitSeconds = q.TimeLimitSeconds,
             SortOrder = sortOrder,
             DisplayKind = q.DisplayKind,
-            ImagePath = imagePath
+            ImagePath = imagePath,
+            Explanation = string.IsNullOrWhiteSpace(q.Explanation) ? null : q.Explanation.Trim(),
+            Tags = QuestionTags.NormalizeStorage(q.Tags),
+            Points = q.Points < 0 ? 0 : q.Points,
         };
+        if (string.IsNullOrEmpty(entity.Tags))
+        {
+            entity.Tags = null;
+        }
+
         QuizRules.ApplyOptions(entity, q.Options);
         return entity;
     }

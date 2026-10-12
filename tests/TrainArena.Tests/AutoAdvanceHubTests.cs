@@ -30,7 +30,8 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
             "CreateRoom",
             quizId,
             null,
-            new AutoAdvanceConfigDto(true, 3));
+            new AutoAdvanceConfigDto(true, 3),
+            null);
         var room = await roomCreated;
 
         await player.InvokeAsync("JoinRoom", room.Code, "Azubi1");
@@ -61,7 +62,8 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
             "CreateRoom",
             quizId,
             null,
-            new AutoAdvanceConfigDto(true, 3));
+            new AutoAdvanceConfigDto(true, 3),
+            null);
         var room = await roomCreated;
 
         await player.InvokeAsync("JoinRoom", room.Code, "Azubi1");
@@ -94,7 +96,7 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
         player.On<JsonElement>("AutoAdvanceScheduled", _ => autoAdvanceScheduled = true);
 
         var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
-        await host.InvokeAsync("CreateRoom", quizId, null, null);
+        await host.InvokeAsync("CreateRoom", quizId, null, null, null);
         var room = await roomCreated;
 
         await player.InvokeAsync("JoinRoom", room.Code, "Azubi1");
@@ -124,7 +126,8 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
             "CreateRoom",
             quizId,
             null,
-            new AutoAdvanceConfigDto(true, 3));
+            new AutoAdvanceConfigDto(true, 3),
+            null);
         var room = await roomCreated;
 
         await player.InvokeAsync("JoinRoom", room.Code, "Azubi1");
@@ -167,7 +170,8 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
             "CreateRoom",
             quizId,
             null,
-            new AutoAdvanceConfigDto(true, 3));
+            new AutoAdvanceConfigDto(true, 3),
+            null);
         var room = await roomCreated;
 
         await player.InvokeAsync("JoinRoom", room.Code, "Azubi1");
@@ -204,7 +208,8 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
             "CreateRoom",
             SeedData.AusbildungBasicsQuizId,
             null,
-            new AutoAdvanceConfigDto(true, 7));
+            new AutoAdvanceConfigDto(true, 7),
+            null);
 
         var err = await joinError;
         Assert.Contains("3", err.Error);

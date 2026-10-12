@@ -101,6 +101,32 @@ public class QuizJsonImportTests
     }
 
     [Fact]
+    public void ParseJson_MapsExplanationTagsAndPoints()
+    {
+        var json = """
+            {
+              "questions": [
+                {
+                  "text": "JOIN?",
+                  "options": ["A", "B", "C", "D"],
+                  "correctIndex": 0,
+                  "explanation": "INNER JOIN verknüpft passende Zeilen.",
+                  "tags": [" SQL ", "join"],
+                  "points": 10
+                }
+              ]
+            }
+            """;
+
+        var result = QuizJsonImport.Parse(json);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal("INNER JOIN verknüpft passende Zeilen.", result.Questions[0].Explanation);
+        Assert.Equal(["join", "sql"], result.Questions[0].Tags);
+        Assert.Equal(10, result.Questions[0].Points);
+    }
+
+    [Fact]
     public void ParseJson_SampleCsharpPack_Succeeds()
     {
         var path = FindRepoFile("docs/quizzes/csharp-grundlagen-programmierung.json");
@@ -112,6 +138,8 @@ public class QuizJsonImportTests
         Assert.True(result.Questions.Count >= 16);
         Assert.Contains(result.Questions, q => q.Text.Contains("```csharp"));
         Assert.Contains(result.Questions, q => q.DisplayKind == QuestionDisplayKind.TrueFalse);
+        Assert.Contains(result.Questions, q => q.Tags is { Count: > 0 });
+        Assert.Contains(result.Questions, q => !string.IsNullOrWhiteSpace(q.Explanation));
     }
 
     private static string FindRepoFile(string relativePath)

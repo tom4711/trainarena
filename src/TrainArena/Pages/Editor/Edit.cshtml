@@ -94,7 +94,23 @@
                         <li class="@(q.CorrectIndex == i ? "reveal" : null)">@filled[i]</li>
                     }
                 </ol>
-                <p class="muted">Zeit: @q.TimeLimitSeconds s</p>
+                @{
+                    var qTags = QuestionTags.Parse(q.Tags);
+                }
+                @if (qTags.Count > 0)
+                {
+                    <div class="tag-row">
+                        @foreach (var tag in qTags)
+                        {
+                            <span class="tag-chip">@tag</span>
+                        }
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(q.Explanation))
+                {
+                    <p class="explanation"><strong>Erklärung:</strong> @q.Explanation</p>
+                }
+                <p class="muted">Zeit: @q.TimeLimitSeconds s@(q.Points > 0 ? $" · IHK-Gewicht: {q.Points}" : "")</p>
                 <form method="post" asp-page-handler="DeleteQuestion">
                     <input type="hidden" name="id" value="@quiz.Id" />
                     <input type="hidden" name="questionId" value="@q.Id" />
@@ -143,6 +159,15 @@
             </div>
             <label>Zeitlimit (Sekunden)
                 <input name="timeLimitSeconds" type="number" min="5" max="120" value="20" />
+            </label>
+            <label>Erklärung (optional)
+                <textarea name="explanation" rows="2" maxlength="2000" placeholder="Wird nach der Auflösung gezeigt (im Prüfungsmodus erst in der Abschluss-Review)"></textarea>
+            </label>
+            <label>Tags (optional, kommagetrennt)
+                <input name="tags" maxlength="400" placeholder="z. B. sql, join, netzwerk" />
+            </label>
+            <label>IHK-Gewicht (optional, 0 = gleichmäßig)
+                <input name="points" type="number" min="0" max="100" value="0" />
             </label>
             <button type="submit">Frage speichern</button>
         </form>

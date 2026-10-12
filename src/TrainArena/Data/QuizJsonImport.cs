@@ -109,13 +109,27 @@ public static class QuizJsonImport
                 image = img;
             }
 
+            var explanation = string.IsNullOrWhiteSpace(raw.Explanation) ? null : raw.Explanation.Trim();
+            if (explanation is { Length: > 2000 })
+            {
+                explanation = explanation[..2000];
+            }
+
+            var tags = raw.Tags is { Count: > 0 }
+                ? QuestionTags.Parse(QuestionTags.NormalizeStorage(raw.Tags))
+                : null;
+            var points = raw.Points is > 0 ? raw.Points.Value : 0;
+
             questions.Add(new ImportedQuestion(
                 text,
                 options,
                 correctIndex,
                 seconds,
                 kind,
-                image));
+                image,
+                explanation,
+                tags,
+                points));
         }
 
         if (questions.Count == 0 && errors.Count == 0)
@@ -222,6 +236,9 @@ public static class QuizJsonImport
         public int CorrectIndex { get; set; }
         public int? TimeLimitSeconds { get; set; }
         public QuizJsonImage? Image { get; set; }
+        public string? Explanation { get; set; }
+        public List<string>? Tags { get; set; }
+        public int? Points { get; set; }
     }
 
     private sealed class QuizJsonImage

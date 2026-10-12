@@ -118,6 +118,9 @@ public static class QuizRules
         Options = GetFilledOptions(q).ToArray(),
         CorrectIndex = q.CorrectIndex,
         TimeLimitSeconds = q.TimeLimitSeconds <= 0 ? 20 : q.TimeLimitSeconds,
-        ImageUrl = string.IsNullOrWhiteSpace(q.ImagePath) ? null : q.ImagePath
+        ImageUrl = string.IsNullOrWhiteSpace(q.ImagePath) ? null : q.ImagePath,
+        Explanation = string.IsNullOrWhiteSpace(q.Explanation) ? null : q.Explanation.Trim(),
+        Tags = QuestionTags.Parse(q.Tags),
+        Points = q.Points < 0 ? 0 : q.Points,
     };
 }

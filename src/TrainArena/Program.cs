@@ -281,6 +281,25 @@ try
             .ToListAsync();
         return Results.Ok(list);
     });
+    app.MapGet("/api/quizzes/{id:guid}/tags", async (Guid id, AppDbContext db) =>
+    {
+        var exists = await db.Quizzes.AsNoTracking().AnyAsync(q => q.Id == id);
+        if (!exists)
+        {
+            return Results.NotFound();
+        }
+
+        var raw = await db.Questions.AsNoTracking()
+            .Where(q => q.QuizId == id && q.Tags != null && q.Tags != "")
+            .Select(q => q.Tags!)
+            .ToListAsync();
+        var tags = raw
+            .SelectMany(QuestionTags.Parse)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return Results.Ok(new { id, tags });
+    });
     // Host UI only — players use /player. Confirmation is client-side.
     app.MapPost("/api/shutdown", (IHostApplicationLifetime lifetime) =>
     {

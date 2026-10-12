@@ -26,7 +26,7 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         await using var player = await ConnectAsync();
 
         var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
-        await host.InvokeAsync("CreateRoom", quizId, null, null);
+        await host.InvokeAsync("CreateRoom", quizId, null, null, null);
         var room = await roomCreated;
 
         var joined = WaitFor<PlayerJoinedMessage>(host, "PlayerJoined");
@@ -83,7 +83,7 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         await using var player = await ConnectAsync();
 
         var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
-        await host.InvokeAsync("CreateRoom", quizId, null, null);
+        await host.InvokeAsync("CreateRoom", quizId, null, null, null);
         var room = await roomCreated;
 
         var joined = WaitFor<PlayerJoinedMessage>(host, "PlayerJoined");
@@ -128,7 +128,7 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         await using var player = await ConnectAsync();
 
         var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
-        await host.InvokeAsync("CreateRoom", quizId, null, null);
+        await host.InvokeAsync("CreateRoom", quizId, null, null, null);
         var room = await roomCreated;
 
         var joined = WaitFor<PlayerJoinedMessage>(host, "PlayerJoined");

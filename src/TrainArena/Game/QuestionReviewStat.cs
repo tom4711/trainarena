@@ -10,4 +10,7 @@ public sealed class QuestionReviewStat
     public required int AnsweredCount { get; init; }
     public required int PlayerCount { get; init; }
     public required int CorrectCount { get; init; }
+    public string? Explanation { get; init; }
+    public IReadOnlyList<string> Tags { get; init; } = [];
+    public int IhkPoints { get; init; }
 }

@@ -59,6 +59,9 @@ public sealed class EditModel : PageModel
         string? option5,
         int correctIndex,
         int timeLimitSeconds = 20,
+        string? explanation = null,
+        string? tags = null,
+        int points = 0,
         IFormFile? image = null)
     {
         var quiz = await _db.Quizzes.FirstOrDefaultAsync(q => q.Id == id);
@@ -107,6 +110,7 @@ public sealed class EditModel : PageModel
         var maxSort = await _db.Questions
             .Where(q => q.QuizId == id)
             .MaxAsync(q => (int?)q.SortOrder);
+        var tagStorage = QuestionTags.NormalizeStorage(tags);
         var question = new Question
         {
             Id = Guid.NewGuid(),
@@ -116,8 +120,15 @@ public sealed class EditModel : PageModel
             CorrectIndex = correctIndex,
             TimeLimitSeconds = timeLimitSeconds <= 0 ? 20 : timeLimitSeconds,
             SortOrder = maxSort is null ? 0 : maxSort.Value + 1,
-            ImagePath = imagePath
+            ImagePath = imagePath,
+            Explanation = string.IsNullOrWhiteSpace(explanation) ? null : explanation.Trim(),
+            Tags = string.IsNullOrEmpty(tagStorage) ? null : tagStorage,
+            Points = points < 0 ? 0 : points,
         };
+        if (question.Explanation is { Length: > 2000 })
+        {
+            question.Explanation = question.Explanation[..2000];
+        }
         QuizRules.ApplyOptions(question, options);
         _db.Questions.Add(question);
         await _db.SaveChangesAsync();
