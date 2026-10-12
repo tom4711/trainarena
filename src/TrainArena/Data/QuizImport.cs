@@ -8,17 +8,37 @@ public sealed record QuizImportResult(
     IReadOnlyList<ImportedQuestion> Questions,
     IReadOnlyList<string> Errors);
 
+public sealed record ImportedImage(
+    string FileName,
+    string ContentType,
+    byte[] Bytes);
+
 public sealed record ImportedQuestion(
     string Text,
     IReadOnlyList<string> Options,
     int CorrectIndex,
-    int TimeLimitSeconds);
+    int TimeLimitSeconds,
+    QuestionDisplayKind DisplayKind = QuestionDisplayKind.Mc,
+    ImportedImage? Image = null);
 
 /// <summary>
-/// Parses TrainArena CSV or Kahoot-like spreadsheet CSV into MC questions.
+/// Parses TrainArena CSV / Kahoot CSV or JSON quiz packs into questions.
 /// </summary>
 public static class QuizImport
 {
+    public static QuizImportResult ParseFile(string fileName, string content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        var ext = Path.GetExtension(fileName ?? "").Trim().ToLowerInvariant();
+        var trimmed = content.TrimStart('\uFEFF').TrimStart();
+        if (ext is ".json" || trimmed.StartsWith('{') || trimmed.StartsWith('['))
+        {
+            return QuizJsonImport.Parse(content);
+        }
+
+        return Parse(content);
+    }
+
     public static QuizImportResult Parse(string csv)
     {
         ArgumentNullException.ThrowIfNull(csv);
@@ -110,7 +130,7 @@ public static class QuizImport
         return new QuizImportResult(questions, errors);
     }
 
-    public static Question ToEntity(ImportedQuestion q, Guid quizId, int sortOrder)
+    public static Question ToEntity(ImportedQuestion q, Guid quizId, int sortOrder, string? imagePath = null)
     {
         var entity = new Question
         {
@@ -120,7 +140,8 @@ public static class QuizImport
             CorrectIndex = q.CorrectIndex,
             TimeLimitSeconds = q.TimeLimitSeconds,
             SortOrder = sortOrder,
-            DisplayKind = QuestionDisplayKind.Mc
+            DisplayKind = q.DisplayKind,
+            ImagePath = imagePath
         };
         QuizRules.ApplyOptions(entity, q.Options);
         return entity;

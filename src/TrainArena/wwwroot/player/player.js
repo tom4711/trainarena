@@ -411,7 +411,11 @@
     boardPanel.classList.add("hidden");
     questionPanel.classList.remove("hidden");
     qProgress.textContent = `Frage ${(msg.index ?? 0) + 1} von ${msg.totalQuestions ?? "?"}`;
-    $("q-text").textContent = msg.text;
+    if (window.TrainArenaQuestionFormat) {
+      window.TrainArenaQuestionFormat.renderQuestionText($("q-text"), msg.text);
+    } else {
+      $("q-text").textContent = msg.text;
+    }
     const qImage = $("q-image");
     if (msg.imageUrl) {
       qImage.src = msg.imageUrl;

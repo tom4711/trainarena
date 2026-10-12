@@ -62,12 +62,12 @@
     </section>
 
     <section class="panel">
-        <h2>Import CSV / Kahoot</h2>
-        <p class="muted">TrainArena-CSV oder Kahoot-ähnliche Tabelle (als CSV). Ungültige Zeilen werden übersprungen.</p>
+        <h2>Import CSV / JSON</h2>
+        <p class="muted">TrainArena-CSV, Kahoot-CSV oder JSON-Quiz-Pack. Ungültige Einträge werden übersprungen. JSON kann Fragetypen, Code-Fences und eingebettete Bilder (Base64) enthalten — siehe <code>docs/quizzes/</code>.</p>
         <form method="post" asp-page-handler="Import" enctype="multipart/form-data">
             <input type="hidden" name="id" value="@quiz.Id" />
             <label>Datei
-                <input type="file" name="file" accept=".csv,text/csv" required />
+                <input type="file" name="file" accept=".csv,.json,text/csv,application/json" required />
             </label>
             <button type="submit">Importieren</button>
         </form>

@@ -39,7 +39,7 @@
         <p id="q-progress" class="muted"></p>
         <p id="q-timer" class="timer" aria-live="polite"></p>
       </div>
-      <h2 id="q-text"></h2>
+      <div id="q-text" class="q-text" role="heading" aria-level="2"></div>
       <img id="q-image" class="q-image hidden" alt="" />
       <div id="powerups" class="powerups hidden" aria-label="Power-Ups"></div>
       <div id="answers" class="answers"></div>
@@ -72,7 +72,11 @@
     <p class="app-version" id="app-version" aria-label="App-Version" hidden></p>
   </main>
 
+  <link rel="stylesheet" href="/lib/prism/prism-tomorrow.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+  <script src="/lib/prism/prism.min.js"></script>
+  <script src="/lib/prism/prism-csharp.min.js"></script>
+  <script src="/js/question-format.js"></script>
   <script src="player.js"></script>
 </body>
 </html>

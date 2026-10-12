@@ -148,9 +148,15 @@
         })
         .join("");
       block.innerHTML = `
-      <h4>${r.index + 1}. ${escapeHtml(r.text)}</h4>
+      <h4><span class="review-num">${r.index + 1}.</span> <span class="review-qtext"></span></h4>
       <p class="muted">${pct} richtig · ${r.answeredCount} von ${r.playerCount} geantwortet</p>
       <ol class="options review-options">${opts}</ol>`;
+      const qEl = block.querySelector(".review-qtext");
+      if (window.TrainArenaQuestionFormat) {
+        window.TrainArenaQuestionFormat.renderQuestionText(qEl, r.text);
+      } else if (qEl) {
+        qEl.textContent = r.text || "";
+      }
       reviewList.appendChild(block);
     });
     reviewEl.classList.remove("hidden");
@@ -299,7 +305,11 @@
     setArenaVisible(true);
     setArenaButtonsEnabled(true);
     progressEl.textContent = `Frage ${(msg.index ?? 0) + 1} von ${msg.totalQuestions ?? "?"}`;
-    questionText.textContent = msg.text;
+    if (window.TrainArenaQuestionFormat) {
+      window.TrainArenaQuestionFormat.renderQuestionText(questionText, msg.text);
+    } else {
+      questionText.textContent = msg.text;
+    }
     if (msg.imageUrl) {
       questionImage.src = msg.imageUrl;
       questionImage.classList.remove("hidden");
