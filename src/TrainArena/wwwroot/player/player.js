@@ -100,7 +100,7 @@
       const id = btn.dataset.powerup;
       const n = countFor(id);
       const countSpan = btn.querySelector(".count");
-      if (countSpan) countSpan.textContent = ` (${n})`;
+      if (countSpan) countSpan.textContent = String(n);
       const keepActive = activePowerUps.has(id);
       const fiftyBlocked = id === "fifty_fifty" && !fiftyFiftyAllowed();
       btn.classList.toggle("is-active", keepActive);
@@ -120,7 +120,7 @@
       const btn = document.createElement("button");
       btn.type = "button";
       btn.dataset.powerup = p.id;
-      btn.innerHTML = `${p.label}<span class="count"> (0)</span>`;
+      btn.innerHTML = `<span class="pu-label">${p.label}</span><span class="count">0</span>`;
       btn.addEventListener("click", () => usePowerUp(p.id));
       powerupsEl.appendChild(btn);
     });
