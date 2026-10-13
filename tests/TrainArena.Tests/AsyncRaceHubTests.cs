@@ -520,12 +520,11 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         await ada.InvokeAsync("JoinRoom", room.Code, "Ada");
         await bob.InvokeAsync("JoinRoom", room.Code, "Bob");
 
-        _ = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
-        _ = WaitFor<QuestionStartedMessage>(bob, "QuestionStarted");
+        // Match Index==1 up front so a late Q1 registration cannot steal the waiter
+        // (multiple On handlers all receive QuestionStarted).
+        var adaQ2 = WaitForQuestionStartedAsync(ada, index: 1, timeoutSeconds: 15);
+        var bobQ2 = WaitForQuestionStartedAsync(bob, index: 1, timeoutSeconds: 15);
         await host.InvokeAsync("StartGame");
-
-        var adaQ2 = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted", timeoutSeconds: 15);
-        var bobQ2 = WaitFor<QuestionStartedMessage>(bob, "QuestionStarted", timeoutSeconds: 15);
 
         var adaSecond = await adaQ2;
         var bobSecond = await bobQ2;
@@ -676,6 +675,26 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
                 PropertyNameCaseInsensitive = true
             });
             if (value is not null)
+            {
+                tcs.TrySetResult(value);
+            }
+        });
+        return tcs.Task.WaitAsync(TimeSpan.FromSeconds(timeoutSeconds));
+    }
+
+    private static Task<QuestionStartedMessage> WaitForQuestionStartedAsync(
+        HubConnection connection,
+        int index,
+        double timeoutSeconds = 8)
+    {
+        var tcs = new TaskCompletionSource<QuestionStartedMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        connection.On<JsonElement>("QuestionStarted", payload =>
+        {
+            var value = payload.Deserialize<QuestionStartedMessage>(new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+            if (value is not null && value.Index == index)
             {
                 tcs.TrySetResult(value);
             }
