@@ -64,7 +64,7 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         var adaNext = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
         var boardAfter = WaitFor<AsyncScoreboardMessage>(host, "AsyncScoreboard");
 
-        await ada.InvokeAsync("SubmitAnswer", 0);
+        await ada.InvokeAsync("SubmitAnswer", 0, 0);
         var accepted = await adaAccepted;
         Assert.True(accepted.Ok);
         await adaEnded;
@@ -183,7 +183,7 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         await host.InvokeAsync("StartGame");
 
         var adaEnded = WaitFor<QuestionEndedMessage>(ada, "QuestionEnded");
-        await ada.InvokeAsync("SubmitAnswer", 0);
+        await ada.InvokeAsync("SubmitAnswer", 0, 0);
         await adaEnded;
 
         await bob.DisposeAsync();
@@ -221,8 +221,8 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         await host.InvokeAsync("StartGame");
 
         var finished = WaitForGameFinishedWithCountAsync(host);
-        await ada.InvokeAsync("SubmitAnswer", 0);
-        await bob.InvokeAsync("SubmitAnswer", 0);
+        await ada.InvokeAsync("SubmitAnswer", 0, 0);
+        await bob.InvokeAsync("SubmitAnswer", 0, 0);
 
         var (gameOver, finishCount) = await finished.WaitAsync(TimeSpan.FromSeconds(8));
         Assert.Equal(1, finishCount);
@@ -322,7 +322,7 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         await host.InvokeAsync("StartGame");
 
         var adaEnded = WaitFor<QuestionEndedMessage>(ada, "QuestionEnded");
-        await ada.InvokeAsync("SubmitAnswer", 0);
+        await ada.InvokeAsync("SubmitAnswer", 0, 0);
         await adaEnded;
 
         await ada.DisposeAsync();
@@ -362,7 +362,7 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         await host.InvokeAsync("StartGame");
 
         var liveFinish = WaitFor<GameFinishedMessage>(host, "GameFinished");
-        await ada.InvokeAsync("SubmitAnswer", 0);
+        await ada.InvokeAsync("SubmitAnswer", 0, 0);
         await liveFinish;
 
         await host.DisposeAsync();
@@ -372,6 +372,52 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         await host2.InvokeAsync("RejoinHost", room.Code);
         var payload = await finished;
         Assert.Empty(payload.Review);
+    }
+
+    [Fact]
+    public async Task ExtraTime_InAsyncRace_DoesNotBroadcastEndsAtToOthers()
+    {
+        var quizId = await SeedMultiQuestionQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var ada = await ConnectAsync();
+        await using var bob = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync(
+            "CreateRoom",
+            quizId,
+            new PowerUpConfigDto(true, new Dictionary<string, int> { ["extra_time"] = 1 }, 2, 3, true, 1),
+            null,
+            null,
+            new AsyncRaceConfigDto(true));
+        var room = await roomCreated;
+
+        await ada.InvokeAsync("JoinRoom", room.Code, "Ada");
+        await bob.InvokeAsync("JoinRoom", room.Code, "Bob");
+
+        var adaQ = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
+        _ = WaitFor<QuestionStartedMessage>(bob, "QuestionStarted");
+        await host.InvokeAsync("StartGame");
+        await adaQ;
+
+        var bobEndsAtReceived = 0;
+        bob.On<PowerUpUsedMessage>("PowerUpUsed", (msg) =>
+        {
+            if (msg.EndsAtUtc is not null)
+            {
+                Interlocked.Increment(ref bobEndsAtReceived);
+            }
+        });
+
+        var adaUsed = WaitFor<PowerUpUsedMessage>(ada, "PowerUpUsed");
+        await ada.InvokeAsync("UsePowerUp", "extra_time", null);
+        var used = await adaUsed;
+        Assert.True(used.Ok);
+        Assert.NotNull(used.EndsAtUtc);
+
+        await Task.Delay(300);
+        Assert.Equal(0, bobEndsAtReceived);
     }
 
     [Fact]

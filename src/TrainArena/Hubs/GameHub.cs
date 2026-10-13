@@ -260,7 +260,7 @@ public sealed class GameHub : Hub
         await StartCurrentNextQuestion(session);
     }
 
-    public async Task SubmitAnswer(int optionIndex)
+    public async Task SubmitAnswer(int optionIndex, int? questionIndex)
     {
         if (!_sessions.TryGetByConnection(Context.ConnectionId, out var session) || session is null)
         {
@@ -281,7 +281,11 @@ public sealed class GameHub : Hub
                 return;
             }
 
-            var asyncResult = session.SubmitAsyncAnswer(asyncPlayer.Nickname, optionIndex, now);
+            var asyncResult = session.SubmitAsyncAnswer(
+                asyncPlayer.Nickname,
+                optionIndex,
+                now,
+                questionIndex);
             await Clients.Caller.SendAsync(
                 "AnswerAccepted",
                 new AnswerAcceptedMessage(asyncResult.Ok, asyncResult.Error, asyncResult.PointsAwarded));
@@ -289,6 +293,9 @@ public sealed class GameHub : Hub
             {
                 return;
             }
+
+            session.ApplyStreakRewardForPlayer(asyncPlayer.Nickname, asyncResult.CountsAsCorrect);
+            await SendInventoryUpdateToPlayerAsync(session, asyncPlayer.Nickname, viaHubContext: false);
 
             await DeliverAsyncSubmitResultToPlayerAsync(session, asyncPlayer, asyncResult, viaHubContext: false);
             await BroadcastAsyncScoreboardAsync(session, viaHubContext: false);
@@ -401,13 +408,13 @@ public sealed class GameHub : Hub
 
         if (result.NewEndsAtUtc is not null)
         {
-            await Clients.OthersInGroup(RoomGroup(session.Code)).SendAsync("PowerUpUsed", message);
             if (session.Phase == GamePhase.AsyncRacing)
             {
                 RescheduleAsyncTimeouts(session.Code);
             }
             else
             {
+                await Clients.OthersInGroup(RoomGroup(session.Code)).SendAsync("PowerUpUsed", message);
                 RescheduleQuestionEnd(session.Code, result.NewEndsAtUtc.Value);
             }
         }
@@ -656,6 +663,8 @@ public sealed class GameHub : Hub
         if (!result.PlayerFinished && result.NextQuestion is not null
             && result.NextStartedAtUtc is not null && result.NextEndsAtUtc is not null)
         {
+            await Task.Delay(TimeSpan.FromSeconds(1.2));
+
             var next = new QuestionStartedMessage(
                 result.NextIndex,
                 result.Total,
@@ -695,6 +704,9 @@ public sealed class GameHub : Hub
 
             if (player.IsConnected && !string.IsNullOrEmpty(player.ConnectionId))
             {
+                session.ApplyStreakRewardForPlayer(player.Nickname, result.CountsAsCorrect);
+                await SendInventoryUpdateToPlayerAsync(session, player.Nickname, viaHubContext);
+
                 await DeliverAsyncSubmitResultToPlayerAsync(
                     session,
                     player,
@@ -1141,13 +1153,36 @@ public sealed class GameHub : Hub
 
     private async Task SendInventoryUpdateToCaller(GameSession session, string nickname)
     {
+        await SendInventoryUpdateToPlayerAsync(session, nickname, viaHubContext: false);
+    }
+
+    private async Task SendInventoryUpdateToPlayerAsync(
+        GameSession session,
+        string nickname,
+        bool viaHubContext)
+    {
         var state = session.GetPowerUpState(nickname);
         if (state is null)
         {
             return;
         }
 
-        await Clients.Caller.SendAsync("InventoryUpdate", ToInventoryUpdateMessage(state));
+        var player = session.Players.FirstOrDefault(p =>
+            string.Equals(p.Nickname, nickname, StringComparison.OrdinalIgnoreCase));
+        if (player is null || string.IsNullOrEmpty(player.ConnectionId))
+        {
+            return;
+        }
+
+        var message = ToInventoryUpdateMessage(state);
+        if (viaHubContext)
+        {
+            await _hubContext.Clients.Client(player.ConnectionId).SendAsync("InventoryUpdate", message);
+        }
+        else
+        {
+            await Clients.Client(player.ConnectionId).SendAsync("InventoryUpdate", message);
+        }
     }
 
     private async Task BroadcastInventoryUpdatesAsync(GameSession session)
