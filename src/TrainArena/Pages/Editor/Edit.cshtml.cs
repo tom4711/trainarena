@@ -198,7 +198,9 @@ public sealed class EditModel : PageModel
                 }
             }
 
-            quiz.Questions.Add(QuizImport.ToEntity(q, id, sort++, imagePath));
+            // Must use DbSet.Add (like AddQuestion): navigation Add + client Guid keys
+            // makes EF issue UPDATE for non-existent rows → DbUpdateConcurrencyException / HTTP 500.
+            _db.Questions.Add(QuizImport.ToEntity(q, id, sort++, imagePath));
         }
 
         await _db.SaveChangesAsync();
