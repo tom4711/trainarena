@@ -61,6 +61,13 @@
                     </select>
                 </label>
             </fieldset>
+            <fieldset id="async-race-setup" class="powerup-setup">
+                <legend>Async-Rennen</legend>
+                <label class="inline">
+                    <input type="checkbox" id="async-race-enabled" />
+                    Async-Rennen (jeder spielt im eigenen Tempo)
+                </label>
+            </fieldset>
             <fieldset id="exam-setup" class="powerup-setup">
                 <legend>Prüfung / Themen</legend>
                 <label class="inline">
@@ -99,6 +106,10 @@
             <ol id="options" class="options"></ol>
             <p id="reveal" class="reveal hidden"></p>
             <div id="question-explanation" class="explanation hidden" aria-live="polite"></div>
+            <div id="async-scoreboard" class="board async-scoreboard hidden" aria-live="polite">
+                <h3>Live-Rennen</h3>
+                <ol id="async-scoreboard-list"></ol>
+            </div>
             <div id="board" class="board hidden">
                 <h3>Rangliste</h3>
                 <ol id="board-list"></ol>

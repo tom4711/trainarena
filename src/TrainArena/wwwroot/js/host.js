@@ -45,6 +45,7 @@
   let hostArenaUsed = false;
   let autoAdvanceHandle = null;
   let roomCode = sessionStorage.getItem(STORAGE_ROOM) || "";
+  let hostAsyncRace = false;
 
   const connection = new signalR.HubConnectionBuilder()
     .withUrl("/hubs/game")
@@ -61,6 +62,12 @@
     const exam = $("exam-setup");
     if (exam) {
       exam.querySelectorAll("input").forEach((el) => {
+        el.disabled = true;
+      });
+    }
+    const asyncRace = $("async-race-setup");
+    if (asyncRace) {
+      asyncRace.querySelectorAll("input").forEach((el) => {
         el.disabled = true;
       });
     }
@@ -253,6 +260,89 @@
     return { enabled, tags };
   }
 
+  function readAsyncRaceConfig() {
+    return { enabled: !!$("async-race-enabled")?.checked };
+  }
+
+  function updateStartButtonLabel() {
+    if (!btnStart || btnStart.classList.contains("hidden")) return;
+    btnStart.textContent = readAsyncRaceConfig().enabled ? "Rennen starten" : "Quiz starten";
+  }
+
+  function syncAsyncRaceUi() {
+    const asyncCb = $("async-race-enabled");
+    const asyncOn = !!asyncCb?.checked;
+    const examOn = !!$("exam-enabled")?.checked;
+    const aaOn = !!$("aa-enabled")?.checked;
+    const blockExamAa = asyncOn;
+    const blockAsync = examOn || aaOn;
+
+    if (asyncCb) asyncCb.disabled = blockAsync;
+    $("exam-setup")?.querySelectorAll("input").forEach((el) => {
+      el.disabled = blockExamAa;
+    });
+    $("auto-advance-setup")?.querySelectorAll("input, select").forEach((el) => {
+      el.disabled = blockExamAa;
+    });
+
+    if (blockExamAa) {
+      const pu = $("powerup-setup");
+      if (pu) {
+        pu.classList.remove("is-disabled");
+        pu.querySelectorAll("input").forEach((el) => {
+          el.disabled = false;
+        });
+      }
+    } else {
+      syncExamUi();
+    }
+    updateStartButtonLabel();
+  }
+
+  function setAsyncRaceLiveView(active) {
+    const hideIds = [
+      "question-text",
+      "question-image",
+      "options",
+      "timer",
+      "reveal",
+      "question-explanation",
+      "arena-actions",
+      "board",
+      "btn-next",
+    ];
+    hideIds.forEach((id) => {
+      const el = $(id);
+      if (el) el.classList.toggle("hidden", active);
+    });
+    $("async-scoreboard")?.classList.toggle("hidden", !active);
+  }
+
+  function renderAsyncScoreboard(msg) {
+    hostAsyncRace = true;
+    clearAutoAdvanceCountdown();
+    setup.classList.add("hidden");
+    live.classList.remove("hidden");
+    btnStart.classList.add("hidden");
+    setArenaVisible(false);
+    revealEl.classList.add("hidden");
+    finishedEl.classList.add("hidden");
+    clearReview();
+    renderIhkResults(null);
+    setAsyncRaceLiveView(true);
+    progressEl.textContent = "Async-Rennen läuft";
+
+    const list = $("async-scoreboard-list");
+    list.innerHTML = "";
+    (msg.entries || []).forEach((e, i) => {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="rank">${i + 1}.</span><span class="race-line"></span>`;
+      li.querySelector(".race-line").textContent =
+        `${e.nickname} — ${e.score} — ${e.answeredCount}/${e.total}`;
+      list.appendChild(li);
+    });
+  }
+
   function syncExamUi() {
     const on = !!$("exam-enabled")?.checked;
     const pu = $("powerup-setup");
@@ -310,7 +400,7 @@
       quizSelect.disabled = false;
       btnCreate.disabled = false;
       await loadQuizTags(quizSelect.value);
-      syncExamUi();
+      syncAsyncRaceUi();
     } catch (err) {
       quizSelect.innerHTML = `<option value="">Laden fehlgeschlagen</option>`;
       setLobbyStatus(`Quiz-Liste fehlgeschlagen: ${err}`, "is-error");
@@ -392,7 +482,9 @@
   }
 
   connection.on("QuestionStarted", (msg) => {
+    if (hostAsyncRace) return;
     clearAutoAdvanceCountdown();
+    setAsyncRaceLiveView(false);
     setup.classList.add("hidden");
     live.classList.remove("hidden");
     revealEl.classList.add("hidden");
@@ -471,6 +563,7 @@
   });
 
   connection.on("Leaderboard", (msg) => {
+    if (hostAsyncRace) return;
     clearAutoAdvanceCountdown();
     setArenaVisible(false);
     renderBoardEntries(msg.entries);
@@ -479,6 +572,8 @@
     btnNext.classList.remove("hidden");
     btnNext.textContent = msg.hasMoreQuestions ? "Nächste Frage" : "Abschluss zeigen";
   });
+
+  connection.on("AsyncScoreboard", renderAsyncScoreboard);
 
   connection.on("AutoAdvanceScheduled", (msg) => {
     if (msg?.advancesAtUtc) startAutoAdvanceCountdown(msg.advancesAtUtc);
@@ -497,12 +592,16 @@
     live.classList.remove("hidden");
     btnStart.classList.add("hidden");
     setArenaVisible(false);
+    if (hostAsyncRace) {
+      setAsyncRaceLiveView(false);
+    }
     renderBoardEntries(msg.entries);
     board.classList.remove("hidden");
     boardHint.classList.add("hidden");
     btnNext.classList.add("hidden");
     finishedEl.classList.remove("hidden");
-    progressEl.textContent = msg.examMode ? "Prüfung beendet" : "Finale";
+    progressEl.textContent =
+      msg.examMode ? "Prüfung beendet" : hostAsyncRace ? "Rennen beendet" : "Finale";
     if (msg.examMode) {
       finishedEl.textContent = "Prüfung beendet — IHK-Bewertung unten.";
     }
@@ -645,19 +744,47 @@
     }
     setLobbyStatus("Raum wird erstellt…", "is-loading");
     btnCreate.disabled = true;
-    const exam = readExamConfig();
+    const asyncRace = readAsyncRaceConfig();
+    hostAsyncRace = asyncRace.enabled;
+    let exam = readExamConfig();
+    const autoAdvance = asyncRace.enabled
+      ? { enabled: false, delaySeconds: 5 }
+      : readAutoAdvanceConfig();
+    if (asyncRace.enabled) {
+      exam = { enabled: false, tags: [] };
+    }
     const config = exam.enabled ? null : readPowerUpConfig();
-    const autoAdvance = readAutoAdvanceConfig();
-    connection.invoke("CreateRoom", quizSelect.value, config, autoAdvance, exam).catch((err) => {
-      btnCreate.disabled = false;
-      setLobbyStatus(`Raum erstellen fehlgeschlagen: ${err}`, "is-error");
-    });
+    connection
+      .invoke("CreateRoom", quizSelect.value, config, autoAdvance, exam, asyncRace)
+      .catch((err) => {
+        btnCreate.disabled = false;
+        setLobbyStatus(`Raum erstellen fehlgeschlagen: ${err}`, "is-error");
+      });
   });
 
   quizSelect.addEventListener("change", () => {
     loadQuizTags(quizSelect.value);
   });
-  $("exam-enabled")?.addEventListener("change", syncExamUi);
+  $("async-race-enabled")?.addEventListener("change", () => {
+    if ($("async-race-enabled")?.checked) {
+      if ($("exam-enabled")) $("exam-enabled").checked = false;
+      if ($("aa-enabled")) $("aa-enabled").checked = false;
+    }
+    syncAsyncRaceUi();
+  });
+  $("exam-enabled")?.addEventListener("change", () => {
+    if ($("exam-enabled")?.checked && $("async-race-enabled")) {
+      $("async-race-enabled").checked = false;
+    }
+    syncExamUi();
+    syncAsyncRaceUi();
+  });
+  $("aa-enabled")?.addEventListener("change", () => {
+    if ($("aa-enabled")?.checked && $("async-race-enabled")) {
+      $("async-race-enabled").checked = false;
+    }
+    syncAsyncRaceUi();
+  });
   btnStart.addEventListener("click", () => {
     btnStart.disabled = true;
     connection.invoke("StartGame").catch((err) => {
