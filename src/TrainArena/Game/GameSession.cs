@@ -1061,6 +1061,7 @@ public sealed class GameSession
             player.Score += points;
 
             return AdvanceAsyncPlayerAfterAnswer(
+                player.Nickname,
                 race,
                 question,
                 nowUtc,
@@ -1102,6 +1103,7 @@ public sealed class GameSession
             _ = ComputeSubmitPoints(false, nowUtc, startedAt, limit, puState);
 
             var result = AdvanceAsyncPlayerAfterAnswer(
+                nickname,
                 race,
                 question,
                 nowUtc,
@@ -1202,14 +1204,27 @@ public sealed class GameSession
         }
     }
 
+    private static void ClearPerQuestionPowerUpFlagsForState(PlayerPowerUpState state)
+    {
+        state.DoubleActive = false;
+        state.MaskedWrongIndexes = null;
+        state.UsedExtraTimeThisQuestion = false;
+        state.DisruptedThisQuestion = false;
+    }
+
+    private void ClearPerQuestionPowerUpFlagsForPlayer(string nickname)
+    {
+        if (_powerUps.TryGetValue(nickname, out var state))
+        {
+            ClearPerQuestionPowerUpFlagsForState(state);
+        }
+    }
+
     private void ClearPerQuestionPowerUpFlags()
     {
         foreach (var state in _powerUps.Values)
         {
-            state.DoubleActive = false;
-            state.MaskedWrongIndexes = null;
-            state.UsedExtraTimeThisQuestion = false;
-            state.DisruptedThisQuestion = false;
+            ClearPerQuestionPowerUpFlagsForState(state);
         }
 
         _roomExtraTimeExtendedThisQuestion = false;
@@ -1279,12 +1294,15 @@ public sealed class GameSession
     }
 
     private AsyncSubmitResult AdvanceAsyncPlayerAfterAnswer(
+        string nickname,
         PlayerRaceState race,
         DemoQuestion answeredQuestion,
         DateTimeOffset nowUtc,
         int pointsAwarded,
         bool correct)
     {
+        ClearPerQuestionPowerUpFlagsForPlayer(nickname);
+
         race.Index++;
         var playerFinished = race.Finished;
         DemoQuestion? nextQuestion = null;

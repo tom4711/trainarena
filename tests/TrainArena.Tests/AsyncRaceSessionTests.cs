@@ -97,6 +97,7 @@ public class AsyncRaceSessionTests
         ]);
         s.TryJoin("Ada", "c1");
         s.TryJoin("Bob", "c2");
+        s.TryJoin("Charlie", "c3");
         var now = DateTimeOffset.UtcNow;
         Assert.True(s.StartAsyncRace(now).ok);
 
@@ -106,9 +107,78 @@ public class AsyncRaceSessionTests
         Assert.True(s.SubmitAsyncAnswer("Ada", adaQ2.CorrectIndex, now).Ok);
         Assert.True(s.GetRaceState("Ada")!.Finished);
         Assert.False(s.GetRaceState("Bob")!.Finished);
+        Assert.False(s.GetRaceState("Charlie")!.Finished);
 
-        var (ok, _, _) = s.TryUsePowerUp("c2", PowerUpId.Disrupt, "Ada");
+        var (ok, err, _) = s.TryUsePowerUp("c2", PowerUpId.Disrupt, "Ada");
         Assert.False(ok);
+        Assert.Contains("Invalid target", err!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void FiftyFifty_AllowedOnNextRaceQuestionAfterSubmitAdvance()
+    {
+        var cfg = PowerUpRoomConfig.CreateDefault();
+        cfg.Starter[PowerUpId.FiftyFifty] = 2;
+        var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg, asyncRaceEnabled: true);
+        s.SetQuestions(
+        [
+            new DemoQuestion
+            {
+                Text = "Q1",
+                Options = ["a", "b", "c", "d"],
+                CorrectIndex = 0,
+                TimeLimitSeconds = 20,
+            },
+            new DemoQuestion
+            {
+                Text = "Q2",
+                Options = ["a", "b", "c", "d"],
+                CorrectIndex = 1,
+                TimeLimitSeconds = 20,
+            },
+        ]);
+        s.TryJoin("Ada", "c1");
+        var now = DateTimeOffset.UtcNow;
+        Assert.True(s.StartAsyncRace(now).ok);
+
+        Assert.True(s.TryUsePowerUp("c1", PowerUpId.FiftyFifty).ok);
+        Assert.NotNull(s.GetPowerUpState("Ada")!.MaskedWrongIndexes);
+
+        var q1 = s.GetRaceState("Ada")!.Current!;
+        Assert.True(s.SubmitAsyncAnswer("Ada", q1.CorrectIndex, now).Ok);
+        Assert.Null(s.GetPowerUpState("Ada")!.MaskedWrongIndexes);
+
+        var (ok, useErr, result) = s.TryUsePowerUp("c1", PowerUpId.FiftyFifty);
+        Assert.True(ok, useErr);
+        Assert.NotNull(result!.MaskedWrongIndexes);
+    }
+
+    [Fact]
+    public void ExtraTime_AllowedOnNextRaceQuestionAfterTimeoutAdvance()
+    {
+        var cfg = PowerUpRoomConfig.CreateDefault();
+        cfg.Starter[PowerUpId.ExtraTime] = 2;
+        var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg, asyncRaceEnabled: true);
+        s.SetQuestions(
+        [
+            new DemoQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+            new DemoQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+        ]);
+        s.TryJoin("Ada", "c1");
+        var start = DateTimeOffset.UtcNow;
+        Assert.True(s.StartAsyncRace(start).ok);
+        Assert.True(s.TryUsePowerUp("c1", PowerUpId.ExtraTime).ok);
+        Assert.True(s.GetPowerUpState("Ada")!.UsedExtraTimeThisQuestion);
+
+        var endsAt = s.GetRaceState("Ada")!.EndsAtUtc!.Value;
+        Assert.True(s.TryTimeoutAsyncPlayer("Ada", endsAt).timedOut);
+        Assert.False(s.GetPowerUpState("Ada")!.UsedExtraTimeThisQuestion);
+
+        var before = s.GetRaceState("Ada")!.EndsAtUtc!.Value;
+        var (ok, err, result) = s.TryUsePowerUp("c1", PowerUpId.ExtraTime);
+        Assert.True(ok, err);
+        Assert.Equal(before.AddSeconds(5), s.GetRaceState("Ada")!.EndsAtUtc);
+        Assert.Equal(before.AddSeconds(5), result!.NewEndsAtUtc);
     }
 
     [Fact]
