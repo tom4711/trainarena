@@ -1,3 +1,4 @@
+using TrainArena.Contracts;
 using TrainArena.Game.PowerUps;
 
 namespace TrainArena.Game;
@@ -30,6 +31,8 @@ public sealed class GameSession
     private bool _boostAllActive;
     private TimeSpan _questionScoreLimit;
     private int[] _ihkPointsPerQuestion = [];
+    private readonly Dictionary<string, PlayerRaceState> _races =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public GameSession(
         string code,
@@ -798,6 +801,62 @@ public sealed class GameSession
         }
     }
 
+    public (bool ok, string? error) StartAsyncRace(DateTimeOffset nowUtc)
+    {
+        lock (_gate)
+        {
+            if (!AsyncRaceEnabled) return (false, "Kein Async-Modus");
+            if (Phase != GamePhase.Lobby) return (false, "Ungültige Phase");
+            if (_quizQuestions.Count == 0) return (false, "Keine Fragen");
+            if (_players.Count == 0) return (false, "Keine Spieler");
+
+            var rng = Random.Shared;
+            _races.Clear();
+            foreach (var p in _players)
+            {
+                var order = ShuffleCopy(_quizQuestions, rng);
+                var q0 = order[0];
+                var limit = TimeSpan.FromSeconds(q0.TimeLimitSeconds <= 0 ? 20 : q0.TimeLimitSeconds);
+                _races[p.Nickname] = new PlayerRaceState
+                {
+                    Order = order,
+                    Index = 0,
+                    QuestionStartedAtUtc = nowUtc,
+                    EndsAtUtc = nowUtc + limit,
+                };
+            }
+
+            Phase = GamePhase.AsyncRacing;
+            return (true, null);
+        }
+    }
+
+    public IReadOnlyList<AsyncScoreboardEntryDto> GetAsyncScoreboard()
+    {
+        lock (_gate)
+        {
+            return _players
+                .Select(p =>
+                {
+                    var race = _races.GetValueOrDefault(p.Nickname);
+                    var total = race?.Order.Count ?? _quizQuestions.Count;
+                    var answered = race?.AnsweredCount ?? 0;
+                    return new AsyncScoreboardEntryDto(p.Nickname, p.Score, answered, total);
+                })
+                .OrderByDescending(e => e.Score)
+                .ThenBy(e => e.Nickname, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+    }
+
+    public PlayerRaceState? GetRaceState(string nickname)
+    {
+        lock (_gate)
+        {
+            return _races.GetValueOrDefault(nickname);
+        }
+    }
+
     public bool IsHost(string connectionId) =>
         string.Equals(HostConnectionId, connectionId, StringComparison.Ordinal);
 
@@ -901,6 +960,18 @@ public sealed class GameSession
         _roomExtraTimeExtendedThisQuestion = false;
         _hostEventsUsedThisQuestion = 0;
         _boostAllActive = false;
+    }
+
+    private static List<T> ShuffleCopy<T>(IReadOnlyList<T> source, Random rng)
+    {
+        var list = source.ToList();
+        for (var i = list.Count - 1; i > 0; i--)
+        {
+            var j = rng.Next(i + 1);
+            (list[i], list[j]) = (list[j], list[i]);
+        }
+
+        return list;
     }
 
     private static int[] PickWrongIndexes(int correctIndex, int optionCount, int maskCount)
