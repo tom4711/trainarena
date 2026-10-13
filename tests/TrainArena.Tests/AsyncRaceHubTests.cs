@@ -447,12 +447,91 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         await ada.DisposeAsync();
 
         await using var ada2 = await ConnectAsync();
+        var scoreboardFirst = WaitFor<AsyncScoreboardMessage>(ada2, "AsyncScoreboard");
         var restored = WaitFor<QuestionStartedMessage>(ada2, "QuestionStarted");
         await ada2.InvokeAsync("RejoinRoom", room.Code, "Ada");
+        var board = await scoreboardFirst;
         var again = await restored;
+        Assert.NotEmpty(board.Entries);
         Assert.Equal(first.Index, again.Index);
         Assert.Equal(first.Text, again.Text);
         Assert.Equal(first.TotalQuestions, again.TotalQuestions);
+    }
+
+    [Fact]
+    public async Task SubmitAnswer_NextQuestionStarted_ArrivesWithoutHubFeedbackDelay()
+    {
+        var quizId = await SeedMultiQuestionQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var ada = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync(
+            "CreateRoom",
+            quizId,
+            null,
+            null,
+            null,
+            new AsyncRaceConfigDto(true));
+        var room = await roomCreated;
+
+        await ada.InvokeAsync("JoinRoom", room.Code, "Ada");
+
+        var firstQ = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
+        await host.InvokeAsync("StartGame");
+        await firstQ;
+
+        var endedTask = WaitFor<QuestionEndedMessage>(ada, "QuestionEnded");
+        var nextTask = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
+        await ada.InvokeAsync("SubmitAnswer", 0, 0);
+        await endedTask;
+        var endedAt = DateTimeOffset.UtcNow;
+        var next = await nextTask;
+        var nextStartedAt = DateTimeOffset.UtcNow;
+
+        Assert.Equal(1, next.Index);
+        var hubGapMs = (nextStartedAt - endedAt).TotalMilliseconds;
+        Assert.True(hubGapMs < 500, $"QuestionStarted took {hubGapMs}ms after QuestionEnded (hub delay must be client-side)");
+
+        var remainingMs = (next.EndsAtUtc - DateTimeOffset.UtcNow).TotalMilliseconds;
+        Assert.True(remainingMs > 25_000, $"EndsAtUtc should reflect full timer, not post-delay stamp (remaining {remainingMs}ms)");
+    }
+
+    [Fact]
+    public async Task AsyncTimeout_TwoPlayers_BothAdvanceWithoutSerializedHubDelay()
+    {
+        var quizId = await SeedTwoQuestionShortLimitQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var ada = await ConnectAsync();
+        await using var bob = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync(
+            "CreateRoom",
+            quizId,
+            null,
+            null,
+            null,
+            new AsyncRaceConfigDto(true));
+        var room = await roomCreated;
+
+        await ada.InvokeAsync("JoinRoom", room.Code, "Ada");
+        await bob.InvokeAsync("JoinRoom", room.Code, "Bob");
+
+        _ = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
+        _ = WaitFor<QuestionStartedMessage>(bob, "QuestionStarted");
+        await host.InvokeAsync("StartGame");
+
+        var adaQ2 = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted", timeoutSeconds: 15);
+        var bobQ2 = WaitFor<QuestionStartedMessage>(bob, "QuestionStarted", timeoutSeconds: 15);
+
+        var adaSecond = await adaQ2;
+        var bobSecond = await bobQ2;
+
+        Assert.Equal(1, adaSecond.Index);
+        Assert.Equal(1, bobSecond.Index);
     }
 
     private Task<Guid> SeedSingleQuestionQuizAsync(int timeLimitSeconds = 30) =>

@@ -46,6 +46,9 @@
   let playerAsyncRace = false;
   let expectNextQuestionWithoutLeaderboard = false;
   let currentQuestionIndex = 0;
+  const ASYNC_FEEDBACK_BEAT_MS = 1200;
+  let pendingQuestionStarted = null;
+  let pendingQuestionStartedTimer = null;
   const defaultWaitHint =
     waitPanel?.querySelector(".hint")?.textContent ||
     "Warte auf die nächste Frage…";
@@ -411,7 +414,7 @@
       .filter((p) => p && p.isConnected !== false)
       .map((p) => p.nickname)
       .filter(Boolean);
-    if (playerAsyncRace) {
+    if (playerAsyncRace || questionOpen) {
       return;
     }
     expectNextQuestionWithoutLeaderboard = false;
@@ -450,7 +453,12 @@
     autoAdvanceHandle = setInterval(tick, 200);
   }
 
-  connection.on("QuestionStarted", (msg) => {
+  function explanationVisible() {
+    const explEl = $("question-explanation");
+    return explEl && !explEl.classList.contains("hidden");
+  }
+
+  function applyQuestionStarted(msg) {
     currentQuestionIndex = msg.index ?? 0;
     if (expectNextQuestionWithoutLeaderboard) {
       playerAsyncRace = true;
@@ -506,6 +514,29 @@
     ensurePowerUpButtons();
     refreshPowerUpButtons();
     startTimer();
+  }
+
+  connection.on("QuestionStarted", (msg) => {
+    const holdForFeedback =
+      (expectNextQuestionWithoutLeaderboard || playerAsyncRace) && explanationVisible();
+    if (holdForFeedback) {
+      pendingQuestionStarted = msg;
+      if (!pendingQuestionStartedTimer) {
+        pendingQuestionStartedTimer = setTimeout(() => {
+          pendingQuestionStartedTimer = null;
+          const next = pendingQuestionStarted;
+          pendingQuestionStarted = null;
+          if (next) applyQuestionStarted(next);
+        }, ASYNC_FEEDBACK_BEAT_MS);
+      }
+      return;
+    }
+    if (pendingQuestionStartedTimer) {
+      clearTimeout(pendingQuestionStartedTimer);
+      pendingQuestionStartedTimer = null;
+    }
+    pendingQuestionStarted = null;
+    applyQuestionStarted(msg);
   });
 
   connection.on("AnswerAccepted", (msg) => {

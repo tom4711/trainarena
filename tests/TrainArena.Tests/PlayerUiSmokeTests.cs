@@ -30,4 +30,15 @@ public class PlayerUiSmokeTests : IClassFixture<TrainArenaWebAppFactory>
         Assert.Contains(".powerups button .count", css, StringComparison.Ordinal);
         Assert.Contains("border-radius: 999px", css, StringComparison.Ordinal); // chip/badge shape signal
     }
+
+    [Fact]
+    public async Task PlayerJs_HasClientSideAsyncFeedbackBeat()
+    {
+        var res = await _client.GetAsync("/player/player.js");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var js = await res.Content.ReadAsStringAsync();
+        Assert.Contains("ASYNC_FEEDBACK_BEAT_MS", js, StringComparison.Ordinal);
+        Assert.Contains("pendingQuestionStarted", js, StringComparison.Ordinal);
+        Assert.DoesNotContain("Task.Delay", js, StringComparison.Ordinal);
+    }
 }

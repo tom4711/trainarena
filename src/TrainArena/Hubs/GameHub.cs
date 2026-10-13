@@ -663,8 +663,6 @@ public sealed class GameHub : Hub
         if (!result.PlayerFinished && result.NextQuestion is not null
             && result.NextStartedAtUtc is not null && result.NextEndsAtUtc is not null)
         {
-            await Task.Delay(TimeSpan.FromSeconds(1.2));
-
             var next = new QuestionStartedMessage(
                 result.NextIndex,
                 result.Total,
@@ -1104,6 +1102,9 @@ public sealed class GameHub : Hub
             return;
         }
 
+        await Clients.Caller.SendAsync(
+            "AsyncScoreboard",
+            new AsyncScoreboardMessage(session.GetAsyncScoreboard()));
         await Clients.Caller.SendAsync("QuestionStarted", ToAsyncQuestionStartedMessage(race));
     }
 
