@@ -66,7 +66,7 @@ public class PowerUpHubTests : IClassFixture<TrainArenaWebAppFactory>
         await q1;
 
         var answerAccepted = WaitFor<AnswerAcceptedMessage>(player1, "AnswerAccepted");
-        await player1.InvokeAsync("SubmitAnswer", 0);
+        await player1.InvokeAsync("SubmitAnswer", 0, null);
         await answerAccepted;
 
         var powerUpError = WaitFor<PowerUpErrorMessage>(player1, "PowerUpError");

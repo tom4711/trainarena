@@ -8,6 +8,7 @@ public sealed record AsyncSubmitResult(
     string? Error,
     int PointsAwarded,
     bool Correct,
+    bool CountsAsCorrect,
     int CorrectIndex,
     string? Explanation,
     bool PlayerFinished,
@@ -1037,7 +1038,11 @@ public sealed class GameSession
         }
     }
 
-    public AsyncSubmitResult SubmitAsyncAnswer(string nickname, int optionIndex, DateTimeOffset nowUtc)
+    public AsyncSubmitResult SubmitAsyncAnswer(
+        string nickname,
+        int optionIndex,
+        DateTimeOffset nowUtc,
+        int? expectedQuestionIndex = null)
     {
         lock (_gate)
         {
@@ -1057,13 +1062,18 @@ public sealed class GameSession
                 return AsyncSubmitFail("No active question");
             }
 
+            if (expectedQuestionIndex is not null && expectedQuestionIndex.Value != race.Index)
+            {
+                return AsyncSubmitFail("Question already advanced");
+            }
+
             var question = race.Current;
             if (question is null)
             {
                 return AsyncSubmitFail("No active question");
             }
 
-            if (race.EndsAtUtc is not null && nowUtc > race.EndsAtUtc.Value)
+            if (race.EndsAtUtc is not null && nowUtc >= race.EndsAtUtc.Value)
             {
                 return AsyncSubmitFail("Question already ended");
             }
@@ -1088,7 +1098,8 @@ public sealed class GameSession
                 question,
                 nowUtc,
                 points,
-                correct);
+                correct,
+                countsAsCorrect);
         }
     }
 
@@ -1130,9 +1141,55 @@ public sealed class GameSession
                 question,
                 nowUtc,
                 pointsAwarded: 0,
-                correct: false);
+                correct: false,
+                countsAsCorrect: false);
 
             return (true, result);
+        }
+    }
+
+    /// <summary>Apply streak progression and optional inventory grant for one async-race player.</summary>
+    public IReadOnlyList<(string Nickname, PowerUpId PowerUpId)> ApplyStreakRewardForPlayer(
+        string nickname,
+        bool answeredCorrectly,
+        Random? rng = null)
+    {
+        rng ??= Random.Shared;
+        lock (_gate)
+        {
+            var grants = new List<(string Nickname, PowerUpId PowerUpId)>();
+            var every = PowerUpConfig.StreakRewardEvery;
+            var pool = PowerUpConfig.StreakRewardPool;
+            if (!PowerUpConfig.Enabled || every <= 0 || pool.Count == 0)
+            {
+                return grants;
+            }
+
+            if (!_powerUps.TryGetValue(nickname, out var state))
+            {
+                return grants;
+            }
+
+            if (answeredCorrectly)
+            {
+                state.Streak++;
+            }
+            else
+            {
+                state.Streak = 0;
+            }
+
+            if (state.Streak > 0 && state.Streak % every == 0)
+            {
+                var pick = pool[rng.Next(pool.Count)];
+                if (state.Inventory[pick] < PowerUpConfig.MaxStackPerType)
+                {
+                    state.Inventory[pick]++;
+                    grants.Add((nickname, pick));
+                }
+            }
+
+            return grants;
         }
     }
 
@@ -1262,7 +1319,7 @@ public sealed class GameSession
         TimeSpan.FromSeconds(question.TimeLimitSeconds <= 0 ? 20 : question.TimeLimitSeconds);
 
     private static AsyncSubmitResult AsyncSubmitFail(string error) =>
-        new(false, error, 0, false, 0, null, false, false, null, null, null, 0, 0);
+        new(false, error, 0, false, false, 0, null, false, false, null, null, null, 0, 0);
 
     private int ComputeSubmitPoints(
         bool countsAsCorrect,
@@ -1321,7 +1378,8 @@ public sealed class GameSession
         DemoQuestion answeredQuestion,
         DateTimeOffset nowUtc,
         int pointsAwarded,
-        bool correct)
+        bool correct,
+        bool countsAsCorrect)
     {
         ClearPerQuestionPowerUpFlagsForPlayer(nickname);
 
@@ -1352,6 +1410,7 @@ public sealed class GameSession
             Error: null,
             PointsAwarded: pointsAwarded,
             Correct: correct,
+            CountsAsCorrect: countsAsCorrect,
             CorrectIndex: answeredQuestion.CorrectIndex,
             Explanation: answeredQuestion.Explanation,
             PlayerFinished: playerFinished,

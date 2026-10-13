@@ -45,6 +45,7 @@
   let boardWaitingForHost = false;
   let playerAsyncRace = false;
   let expectNextQuestionWithoutLeaderboard = false;
+  let currentQuestionIndex = 0;
   const defaultWaitHint =
     waitPanel?.querySelector(".hint")?.textContent ||
     "Warte auf die nächste Frage…";
@@ -186,22 +187,21 @@
   }
 
   function openTargetPicker() {
+    if (playerAsyncRace) {
+      connection
+        .invoke("ListAsyncDisruptTargets")
+        .then((names) => {
+          renderTargetPicker((names || []).filter(Boolean));
+        })
+        .catch(() => {
+          renderTargetPicker([]);
+        });
+      return;
+    }
     const lobbyOpponents = lobbyPlayers.filter(
       (p) => p && p.toLowerCase() !== nickname.toLowerCase(),
     );
-    connection
-      .invoke("ListAsyncDisruptTargets")
-      .then((names) => {
-        const fromServer = (names || []).filter(Boolean);
-        if (fromServer.length) {
-          renderTargetPicker(fromServer);
-          return;
-        }
-        renderTargetPicker(lobbyOpponents);
-      })
-      .catch(() => {
-        renderTargetPicker(lobbyOpponents);
-      });
+    renderTargetPicker(lobbyOpponents);
   }
 
   function invokeDisrupt(targetNickname) {
@@ -407,14 +407,16 @@
   });
 
   connection.on("LobbyState", (msg) => {
-    playerAsyncRace = false;
-    expectNextQuestionWithoutLeaderboard = false;
-    resetAsyncWaitHint();
-    currentOptionCount = 0;
     lobbyPlayers = (msg?.players || [])
       .filter((p) => p && p.isConnected !== false)
       .map((p) => p.nickname)
       .filter(Boolean);
+    if (playerAsyncRace) {
+      return;
+    }
+    expectNextQuestionWithoutLeaderboard = false;
+    resetAsyncWaitHint();
+    currentOptionCount = 0;
     joinPanel.classList.add("hidden");
     waitPanel.classList.remove("hidden");
     questionPanel.classList.add("hidden");
@@ -449,6 +451,7 @@
   }
 
   connection.on("QuestionStarted", (msg) => {
+    currentQuestionIndex = msg.index ?? 0;
     if (expectNextQuestionWithoutLeaderboard) {
       playerAsyncRace = true;
     }
@@ -659,7 +662,9 @@
     btn.classList.add("is-selected");
     answerStatus.className = "muted";
     answerStatus.textContent = "Sende…";
-    connection.invoke("SubmitAnswer", index).catch((err) => {
+    connection
+      .invoke("SubmitAnswer", index, playerAsyncRace ? currentQuestionIndex : null)
+      .catch((err) => {
       answered = false;
       [...answers.querySelectorAll("button")].forEach((b) => {
         b.disabled = false;

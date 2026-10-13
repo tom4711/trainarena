@@ -39,7 +39,7 @@ public class DemoRoundTests : IClassFixture<TrainArenaWebAppFactory>
         Assert.Equal(4, q.Options.Length);
 
         // SeedData correct index = 2 ("16")
-        await player.InvokeAsync("SubmitAnswer", 2);
+        await player.InvokeAsync("SubmitAnswer", 2, null);
         var accepted = await answerAccepted;
         Assert.True(accepted.Ok, accepted.Error);
         Assert.True(accepted.Points > 0);

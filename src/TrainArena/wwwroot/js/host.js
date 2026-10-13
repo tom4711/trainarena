@@ -431,6 +431,7 @@
     quizSelect.disabled = true;
     disableLobbySetup();
     btnStart.classList.remove("hidden");
+    updateStartButtonLabel();
     setLobbyStatus("0 Spieler verbunden — warte auf Beitritte…");
   });
 

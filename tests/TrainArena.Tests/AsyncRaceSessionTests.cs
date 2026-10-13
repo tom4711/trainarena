@@ -209,6 +209,55 @@ public class AsyncRaceSessionTests
     }
 
     [Fact]
+    public void SubmitAsyncAnswer_RejectsStaleQuestionIndex()
+    {
+        var s = NewAsyncTwoPlayerTwoQuestions();
+        Assert.True(s.StartAsyncRace(DateTimeOffset.UtcNow).ok);
+        var adaQ = s.GetRaceState("Ada")!.Current!;
+        var now = DateTimeOffset.UtcNow;
+        Assert.True(s.SubmitAsyncAnswer("Ada", adaQ.CorrectIndex, now, expectedQuestionIndex: 0).Ok);
+        var r = s.SubmitAsyncAnswer("Ada", 0, now, expectedQuestionIndex: 0);
+        Assert.False(r.Ok);
+        Assert.Contains("advanced", r.Error!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SubmitAsyncAnswer_AtEndsAtUtc_Rejected()
+    {
+        var s = NewAsyncOnePlayerOneQuestion();
+        Assert.True(s.StartAsyncRace(DateTimeOffset.UtcNow).ok);
+        var endsAt = s.GetRaceState("Ada")!.EndsAtUtc!.Value;
+        var r = s.SubmitAsyncAnswer("Ada", 0, endsAt);
+        Assert.False(r.Ok);
+        Assert.Contains("ended", r.Error!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ApplyStreakRewardForPlayer_GrantsAfterAsyncCorrectStreak()
+    {
+        var cfg = PowerUpRoomConfig.CreateDefault();
+        var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg, asyncRaceEnabled: true);
+        s.SetQuestions(
+        [
+            new DemoQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+            new DemoQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+        ]);
+        s.TryJoin("Ada", "c1");
+        Assert.True(s.StartAsyncRace(DateTimeOffset.UtcNow).ok);
+        var now = DateTimeOffset.UtcNow;
+        var q1 = s.GetRaceState("Ada")!.Current!;
+        Assert.True(s.SubmitAsyncAnswer("Ada", q1.CorrectIndex, now).Ok);
+        s.ApplyStreakRewardForPlayer("Ada", true, new Random(0));
+        Assert.Equal(1, s.GetPowerUpState("Ada")!.Streak);
+
+        var q2 = s.GetRaceState("Ada")!.Current!;
+        Assert.True(s.SubmitAsyncAnswer("Ada", q2.CorrectIndex, now).Ok);
+        var grants = s.ApplyStreakRewardForPlayer("Ada", true, new Random(0));
+        Assert.Single(grants);
+        Assert.Equal(2, s.GetPowerUpState("Ada")!.Streak);
+    }
+
+    [Fact]
     public void TryTimeoutAsyncPlayer_ClearsDoubleActive()
     {
         var cfg = PowerUpRoomConfig.CreateDefault();

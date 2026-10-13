@@ -124,7 +124,7 @@ public class ExamModeHubTests : IClassFixture<TrainArenaWebAppFactory>
         Assert.Equal(0, first.Index);
         Assert.Equal(1, first.TotalQuestions); // tag filter kept only sql question
 
-        await player.InvokeAsync("SubmitAnswer", 0);
+        await player.InvokeAsync("SubmitAnswer", 0, null);
         Assert.True((await a1).Ok);
         var ended = await end1;
         Assert.Null(ended.Explanation); // exam: no mid-round explanation

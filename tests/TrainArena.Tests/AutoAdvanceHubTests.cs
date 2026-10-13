@@ -43,7 +43,7 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
 
         await host.InvokeAsync("StartGame");
         await q1;
-        await player.InvokeAsync("SubmitAnswer", 0);
+        await player.InvokeAsync("SubmitAnswer", 0, null);
         await board;
 
         var plan = await scheduled;
@@ -76,7 +76,7 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
 
         await host.InvokeAsync("StartGame");
         await q1;
-        await player.InvokeAsync("SubmitAnswer", 0);
+        await player.InvokeAsync("SubmitAnswer", 0, null);
         await board1;
         await scheduled;
 
@@ -108,7 +108,7 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
 
         await host.InvokeAsync("StartGame");
         await q1;
-        await player.InvokeAsync("SubmitAnswer", 0);
+        await player.InvokeAsync("SubmitAnswer", 0, null);
         await board1;
 
         await Task.Delay(TimeSpan.FromSeconds(2));
@@ -141,7 +141,7 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
 
         await host.InvokeAsync("StartGame");
         await q1;
-        await player.InvokeAsync("SubmitAnswer", 0);
+        await player.InvokeAsync("SubmitAnswer", 0, null);
         await board1;
         await scheduled;
 
@@ -186,7 +186,7 @@ public class AutoAdvanceHubTests : IClassFixture<TrainArenaWebAppFactory>
 
         await host.InvokeAsync("StartGame");
         await q1;
-        await player.InvokeAsync("SubmitAnswer", 0);
+        await player.InvokeAsync("SubmitAnswer", 0, null);
         await board1;
         await scheduled;
 
