@@ -621,7 +621,8 @@ public sealed class GameHub : Hub
         GameSession session,
         PlayerInfo player,
         AsyncSubmitResult result,
-        bool viaHubContext)
+        bool viaHubContext,
+        bool broadcastRaceFinished = true)
     {
         if (string.IsNullOrEmpty(player.ConnectionId))
         {
@@ -656,7 +657,7 @@ public sealed class GameHub : Hub
             await client.SendAsync("QuestionStarted", next);
         }
 
-        if (result.RaceFinished)
+        if (broadcastRaceFinished && result.RaceFinished)
         {
             await BroadcastAsyncGameFinishedAsync(session, viaHubContext);
         }
@@ -665,22 +666,46 @@ public sealed class GameHub : Hub
     private async Task ProcessAsyncTimeoutsForSessionAsync(GameSession session, bool viaHubContext)
     {
         var now = DateTimeOffset.UtcNow;
-        var any = false;
+        var anyTimeout = false;
+        var raceFinished = false;
         foreach (var player in session.Players.ToList())
         {
             var (timedOut, result) = session.TryTimeoutAsyncPlayer(player.Nickname, now);
-            if (!timedOut || result is null || !player.IsConnected || string.IsNullOrEmpty(player.ConnectionId))
+            if (!timedOut || result is null)
             {
                 continue;
             }
 
-            any = true;
-            await DeliverAsyncSubmitResultToPlayerAsync(session, player, result, viaHubContext);
+            anyTimeout = true;
+            if (result.RaceFinished)
+            {
+                raceFinished = true;
+            }
+
+            if (player.IsConnected && !string.IsNullOrEmpty(player.ConnectionId))
+            {
+                await DeliverAsyncSubmitResultToPlayerAsync(
+                    session,
+                    player,
+                    result,
+                    viaHubContext,
+                    broadcastRaceFinished: false);
+            }
         }
 
-        if (any)
+        if (session.Phase == GamePhase.Finished)
+        {
+            raceFinished = true;
+        }
+
+        if (anyTimeout)
         {
             await BroadcastAsyncScoreboardAsync(session, viaHubContext);
+        }
+
+        if (raceFinished)
+        {
+            await BroadcastAsyncGameFinishedAsync(session, viaHubContext);
         }
     }
 

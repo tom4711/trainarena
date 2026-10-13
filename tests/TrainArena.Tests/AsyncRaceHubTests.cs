@@ -157,6 +157,44 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
     }
 
     [Fact]
+    public async Task AsyncTimeout_DisconnectedLastPlayerFinishesRace_BroadcastsGameFinished()
+    {
+        var quizId = await SeedSingleQuestionQuizAsync(timeLimitSeconds: 1);
+
+        await using var host = await ConnectAsync();
+        await using var ada = await ConnectAsync();
+        await using var bob = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync(
+            "CreateRoom",
+            quizId,
+            null,
+            null,
+            null,
+            new AsyncRaceConfigDto(true));
+        var room = await roomCreated;
+
+        await ada.InvokeAsync("JoinRoom", room.Code, "Ada");
+        await bob.InvokeAsync("JoinRoom", room.Code, "Bob");
+
+        _ = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
+        _ = WaitFor<QuestionStartedMessage>(bob, "QuestionStarted");
+        await host.InvokeAsync("StartGame");
+
+        var adaEnded = WaitFor<QuestionEndedMessage>(ada, "QuestionEnded");
+        await ada.InvokeAsync("SubmitAnswer", 0);
+        await adaEnded;
+
+        await bob.DisposeAsync();
+
+        var finished = WaitFor<GameFinishedMessage>(host, "GameFinished", timeoutSeconds: 15);
+        var gameOver = await finished;
+        Assert.Empty(gameOver.Review);
+        Assert.Equal(2, gameOver.Entries.Count);
+    }
+
+    [Fact]
     public async Task AsyncRace_LastPlayerFinishes_BroadcastsGameFinished()
     {
         var quizId = await SeedSingleQuestionQuizAsync();
@@ -370,7 +408,10 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         Assert.Equal(first.TotalQuestions, again.TotalQuestions);
     }
 
-    private async Task<Guid> SeedSingleQuestionQuizAsync()
+    private Task<Guid> SeedSingleQuestionQuizAsync(int timeLimitSeconds = 30) =>
+        SeedSingleQuestionQuizInternalAsync(timeLimitSeconds);
+
+    private async Task<Guid> SeedSingleQuestionQuizInternalAsync(int timeLimitSeconds)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -389,7 +430,7 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
                     Option0 = "A",
                     Option1 = "B",
                     CorrectIndex = 0,
-                    TimeLimitSeconds = 30,
+                    TimeLimitSeconds = timeLimitSeconds,
                     SortOrder = 0
                 }
             ]
