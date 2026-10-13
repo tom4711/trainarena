@@ -767,6 +767,9 @@ a { color: var(--accent); }
   line-height: 1.4;
   animation: flash-in 220ms ease-out;
 }
+.validation-banner.validation-summary-valid {
+  display: none;
+}
 .flash-ok {
   color: color-mix(in srgb, var(--ok) 92%, white);
   background: color-mix(in srgb, var(--ok) 14%, var(--panel));
