@@ -15,6 +15,7 @@
   const answerStatus = $("answer-status");
   const boardList = $("board-list");
   const qTimer = $("q-timer");
+  const qTimerTrack = $("q-timer-track");
   const qProgress = $("q-progress");
   const waitHost = $("wait-host");
   const boardAutoAdvance = $("board-auto-advance");
@@ -99,7 +100,7 @@
       const id = btn.dataset.powerup;
       const n = countFor(id);
       const countSpan = btn.querySelector(".count");
-      if (countSpan) countSpan.textContent = ` (${n})`;
+      if (countSpan) countSpan.textContent = String(n);
       const keepActive = activePowerUps.has(id);
       const fiftyBlocked = id === "fifty_fifty" && !fiftyFiftyAllowed();
       btn.classList.toggle("is-active", keepActive);
@@ -119,7 +120,7 @@
       const btn = document.createElement("button");
       btn.type = "button";
       btn.dataset.powerup = p.id;
-      btn.innerHTML = `${p.label}<span class="count"> (0)</span>`;
+      btn.innerHTML = `<span class="pu-label">${p.label}</span><span class="count">0</span>`;
       btn.addEventListener("click", () => usePowerUp(p.id));
       powerupsEl.appendChild(btn);
     });
@@ -609,10 +610,27 @@
 
   function setTimerUrgency(msLeft) {
     qTimer.classList.remove("is-urgent", "is-critical");
+    if (qTimerTrack) qTimerTrack.classList.remove("is-urgent", "is-critical");
     if (!questionOpen || msLeft <= 0) return;
     const sec = Math.ceil(msLeft / 1000);
-    if (sec <= 5) qTimer.classList.add("is-critical");
-    else if (sec <= 10) qTimer.classList.add("is-urgent");
+    if (sec <= 5) {
+      qTimer.classList.add("is-critical");
+      if (qTimerTrack) qTimerTrack.classList.add("is-critical");
+    } else if (sec <= 10) {
+      qTimer.classList.add("is-urgent");
+      if (qTimerTrack) qTimerTrack.classList.add("is-urgent");
+    }
+  }
+
+  function updateTimerTrack(msLeft) {
+    if (!qTimerTrack || !endsAt || !startedAt) return;
+    const total = endsAt - startedAt;
+    if (total <= 0) {
+      qTimerTrack.style.setProperty("--timer-pct", "0%");
+      return;
+    }
+    const pct = Math.max(0, Math.min(100, (msLeft / total) * 100));
+    qTimerTrack.style.setProperty("--timer-pct", `${pct}%`);
   }
 
   function startTimer() {
@@ -623,15 +641,24 @@
       if (!questionOpen) {
         qTimer.textContent = "0s";
         qTimer.classList.remove("is-urgent", "is-critical");
+        if (qTimerTrack) {
+          qTimerTrack.classList.remove("is-urgent", "is-critical");
+          qTimerTrack.style.setProperty("--timer-pct", "0%");
+        }
         return;
       }
       if (ms <= 0) {
         qTimer.textContent = "0s · warte auf Server…";
         qTimer.classList.add("is-critical");
+        if (qTimerTrack) {
+          qTimerTrack.classList.add("is-critical");
+          qTimerTrack.style.setProperty("--timer-pct", "0%");
+        }
         return;
       }
       qTimer.textContent = `${Math.ceil(ms / 1000)}s`;
       setTimerUrgency(ms);
+      updateTimerTrack(ms);
     };
     tick();
     timerHandle = setInterval(tick, 200);
