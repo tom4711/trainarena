@@ -360,6 +360,11 @@ public sealed class GameSession
                 return (false, "Power-ups disabled", null);
             }
 
+            if (AsyncRaceEnabled && Phase == GamePhase.AsyncRacing)
+            {
+                return TryUsePowerUpAsync(connectionId, powerUpId, targetNickname);
+            }
+
             if (Phase != GamePhase.QuestionActive || CurrentQuestion is null)
             {
                 return (false, "No active question", null);
@@ -485,6 +490,178 @@ public sealed class GameSession
                 null,
                 new PowerUpUseResult(powerUpId, masked, newEndsAt, player.Nickname, null, false, fxKind));
         }
+    }
+
+    private (bool ok, string? error, PowerUpUseResult? result) TryUsePowerUpAsync(
+        string connectionId,
+        PowerUpId powerUpId,
+        string? targetNickname)
+    {
+        var player = _players.FirstOrDefault(p => p.ConnectionId == connectionId && p.IsConnected);
+        if (player is null)
+        {
+            return (false, "Not a player in this room", null);
+        }
+
+        if (!_races.TryGetValue(player.Nickname, out var race) || race.Finished)
+        {
+            return (false, "No active question", null);
+        }
+
+        var currentQuestion = race.Current;
+        if (currentQuestion is null)
+        {
+            return (false, "No active question", null);
+        }
+
+        if (!_powerUps.TryGetValue(player.Nickname, out var state))
+        {
+            return (false, "Not a player in this room", null);
+        }
+
+        var definition = PowerUpCatalog.Get(powerUpId);
+        if (definition.Kind != PowerUpKind.Player)
+        {
+            return (false, "Not a player power-up", null);
+        }
+
+        if (state.Inventory[powerUpId] < 1)
+        {
+            return (false, "No power-ups remaining", null);
+        }
+
+        var isSelfEffect = powerUpId is PowerUpId.FiftyFifty or PowerUpId.Double or PowerUpId.ExtraTime;
+        if (isSelfEffect && state.HasSelfEffectActive)
+        {
+            return (false, "Already used a self-effect this question", null);
+        }
+
+        int[]? masked = null;
+        DateTimeOffset? newEndsAt = null;
+        string? target = null;
+        var blocked = false;
+        string? fxKind = null;
+
+        if (powerUpId == PowerUpId.Disrupt)
+        {
+            var resolved = ResolveAsyncDisruptTarget(player.Nickname, targetNickname);
+            if (resolved.error is not null)
+            {
+                return (false, resolved.error, null);
+            }
+
+            target = resolved.targetNickname!;
+            if (!_powerUps.TryGetValue(target, out var targetState))
+            {
+                return (false, "Target not found", null);
+            }
+
+            state.Inventory[powerUpId]--;
+            if (targetState.HasShield)
+            {
+                targetState.HasShield = false;
+                blocked = true;
+                fxKind = "attack_blocked";
+            }
+            else
+            {
+                targetState.DisruptedThisQuestion = true;
+                fxKind = "attack_hit";
+            }
+
+            return (
+                true,
+                null,
+                new PowerUpUseResult(
+                    powerUpId,
+                    null,
+                    null,
+                    player.Nickname,
+                    target,
+                    blocked,
+                    fxKind));
+        }
+
+        if (powerUpId == PowerUpId.FiftyFifty && currentQuestion.Options.Length < 3)
+        {
+            return (false, "50/50 requires at least 3 options", null);
+        }
+
+        state.Inventory[powerUpId]--;
+
+        switch (powerUpId)
+        {
+            case PowerUpId.FiftyFifty:
+            {
+                var optionCount = currentQuestion.Options.Length;
+                var maskCount = optionCount >= 4 ? 2 : 1;
+                masked = PickWrongIndexes(currentQuestion.CorrectIndex, optionCount, maskCount);
+                state.MaskedWrongIndexes = masked;
+                break;
+            }
+            case PowerUpId.Double:
+                state.DoubleActive = true;
+                break;
+            case PowerUpId.ExtraTime:
+                state.UsedExtraTimeThisQuestion = true;
+                if (race.EndsAtUtc is not null)
+                {
+                    race.EndsAtUtc = race.EndsAtUtc.Value.AddSeconds(5);
+                    newEndsAt = race.EndsAtUtc;
+                }
+
+                break;
+            case PowerUpId.Shield:
+                state.HasShield = true;
+                fxKind = "shield_up";
+                break;
+        }
+
+        return (
+            true,
+            null,
+            new PowerUpUseResult(powerUpId, masked, newEndsAt, player.Nickname, null, false, fxKind));
+    }
+
+    private (string? targetNickname, string? error) ResolveAsyncDisruptTarget(string actorNickname, string? requested)
+    {
+        var candidates = _players
+            .Where(p =>
+            {
+                if (!p.IsConnected
+                    || string.Equals(p.Nickname, actorNickname, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                if (!_races.TryGetValue(p.Nickname, out var race))
+                {
+                    return false;
+                }
+
+                return !race.Finished && race.Current is not null;
+            })
+            .Select(p => p.Nickname)
+            .ToList();
+
+        if (candidates.Count == 0)
+        {
+            return (null, "No valid target");
+        }
+
+        if (string.IsNullOrWhiteSpace(requested))
+        {
+            return (candidates[Random.Shared.Next(candidates.Count)], null);
+        }
+
+        var match = candidates.FirstOrDefault(n =>
+            string.Equals(n, requested.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (match is null)
+        {
+            return (null, "Invalid target");
+        }
+
+        return (match, null);
     }
 
     private (string? targetNickname, string? error) ResolveDisruptTarget(string actorNickname, string? requested)
@@ -919,10 +1096,10 @@ public sealed class GameSession
                 return (false, null);
             }
 
-            if (_powerUps.TryGetValue(nickname, out var puState))
-            {
-                puState.DisruptedThisQuestion = false;
-            }
+            var startedAt = race.QuestionStartedAtUtc ?? nowUtc;
+            var limit = QuestionTimeLimit(question);
+            _powerUps.TryGetValue(nickname, out var puState);
+            _ = ComputeSubmitPoints(false, nowUtc, startedAt, limit, puState);
 
             var result = AdvanceAsyncPlayerAfterAnswer(
                 race,
