@@ -757,3 +757,226 @@ a { color: var(--accent); }
   /* Transparent PNG mark — soft lift on dark host chrome */
   filter: drop-shadow(0 6px 14px rgba(10, 205, 222, 0.22));
 }
+
+/* —— Editor (quiz list + edit) —— */
+.flash {
+  margin: 0.85rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  animation: flash-in 220ms ease-out;
+}
+.flash-ok {
+  color: color-mix(in srgb, var(--ok) 92%, white);
+  background: color-mix(in srgb, var(--ok) 14%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--panel-border));
+}
+.flash-error {
+  color: color-mix(in srgb, var(--danger) 92%, white);
+  background: color-mix(in srgb, var(--danger) 12%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--panel-border));
+}
+@keyframes flash-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.quiz-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.quiz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--input-bg) 55%, var(--panel));
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.quiz-row:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--panel-border));
+  background: color-mix(in srgb, var(--input-bg) 40%, var(--panel));
+}
+.quiz-row-main {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.quiz-row-title {
+  display: inline;
+  font-weight: 650;
+  font-size: 1.05rem;
+  color: var(--text);
+  text-decoration: none;
+}
+.quiz-row-title:hover {
+  color: var(--accent);
+}
+.quiz-row-meta {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.88rem;
+}
+.quiz-row .tag-row {
+  margin-top: 0.45rem;
+}
+.quiz-row-actions {
+  flex: 0 0 auto;
+  margin: 0;
+}
+.quiz-row-actions button {
+  min-height: 2.35rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.9rem;
+}
+
+button.danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 55%, var(--panel-border));
+  font-weight: 600;
+}
+button.danger:hover:not(:disabled) {
+  filter: none;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.import-zone {
+  margin-top: 0.85rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--panel-border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--input-bg));
+}
+.import-zone label {
+  margin-top: 0;
+}
+.import-zone button {
+  margin-top: 0.35rem;
+  width: 100%;
+}
+
+.editor textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  min-height: 4.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  resize: vertical;
+}
+.editor textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.editor input[type="file"] {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.45rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.92rem;
+}
+.editor input[type="radio"] {
+  display: inline-block;
+  width: auto;
+  min-height: 0;
+  margin: 0 0.35rem 0 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+.editor .q-card {
+  margin-top: 0.75rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--input-bg) 50%, var(--panel));
+  animation: panel-in 180ms ease-out;
+}
+.editor .q-card:first-of-type {
+  margin-top: 0.35rem;
+}
+.editor .q-card strong {
+  display: inline;
+  font-size: 1.02rem;
+  line-height: 1.35;
+  font-weight: 650;
+}
+.editor .q-card ol {
+  margin: 0.55rem 0 0.35rem;
+  padding-left: 1.25rem;
+}
+.editor .q-card li {
+  margin: 0.2rem 0;
+}
+.editor .q-card li.reveal {
+  color: var(--ok);
+  font-weight: 650;
+}
+.editor .q-thumb {
+  max-width: 12rem;
+  max-height: 8rem;
+  margin: 0.55rem 0 0.25rem;
+  border-radius: var(--radius-sm);
+  display: block;
+  object-fit: cover;
+}
+.editor .badge-tf {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: middle;
+  background: #334155;
+  color: var(--text);
+}
+.editor .tf-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.1rem;
+  margin: 0.35rem 0 0.65rem;
+}
+.editor .tf-row label {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  width: auto;
+  color: var(--text);
+}
+.editor .q-card form {
+  margin-top: 0.55rem;
+}
+.editor .q-card button {
+  min-height: 2.35rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.9rem;
+}
+.editor-empty {
+  margin: 0.35rem 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash,
+  .editor .q-card,
+  .panel {
+    animation: none !important;
+  }
+}

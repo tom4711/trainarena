@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="/css/host.css" />
 </head>
 <body>
-<main class="host">
+<main class="host editor">
     <div class="brand-row">
         <img class="brand-mark" src="/assets/brand/logo-icon.png?v=20261008" width="64" height="64" alt="TrainArena" />
         <h1>Quiz-Editor</h1>
@@ -31,18 +31,18 @@
             </label>
             <button type="submit">Anlegen</button>
         </form>
-        <div asp-validation-summary="All" class="error"></div>
+        <div asp-validation-summary="All" class="flash flash-error"></div>
     </section>
 
     <section class="panel">
         <h2>Vorhandene Quizzes</h2>
         @if (Model.Quizzes.Count == 0)
         {
-            <p class="muted">Noch keine Quizzes.</p>
+            <p class="muted editor-empty">Noch keine Quizzes.</p>
         }
         else
         {
-            <ul>
+            <ul class="quiz-list">
             @foreach (var quiz in Model.Quizzes)
             {
                 var quizTags = quiz.Questions
@@ -50,21 +50,23 @@
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                <li>
-                    <a asp-page="Edit" asp-route-id="@quiz.Id">@quiz.Title</a>
-                    <span class="muted">(@quiz.Questions.Count Fragen)</span>
-                    @if (quizTags.Count > 0)
-                    {
-                        <div class="tag-row">
-                            @foreach (var tag in quizTags)
-                            {
-                                <span class="tag-chip">@tag</span>
-                            }
-                        </div>
-                    }
-                    <form method="post" asp-page-handler="Delete" style="display:inline">
+                <li class="quiz-row">
+                    <div class="quiz-row-main">
+                        <a class="quiz-row-title" asp-page="Edit" asp-route-id="@quiz.Id">@quiz.Title</a>
+                        <span class="muted quiz-row-meta">@quiz.Questions.Count Fragen</span>
+                        @if (quizTags.Count > 0)
+                        {
+                            <div class="tag-row">
+                                @foreach (var tag in quizTags)
+                                {
+                                    <span class="tag-chip">@tag</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <form method="post" asp-page-handler="Delete" class="quiz-row-actions">
                         <input type="hidden" name="id" value="@quiz.Id" />
-                        <button type="submit" onclick="return confirm('Quiz löschen?');">Löschen</button>
+                        <button type="submit" class="danger" onclick="return confirm('Quiz löschen?');">Löschen</button>
                     </form>
                 </li>
             }
