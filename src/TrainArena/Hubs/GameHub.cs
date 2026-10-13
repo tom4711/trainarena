@@ -693,11 +693,6 @@ public sealed class GameHub : Hub
             }
         }
 
-        if (session.Phase == GamePhase.Finished)
-        {
-            raceFinished = true;
-        }
-
         if (anyTimeout)
         {
             await BroadcastAsyncScoreboardAsync(session, viaHubContext);

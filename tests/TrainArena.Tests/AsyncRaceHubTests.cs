@@ -220,11 +220,12 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         _ = WaitFor<QuestionStartedMessage>(bob, "QuestionStarted");
         await host.InvokeAsync("StartGame");
 
-        var finished = WaitFor<GameFinishedMessage>(host, "GameFinished");
+        var finished = WaitForGameFinishedWithCountAsync(host);
         await ada.InvokeAsync("SubmitAnswer", 0);
         await bob.InvokeAsync("SubmitAnswer", 0);
 
-        var gameOver = await finished.WaitAsync(TimeSpan.FromSeconds(8));
+        var (gameOver, finishCount) = await finished.WaitAsync(TimeSpan.FromSeconds(8));
+        Assert.Equal(1, finishCount);
         Assert.Empty(gameOver.Review);
         Assert.Equal(2, gameOver.Entries.Count);
     }
@@ -555,5 +556,36 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
             }
         });
         return tcs.Task.WaitAsync(TimeSpan.FromSeconds(timeoutSeconds));
+    }
+
+    private static Task<(GameFinishedMessage Message, int Count)> WaitForGameFinishedWithCountAsync(
+        HubConnection connection,
+        double timeoutSeconds = 8,
+        double settleSeconds = 0.5)
+    {
+        var tcs = new TaskCompletionSource<GameFinishedMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var count = 0;
+        connection.On<JsonElement>("GameFinished", payload =>
+        {
+            count++;
+            var value = payload.Deserialize<GameFinishedMessage>(new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+            if (value is not null)
+            {
+                tcs.TrySetResult(value);
+            }
+        });
+        return tcs.Task
+            .WaitAsync(TimeSpan.FromSeconds(timeoutSeconds))
+            .ContinueWith(
+                async t =>
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(settleSeconds));
+                    return (await t, count);
+                },
+                TaskScheduler.Default)
+            .Unwrap();
     }
 }
