@@ -15,27 +15,9 @@
     <link rel="apple-touch-icon" href="/assets/brand/logo-icon.png?v=20261008" />
     <title>Quiz bearbeiten — @quiz.Title</title>
     <link rel="stylesheet" href="/css/host.css" />
-    <style>
-      label { display: block; margin: 0.5rem 0; color: var(--muted); }
-      input, select, textarea {
-        display: block; width: 100%; margin-top: 0.25rem;
-        padding: 0.55rem 0.65rem; border-radius: 8px; border: 1px solid #475569;
-        background: #0f172a; color: var(--text);
-      }
-      input[type="file"] { padding: 0.35rem 0; border: 0; background: transparent; }
-      input[type="radio"] { display: inline-block; width: auto; margin-right: 0.35rem; }
-      .error { color: #f87171; }
-      .info { color: var(--ok); }
-      .q-card { border-top: 1px solid #334155; padding-top: 0.75rem; margin-top: 0.75rem; }
-      .q-thumb { max-width: 12rem; max-height: 8rem; margin: 0.5rem 0; border-radius: 8px; display: block; }
-      .badge-tf { display: inline-block; font-size: 0.75rem; padding: 0.15rem 0.45rem; border-radius: 6px;
-        background: #334155; color: var(--text); margin-left: 0.5rem; vertical-align: middle; }
-      .tf-row label { display: inline-flex; align-items: center; margin-right: 1rem; width: auto; }
-      [hidden] { display: none !important; }
-    </style>
 </head>
 <body>
-<main class="host">
+<main class="host editor">
     <div class="brand-row">
         <img class="brand-mark" src="/assets/brand/logo-icon.png?v=20261008" width="64" height="64" alt="TrainArena" />
         <h1>Quiz bearbeiten</h1>
@@ -44,11 +26,11 @@
 
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))
     {
-        <p class="error">@Model.ErrorMessage</p>
+        <p class="flash flash-error" role="alert">@Model.ErrorMessage</p>
     }
     @if (!string.IsNullOrEmpty(Model.InfoMessage))
     {
-        <p class="info">@Model.InfoMessage</p>
+        <p class="flash flash-ok" role="status">@Model.InfoMessage</p>
     }
 
     <section class="panel">
@@ -64,9 +46,9 @@
     <section class="panel">
         <h2>Import CSV / JSON</h2>
         <p class="muted">TrainArena-CSV, Kahoot-CSV oder JSON-Quiz-Pack. Ungültige Einträge werden übersprungen. JSON kann Fragetypen, Code-Fences und eingebettete Bilder (Base64) enthalten — siehe <code>docs/quizzes/</code>.</p>
-        <form method="post" asp-page-handler="Import" enctype="multipart/form-data">
+        <form method="post" asp-page-handler="Import" enctype="multipart/form-data" class="import-zone">
             <input type="hidden" name="id" value="@quiz.Id" />
-            <label>Datei
+            <label>Datei wählen
                 <input type="file" name="file" accept=".csv,.json,text/csv,application/json" required />
             </label>
             <button type="submit">Importieren</button>
@@ -75,6 +57,10 @@
 
     <section class="panel">
         <h2>Fragen (@quiz.Questions.Count)</h2>
+        @if (quiz.Questions.Count == 0)
+        {
+            <p class="muted editor-empty">Noch keine Fragen — Import nutzen oder unten anlegen.</p>
+        }
         @foreach (var q in quiz.Questions.OrderBy(x => x.SortOrder))
         {
             var filled = QuizRules.GetFilledOptions(q);
@@ -114,7 +100,7 @@
                 <form method="post" asp-page-handler="DeleteQuestion">
                     <input type="hidden" name="id" value="@quiz.Id" />
                     <input type="hidden" name="questionId" value="@q.Id" />
-                    <button type="submit">Frage löschen</button>
+                    <button type="submit" class="danger">Frage löschen</button>
                 </form>
             </div>
         }

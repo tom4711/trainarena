@@ -301,10 +301,16 @@ try
         return Results.Ok(new { id, tags });
     });
     // Host UI only — players use /player. Confirmation is client-side.
-    app.MapPost("/api/shutdown", (IHostApplicationLifetime lifetime) =>
+    // Stop after the response is sent — calling StopApplication mid-request can abort
+    // the 200 as InternalServerError (seen intermittently in ShutdownApiTests on CI).
+    app.MapPost("/api/shutdown", (IHostApplicationLifetime lifetime, HttpContext http) =>
     {
         WriteStartupLog(dataRoot, "Shutdown requested via /api/shutdown");
-        lifetime.StopApplication();
+        http.Response.OnCompleted(() =>
+        {
+            lifetime.StopApplication();
+            return Task.CompletedTask;
+        });
         return Results.Ok(new { status = "stopping" });
     });
 
