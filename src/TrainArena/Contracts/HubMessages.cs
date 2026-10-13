@@ -60,6 +60,8 @@ public sealed record GameFinishedMessage(
 
 public sealed record ExamConfigDto(bool Enabled, IReadOnlyList<string>? Tags = null);
 
+public sealed record AsyncRaceConfigDto(bool Enabled);
+
 public sealed record PowerUpConfigDto(
     bool Enabled,
     Dictionary<string, int>? Starter,

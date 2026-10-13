@@ -37,12 +37,14 @@ public sealed class GameSession
         Guid quizId,
         PowerUpRoomConfig? powerUpConfig = null,
         AutoAdvanceOptions? autoAdvance = null,
-        bool examMode = false)
+        bool examMode = false,
+        bool asyncRaceEnabled = false)
     {
         Code = code;
         HostConnectionId = hostConnectionId;
         QuizId = quizId;
         ExamMode = examMode;
+        AsyncRaceEnabled = asyncRaceEnabled;
         var pu = powerUpConfig ?? PowerUpRoomConfig.CreateDefault();
         if (examMode)
         {
@@ -52,11 +54,16 @@ public sealed class GameSession
 
         PowerUpConfig = pu;
         AutoAdvance = autoAdvance ?? AutoAdvanceOptions.CreateDefault();
+        if (asyncRaceEnabled)
+        {
+            AutoAdvance.Enabled = false;
+        }
     }
 
     public PowerUpRoomConfig PowerUpConfig { get; }
     public AutoAdvanceOptions AutoAdvance { get; }
     public bool ExamMode { get; }
+    public bool AsyncRaceEnabled { get; }
 
     public string Code { get; }
     public string HostConnectionId { get; private set; }

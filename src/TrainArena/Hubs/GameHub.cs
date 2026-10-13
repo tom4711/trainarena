@@ -39,9 +39,17 @@ public sealed class GameHub : Hub
         Guid quizId,
         PowerUpConfigDto? powerUpConfig,
         AutoAdvanceConfigDto? autoAdvance,
-        ExamConfigDto? exam)
+        ExamConfigDto? exam,
+        AsyncRaceConfigDto? asyncRace = null)
     {
         var examMode = exam?.Enabled == true;
+        var asyncRaceEnabled = asyncRace?.Enabled == true;
+        if (asyncRaceEnabled && examMode)
+        {
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(
+                "Async-Rennen und Prüfungsmodus sind nicht kombinierbar."));
+            return;
+        }
         // Tag filter applies whenever tags are set (also outside exam mode).
         PowerUpRoomConfig? roomConfig = null;
         if (!examMode && powerUpConfig is not null)
@@ -78,6 +86,13 @@ public sealed class GameHub : Hub
             }
         }
 
+        if (asyncRaceEnabled && autoAdvanceOptions is { Enabled: true })
+        {
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(
+                "Async-Rennen und Auto-Advance sind nicht kombinierbar."));
+            return;
+        }
+
         await using var scope = _scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var quiz = await db.Quizzes
@@ -109,7 +124,13 @@ public sealed class GameHub : Hub
             return;
         }
 
-        var session = _sessions.Create(Context.ConnectionId, quizId, roomConfig, autoAdvanceOptions, examMode);
+        var session = _sessions.Create(
+            Context.ConnectionId,
+            quizId,
+            roomConfig,
+            autoAdvanceOptions,
+            examMode,
+            asyncRaceEnabled);
         session.SetQuestions(questions);
 
         await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(session.Code));
