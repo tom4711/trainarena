@@ -106,7 +106,8 @@ public class ExamModeHubTests : IClassFixture<TrainArenaWebAppFactory>
             quizId,
             null,
             null,
-            new ExamConfigDto(true, ["sql"]));
+            new ExamConfigDto(true, ["sql"]),
+            null);
         var room = await roomCreated;
 
         var joined = WaitFor<PlayerJoinedMessage>(host, "PlayerJoined");
