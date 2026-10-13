@@ -57,4 +57,50 @@ public class AsyncRaceSessionTests
         Assert.Equal(0, board[0].AnsweredCount);
         Assert.Equal(1, board[0].Total);
     }
+
+    [Fact]
+    public void SubmitAsyncAnswer_AdvancesOnlyThatPlayer()
+    {
+        var s = NewAsyncTwoPlayerTwoQuestions();
+        Assert.True(s.StartAsyncRace(DateTimeOffset.UtcNow).ok);
+        var adaQ = s.GetRaceState("Ada")!.Current!;
+        var r = s.SubmitAsyncAnswer("Ada", adaQ.CorrectIndex, DateTimeOffset.UtcNow);
+        Assert.True(r.Ok);
+        Assert.Equal(1, s.GetRaceState("Ada")!.Index);
+        Assert.Equal(0, s.GetRaceState("Bob")!.Index);
+        Assert.False(r.RaceFinished);
+    }
+
+    [Fact]
+    public void AllPlayersFinished_SetsPhaseFinished()
+    {
+        var s = NewAsyncOnePlayerOneQuestion();
+        Assert.True(s.StartAsyncRace(DateTimeOffset.UtcNow).ok);
+        var q = s.GetRaceState("Ada")!.Current!;
+        var r = s.SubmitAsyncAnswer("Ada", q.CorrectIndex, DateTimeOffset.UtcNow);
+        Assert.True(r.PlayerFinished);
+        Assert.True(r.RaceFinished);
+        Assert.Equal(GamePhase.Finished, s.Phase);
+    }
+
+    private static GameSession NewAsyncTwoPlayerTwoQuestions()
+    {
+        var s = new GameSession("ABC123", "host", Guid.NewGuid(), asyncRaceEnabled: true);
+        s.SetQuestions(
+        [
+            new DemoQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+            new DemoQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 1, TimeLimitSeconds = 20 },
+        ]);
+        s.TryJoin("Ada", "c1");
+        s.TryJoin("Bob", "c2");
+        return s;
+    }
+
+    private static GameSession NewAsyncOnePlayerOneQuestion()
+    {
+        var s = new GameSession("ABC123", "host", Guid.NewGuid(), asyncRaceEnabled: true);
+        s.SetQuestions([new DemoQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0 }]);
+        s.TryJoin("Ada", "c1");
+        return s;
+    }
 }

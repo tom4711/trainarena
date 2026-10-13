@@ -3,6 +3,21 @@ using TrainArena.Game.PowerUps;
 
 namespace TrainArena.Game;
 
+public sealed record AsyncSubmitResult(
+    bool Ok,
+    string? Error,
+    int PointsAwarded,
+    bool Correct,
+    int CorrectIndex,
+    string? Explanation,
+    bool PlayerFinished,
+    bool RaceFinished,
+    DemoQuestion? NextQuestion,
+    DateTimeOffset? NextStartedAtUtc,
+    DateTimeOffset? NextEndsAtUtc,
+    int NextIndex,
+    int Total);
+
 public sealed class PlayerInfo
 {
     public required string Nickname { get; init; }
@@ -542,46 +557,12 @@ public sealed class GameSession
             // Disrupted answers never score and do not count for streak.
             var countsAsCorrect = correct && !disrupted;
             _correctThisQuestion[player.Nickname] = countsAsCorrect;
-            int points;
-            if (ExamMode)
-            {
-                var ihk = QuestionIndex >= 0 && QuestionIndex < _ihkPointsPerQuestion.Length
-                    ? _ihkPointsPerQuestion[QuestionIndex]
-                    : 0;
-                points = countsAsCorrect ? ihk : 0;
-                if (puState is not null)
-                {
-                    puState.DisruptedThisQuestion = false;
-                    puState.DoubleActive = false;
-                }
-            }
-            else
-            {
-                var elapsed = serverUtc - QuestionStartedAtUtc.Value;
-                points = Scoring.Score(countsAsCorrect, elapsed, _questionScoreLimit);
-                if (puState is not null)
-                {
-                    puState.DisruptedThisQuestion = false;
-                }
-
-                if (points > 0)
-                {
-                    if (puState is not null && puState.DoubleActive)
-                    {
-                        points *= 2;
-                        puState.DoubleActive = false;
-                    }
-
-                    if (_boostAllActive)
-                    {
-                        points = (int)Math.Floor(points * 1.5);
-                    }
-                }
-                else if (puState is not null)
-                {
-                    puState.DoubleActive = false;
-                }
-            }
+            var points = ComputeSubmitPoints(
+                countsAsCorrect,
+                serverUtc,
+                QuestionStartedAtUtc.Value,
+                _questionScoreLimit,
+                puState);
 
             player.Score += points;
             return (true, null, points);
@@ -857,6 +838,103 @@ public sealed class GameSession
         }
     }
 
+    public AsyncSubmitResult SubmitAsyncAnswer(string nickname, int optionIndex, DateTimeOffset nowUtc)
+    {
+        lock (_gate)
+        {
+            if (Phase != GamePhase.AsyncRacing)
+            {
+                return AsyncSubmitFail("No async race in progress");
+            }
+
+            var player = FindPlayerByNickname(nickname);
+            if (player is null)
+            {
+                return AsyncSubmitFail("Not a player in this room");
+            }
+
+            if (!_races.TryGetValue(player.Nickname, out var race) || race.Finished)
+            {
+                return AsyncSubmitFail("No active question");
+            }
+
+            var question = race.Current;
+            if (question is null)
+            {
+                return AsyncSubmitFail("No active question");
+            }
+
+            if (race.EndsAtUtc is not null && nowUtc > race.EndsAtUtc.Value)
+            {
+                return AsyncSubmitFail("Question already ended");
+            }
+
+            if (optionIndex < 0 || optionIndex >= question.Options.Length)
+            {
+                return AsyncSubmitFail("Invalid option");
+            }
+
+            _powerUps.TryGetValue(player.Nickname, out var puState);
+            var correct = optionIndex == question.CorrectIndex;
+            var disrupted = puState is not null && puState.DisruptedThisQuestion;
+            var countsAsCorrect = correct && !disrupted;
+            var startedAt = race.QuestionStartedAtUtc ?? nowUtc;
+            var limit = QuestionTimeLimit(question);
+            var points = ComputeSubmitPoints(countsAsCorrect, nowUtc, startedAt, limit, puState);
+            player.Score += points;
+
+            return AdvanceAsyncPlayerAfterAnswer(
+                race,
+                question,
+                nowUtc,
+                points,
+                correct);
+        }
+    }
+
+    public (bool timedOut, AsyncSubmitResult? result) TryTimeoutAsyncPlayer(
+        string nickname,
+        DateTimeOffset nowUtc)
+    {
+        lock (_gate)
+        {
+            if (Phase != GamePhase.AsyncRacing)
+            {
+                return (false, null);
+            }
+
+            if (!_races.TryGetValue(nickname, out var race) || race.Finished)
+            {
+                return (false, null);
+            }
+
+            if (race.EndsAtUtc is null || nowUtc < race.EndsAtUtc.Value)
+            {
+                return (false, null);
+            }
+
+            var question = race.Current;
+            if (question is null)
+            {
+                return (false, null);
+            }
+
+            if (_powerUps.TryGetValue(nickname, out var puState))
+            {
+                puState.DisruptedThisQuestion = false;
+            }
+
+            var result = AdvanceAsyncPlayerAfterAnswer(
+                race,
+                question,
+                nowUtc,
+                pointsAwarded: 0,
+                correct: false);
+
+            return (true, result);
+        }
+    }
+
     public bool IsHost(string connectionId) =>
         string.Equals(HostConnectionId, connectionId, StringComparison.Ordinal);
 
@@ -960,6 +1038,131 @@ public sealed class GameSession
         _roomExtraTimeExtendedThisQuestion = false;
         _hostEventsUsedThisQuestion = 0;
         _boostAllActive = false;
+    }
+
+    private PlayerInfo? FindPlayerByNickname(string nickname) =>
+        _players.FirstOrDefault(p =>
+            string.Equals(p.Nickname, nickname, StringComparison.OrdinalIgnoreCase));
+
+    private static TimeSpan QuestionTimeLimit(DemoQuestion question) =>
+        TimeSpan.FromSeconds(question.TimeLimitSeconds <= 0 ? 20 : question.TimeLimitSeconds);
+
+    private static AsyncSubmitResult AsyncSubmitFail(string error) =>
+        new(false, error, 0, false, 0, null, false, false, null, null, null, 0, 0);
+
+    private int ComputeSubmitPoints(
+        bool countsAsCorrect,
+        DateTimeOffset serverUtc,
+        DateTimeOffset questionStartedAtUtc,
+        TimeSpan scoreLimit,
+        PlayerPowerUpState? puState)
+    {
+        int points;
+        if (ExamMode)
+        {
+            var ihk = QuestionIndex >= 0 && QuestionIndex < _ihkPointsPerQuestion.Length
+                ? _ihkPointsPerQuestion[QuestionIndex]
+                : 0;
+            points = countsAsCorrect ? ihk : 0;
+            if (puState is not null)
+            {
+                puState.DisruptedThisQuestion = false;
+                puState.DoubleActive = false;
+            }
+        }
+        else
+        {
+            var elapsed = serverUtc - questionStartedAtUtc;
+            points = Scoring.Score(countsAsCorrect, elapsed, scoreLimit);
+            if (puState is not null)
+            {
+                puState.DisruptedThisQuestion = false;
+            }
+
+            if (points > 0)
+            {
+                if (puState is not null && puState.DoubleActive)
+                {
+                    points *= 2;
+                    puState.DoubleActive = false;
+                }
+
+                if (_boostAllActive)
+                {
+                    points = (int)Math.Floor(points * 1.5);
+                }
+            }
+            else if (puState is not null)
+            {
+                puState.DoubleActive = false;
+            }
+        }
+
+        return points;
+    }
+
+    private AsyncSubmitResult AdvanceAsyncPlayerAfterAnswer(
+        PlayerRaceState race,
+        DemoQuestion answeredQuestion,
+        DateTimeOffset nowUtc,
+        int pointsAwarded,
+        bool correct)
+    {
+        race.Index++;
+        var playerFinished = race.Finished;
+        DemoQuestion? nextQuestion = null;
+        DateTimeOffset? nextStartedAtUtc = null;
+        DateTimeOffset? nextEndsAtUtc = null;
+
+        if (!playerFinished)
+        {
+            nextQuestion = race.Current;
+            nextStartedAtUtc = nowUtc;
+            race.QuestionStartedAtUtc = nowUtc;
+            nextEndsAtUtc = nowUtc + QuestionTimeLimit(nextQuestion!);
+            race.EndsAtUtc = nextEndsAtUtc;
+        }
+        else
+        {
+            race.QuestionStartedAtUtc = null;
+            race.EndsAtUtc = null;
+        }
+
+        var raceFinished = TryFinishAsyncRaceIfAllPlayersDone();
+
+        return new AsyncSubmitResult(
+            Ok: true,
+            Error: null,
+            PointsAwarded: pointsAwarded,
+            Correct: correct,
+            CorrectIndex: answeredQuestion.CorrectIndex,
+            Explanation: answeredQuestion.Explanation,
+            PlayerFinished: playerFinished,
+            RaceFinished: raceFinished,
+            NextQuestion: nextQuestion,
+            NextStartedAtUtc: nextStartedAtUtc,
+            NextEndsAtUtc: nextEndsAtUtc,
+            NextIndex: race.Index,
+            Total: race.Order.Count);
+    }
+
+    private bool TryFinishAsyncRaceIfAllPlayersDone()
+    {
+        if (_players.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var p in _players)
+        {
+            if (!_races.TryGetValue(p.Nickname, out var race) || !race.Finished)
+            {
+                return false;
+            }
+        }
+
+        Phase = GamePhase.Finished;
+        return true;
     }
 
     private static List<T> ShuffleCopy<T>(IReadOnlyList<T> source, Random rng)
