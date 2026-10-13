@@ -29,23 +29,34 @@ public sealed class GameSession
     private int _hostEventsUsedThisQuestion;
     private bool _boostAllActive;
     private TimeSpan _questionScoreLimit;
+    private int[] _ihkPointsPerQuestion = [];
 
     public GameSession(
         string code,
         string hostConnectionId,
         Guid quizId,
         PowerUpRoomConfig? powerUpConfig = null,
-        AutoAdvanceOptions? autoAdvance = null)
+        AutoAdvanceOptions? autoAdvance = null,
+        bool examMode = false)
     {
         Code = code;
         HostConnectionId = hostConnectionId;
         QuizId = quizId;
-        PowerUpConfig = powerUpConfig ?? PowerUpRoomConfig.CreateDefault();
+        ExamMode = examMode;
+        var pu = powerUpConfig ?? PowerUpRoomConfig.CreateDefault();
+        if (examMode)
+        {
+            pu.Enabled = false;
+            pu.HostEventsEnabled = false;
+        }
+
+        PowerUpConfig = pu;
         AutoAdvance = autoAdvance ?? AutoAdvanceOptions.CreateDefault();
     }
 
     public PowerUpRoomConfig PowerUpConfig { get; }
     public AutoAdvanceOptions AutoAdvance { get; }
+    public bool ExamMode { get; }
 
     public string Code { get; }
     public string HostConnectionId { get; private set; }
@@ -97,6 +108,39 @@ public sealed class GameSession
             _quizQuestions = questions.ToList();
             QuestionIndex = -1;
             _review.Clear();
+            _ihkPointsPerQuestion = ExamMode
+                ? IhkGrading.NormalizeToHundred(_quizQuestions.Select(q => q.Points).ToList())
+                : [];
+        }
+    }
+
+    public int GetIhkPointsForQuestion(int index)
+    {
+        lock (_gate)
+        {
+            if (index < 0 || index >= _ihkPointsPerQuestion.Length)
+            {
+                return 0;
+            }
+
+            return _ihkPointsPerQuestion[index];
+        }
+    }
+
+    public IReadOnlyList<IhkPlayerResult> GetIhkResults()
+    {
+        lock (_gate)
+        {
+            return _players
+                .OrderByDescending(p => p.Score)
+                .ThenBy(p => p.Nickname, StringComparer.OrdinalIgnoreCase)
+                .Select(p =>
+                {
+                    var points = Math.Clamp(p.Score, 0, IhkGrading.MaxPoints);
+                    var grade = IhkGrading.GradeFromPoints(points);
+                    return new IhkPlayerResult(p.Nickname, points, grade, IhkGrading.IsPassed(points));
+                })
+                .ToList();
         }
     }
 
@@ -488,29 +532,45 @@ public sealed class GameSession
             // Disrupted answers never score and do not count for streak.
             var countsAsCorrect = correct && !disrupted;
             _correctThisQuestion[player.Nickname] = countsAsCorrect;
-            var elapsed = serverUtc - QuestionStartedAtUtc.Value;
-            var points = Scoring.Score(countsAsCorrect, elapsed, _questionScoreLimit);
-            if (puState is not null)
+            int points;
+            if (ExamMode)
             {
-                puState.DisruptedThisQuestion = false;
-            }
-
-            if (points > 0)
-            {
-                if (puState is not null && puState.DoubleActive)
+                var ihk = QuestionIndex >= 0 && QuestionIndex < _ihkPointsPerQuestion.Length
+                    ? _ihkPointsPerQuestion[QuestionIndex]
+                    : 0;
+                points = countsAsCorrect ? ihk : 0;
+                if (puState is not null)
                 {
-                    points *= 2;
+                    puState.DisruptedThisQuestion = false;
                     puState.DoubleActive = false;
                 }
-
-                if (_boostAllActive)
-                {
-                    points = (int)Math.Floor(points * 1.5);
-                }
             }
-            else if (puState is not null)
+            else
             {
-                puState.DoubleActive = false;
+                var elapsed = serverUtc - QuestionStartedAtUtc.Value;
+                points = Scoring.Score(countsAsCorrect, elapsed, _questionScoreLimit);
+                if (puState is not null)
+                {
+                    puState.DisruptedThisQuestion = false;
+                }
+
+                if (points > 0)
+                {
+                    if (puState is not null && puState.DoubleActive)
+                    {
+                        points *= 2;
+                        puState.DoubleActive = false;
+                    }
+
+                    if (_boostAllActive)
+                    {
+                        points = (int)Math.Floor(points * 1.5);
+                    }
+                }
+                else if (puState is not null)
+                {
+                    puState.DoubleActive = false;
+                }
             }
 
             player.Score += points;
@@ -794,6 +854,9 @@ public sealed class GameSession
         }
 
         var playerCount = Math.Max(_players.Count(p => p.IsConnected), _answersThisQuestion.Count);
+        var ihk = QuestionIndex >= 0 && QuestionIndex < _ihkPointsPerQuestion.Length
+            ? _ihkPointsPerQuestion[QuestionIndex]
+            : 0;
         _review.Add(new QuestionReviewStat
         {
             QuestionIndex = QuestionIndex,
@@ -803,7 +866,10 @@ public sealed class GameSession
             Counts = counts,
             AnsweredCount = _answersThisQuestion.Count,
             PlayerCount = playerCount,
-            CorrectCount = correct
+            CorrectCount = correct,
+            Explanation = CurrentQuestion.Explanation,
+            Tags = CurrentQuestion.Tags,
+            IhkPoints = ihk,
         });
     }
 

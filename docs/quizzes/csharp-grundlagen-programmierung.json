@@ -1,0 +1,277 @@
+{
+  "title": "C# Grundlagen — Programmierung",
+  "questions": [
+    {
+      "text": "Welcher C#-Datentyp speichert ganze Zahlen ohne Nachkommastellen?",
+      "displayKind": "mc",
+      "options": [
+        "int",
+        "double",
+        "bool",
+        "string"
+      ],
+      "correctIndex": 0,
+      "timeLimitSeconds": 20,
+      "tags": [
+        "typen"
+      ],
+      "explanation": "int ist der Standard-Ganzzahltyp (32 Bit).",
+      "points": 5
+    },
+    {
+      "text": "Welcher Typ speichert die Wahrheitswerte true und false?",
+      "options": [
+        "char",
+        "bool",
+        "byte",
+        "decimal"
+      ],
+      "correctIndex": 1,
+      "timeLimitSeconds": 22,
+      "tags": [
+        "typen"
+      ],
+      "explanation": "bool speichert nur true oder false.",
+      "points": 5
+    },
+    {
+      "text": "Welcher Typ eignet sich in C# besonders für Geldbeträge (exakte Dezimalzahlen)?",
+      "options": [
+        "float",
+        "double",
+        "decimal",
+        "int"
+      ],
+      "correctIndex": 2,
+      "timeLimitSeconds": 25,
+      "tags": [
+        "typen"
+      ],
+      "explanation": "decimal ist für Geldbeträge vorgesehen (hohe Genauigkeit).",
+      "points": 5
+    },
+    {
+      "text": "Was beschreibt am besten den Typ string in C#?",
+      "options": [
+        "Ein Werttyp für einzelne Zeichen",
+        "Ein Verweistyp für Textfolgen",
+        "Ein ganzzahliger Typ mit 64 Bit",
+        "Ein Typ nur für Zahlen mit Komma"
+      ],
+      "correctIndex": 1,
+      "timeLimitSeconds": 22,
+      "tags": [
+        "typen"
+      ],
+      "explanation": "string ist ein Verweistyp für Textfolgen.",
+      "points": 5
+    },
+    {
+      "text": "Welches Schlüsselwort lässt den Compiler den Typ einer lokalen Variable ableiten?\n\n```csharp\nvar name = \"Ada\";\n```",
+      "options": [
+        "object",
+        "dynamic",
+        "var",
+        "typeof"
+      ],
+      "correctIndex": 2,
+      "timeLimitSeconds": 22,
+      "tags": [
+        "typen",
+        "var"
+      ],
+      "explanation": "var leitet den Typ zur Compile-Zeit ab.",
+      "points": 5
+    },
+    {
+      "text": "Was gilt für eine mit const deklarierte Konstante?",
+      "options": [
+        "Sie kann zur Laufzeit beliebig geändert werden",
+        "Ihr Wert muss zur Compile-Zeit feststehen",
+        "Sie darf nur in Schleifen verwendet werden",
+        "Sie speichert immer einen string"
+      ],
+      "correctIndex": 1,
+      "timeLimitSeconds": 22,
+      "tags": [
+        "konstanten"
+      ],
+      "explanation": "const-Werte müssen zur Compile-Zeit bekannt sein.",
+      "points": 5
+    },
+    {
+      "text": "Was ist nach diesem Code der Wert von x?\n\n```csharp\nint x = 5;\nint y = x;\ny = 9;\n```",
+      "options": [
+        "9",
+        "5",
+        "0",
+        "Der Code kompiliert nicht"
+      ],
+      "correctIndex": 1,
+      "timeLimitSeconds": 25,
+      "tags": [
+        "typen",
+        "werttypen"
+      ],
+      "explanation": "Werttypen werden kopiert — y = x kopiert den Wert.",
+      "points": 6
+    },
+    {
+      "text": "Welche Kontrollstruktur prüft eine Bedingung und führt dann einen von zwei Zweigen aus?",
+      "options": [
+        "for",
+        "if / else",
+        "foreach",
+        "using"
+      ],
+      "correctIndex": 1,
+      "timeLimitSeconds": 22,
+      "tags": [
+        "kontrolle"
+      ],
+      "explanation": "if/else wählt einen von zwei Zweigen.",
+      "points": 5
+    },
+    {
+      "text": "Wofür eignet sich switch in C# besonders gut?",
+      "options": [
+        "Zum Öffnen von Dateien",
+        "Zur Mehrfachauswahl anhand eines Ausdrucks",
+        "Zum Definieren von Klassen",
+        "Zum Beenden des Programms"
+      ],
+      "correctIndex": 1,
+      "timeLimitSeconds": 22,
+      "tags": [
+        "kontrolle"
+      ],
+      "explanation": "switch eignet sich für Mehrfachauswahl.",
+      "points": 5
+    },
+    {
+      "text": "Was liefert dieser Ausdruck, wenn score = 40?\n\n```csharp\n(score >= 50) ? \"Bestanden\" : \"Nicht bestanden\"\n```",
+      "options": [
+        "Bestanden",
+        "Nicht bestanden",
+        "true",
+        "40"
+      ],
+      "correctIndex": 1,
+      "timeLimitSeconds": 25,
+      "tags": [
+        "kontrolle",
+        "operatoren"
+      ],
+      "explanation": "Der ternäre Operator liefert hier „Nicht bestanden“.",
+      "points": 6
+    },
+    {
+      "text": "Welche Schleife eignet sich besonders zum Durchlaufen aller Elemente einer Liste?",
+      "options": [
+        "goto",
+        "foreach",
+        "switch",
+        "lock"
+      ],
+      "correctIndex": 1,
+      "timeLimitSeconds": 22,
+      "tags": [
+        "schleifen"
+      ],
+      "explanation": "foreach iteriert über alle Elemente einer Sequenz.",
+      "points": 5
+    },
+    {
+      "text": "Was ist der Hauptunterschied zwischen while und do-while?",
+      "options": [
+        "do-while gibt es in C# nicht",
+        "do-while prüft die Bedingung erst nach dem ersten Durchlauf",
+        "while kann keine Variablen ändern",
+        "while läuft immer genau einmal"
+      ],
+      "correctIndex": 1,
+      "timeLimitSeconds": 25,
+      "tags": [
+        "schleifen"
+      ],
+      "explanation": "do-while führt den Rumpf mindestens einmal aus.",
+      "points": 6
+    },
+    {
+      "text": "Was bewirkt continue in einer Schleife?",
+      "options": [
+        "Beendet die gesamte Methode",
+        "Beendet die Schleife komplett",
+        "Springt zum nächsten Schleifendurchlauf",
+        "Löscht die Schleifenvariable"
+      ],
+      "correctIndex": 2,
+      "timeLimitSeconds": 22,
+      "tags": [
+        "schleifen"
+      ],
+      "explanation": "continue überspringt den Rest des aktuellen Durchlaufs.",
+      "points": 5
+    },
+    {
+      "text": "Was bedeutet der Rückgabetyp void bei einer Methode?\n\n```csharp\nvoid Log(string message)\n{\n    Console.WriteLine(message);\n}\n```",
+      "options": [
+        "Die Methode gibt einen leeren string zurück",
+        "Die Methode gibt keinen Wert zurück",
+        "Die Methode darf keine Parameter haben",
+        "Die Methode ist veraltet"
+      ],
+      "correctIndex": 1,
+      "timeLimitSeconds": 25,
+      "tags": [
+        "methoden"
+      ],
+      "explanation": "void bedeutet: kein Rückgabewert.",
+      "points": 5
+    },
+    {
+      "text": "Was macht return in einer Methode mit Rückgabetyp int?",
+      "options": [
+        "Beendet nur die aktuelle Schleife",
+        "Liefert einen int-Wert an den Aufrufer und verlässt die Methode",
+        "Deklariert eine neue Variable",
+        "Startet die Methode erneut"
+      ],
+      "correctIndex": 1,
+      "timeLimitSeconds": 25,
+      "tags": [
+        "methoden"
+      ],
+      "explanation": "return liefert den Wert und beendet die Methode.",
+      "points": 6
+    },
+    {
+      "text": "Wann spricht man in C# von Methodenüberladung (Overloading)?",
+      "options": [
+        "Wenn eine Methode sich selbst aufruft",
+        "Wenn mehrere Methoden denselben Namen, aber unterschiedliche Parameterlisten haben",
+        "Wenn eine Methode als async markiert ist",
+        "Wenn eine Methode private ist"
+      ],
+      "correctIndex": 1,
+      "timeLimitSeconds": 25,
+      "tags": [
+        "methoden"
+      ],
+      "explanation": "Überladung: gleicher Name, andere Parameterliste.",
+      "points": 6
+    },
+    {
+      "text": "var darf für lokale Variablen verwendet werden, wenn der Typ eindeutig aus dem Ausdruck folgt.",
+      "displayKind": "trueFalse",
+      "correctIndex": 0,
+      "timeLimitSeconds": 15,
+      "tags": [
+        "typen",
+        "var"
+      ],
+      "explanation": "Die Aussage ist richtig — var braucht einen eindeutigen Typ.",
+      "points": 5
+    }
+  ]
+}

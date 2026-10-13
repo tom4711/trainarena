@@ -7,6 +7,9 @@ public sealed class DemoQuestion
     public required int CorrectIndex { get; init; }
     public int TimeLimitSeconds { get; init; } = 20;
     public string? ImageUrl { get; init; }
+    public string? Explanation { get; init; }
+    public IReadOnlyList<string> Tags { get; init; } = [];
+    public int Points { get; init; }
 }
 
 public enum GamePhase

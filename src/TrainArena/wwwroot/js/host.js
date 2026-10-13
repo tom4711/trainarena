@@ -58,6 +58,12 @@
     $("auto-advance-setup").querySelectorAll("input, select").forEach((el) => {
       el.disabled = true;
     });
+    const exam = $("exam-setup");
+    if (exam) {
+      exam.querySelectorAll("input").forEach((el) => {
+        el.disabled = true;
+      });
+    }
   }
 
   function readAutoAdvanceConfig() {
@@ -147,13 +153,115 @@
           return `<li class="${correct}"><span class="opt-index">${i + 1}</span> ${escapeHtml(opt)} <span class="muted">× ${count}</span></li>`;
         })
         .join("");
+      const tags = (r.tags || []).map((t) => `<span class="tag-chip">${escapeHtml(t)}</span>`).join("");
+      const expl = r.explanation
+        ? `<div class="explanation"><strong>Erklärung:</strong> <span class="explanation-body"></span></div>`
+        : "";
+      const ihkPts = r.ihkPoints ? `<span class="muted"> · ${r.ihkPoints} IHK-Pkte</span>` : "";
       block.innerHTML = `
-      <h4>${r.index + 1}. ${escapeHtml(r.text)}</h4>
-      <p class="muted">${pct} richtig · ${r.answeredCount} von ${r.playerCount} geantwortet</p>
-      <ol class="options review-options">${opts}</ol>`;
+      <h4><span class="review-num">${r.index + 1}.</span> <span class="review-qtext"></span></h4>
+      <p class="muted">${pct} richtig · ${r.answeredCount} von ${r.playerCount} geantwortet${ihkPts}</p>
+      <div class="tag-row">${tags}</div>
+      <ol class="options review-options">${opts}</ol>
+      ${expl}`;
+      const qEl = block.querySelector(".review-qtext");
+      if (window.TrainArenaQuestionFormat) {
+        window.TrainArenaQuestionFormat.renderQuestionText(qEl, r.text);
+      } else if (qEl) {
+        qEl.textContent = r.text || "";
+      }
+      const explBody = block.querySelector(".explanation-body");
+      if (explBody && r.explanation) {
+        if (window.TrainArenaQuestionFormat) {
+          window.TrainArenaQuestionFormat.renderQuestionText(explBody, r.explanation);
+        } else {
+          explBody.textContent = r.explanation;
+        }
+      }
       reviewList.appendChild(block);
     });
     reviewEl.classList.remove("hidden");
+  }
+
+  function renderIhkResults(results) {
+    let box = $("ihk-results");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "ihk-results";
+      box.className = "ihk-results";
+      finishedEl.insertAdjacentElement("afterend", box);
+    }
+    if (!results || !results.length) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    box.classList.remove("hidden");
+    box.innerHTML =
+      "<h3>IHK-Ergebnis</h3><ol>" +
+      results
+        .map(
+          (r) =>
+            `<li><strong></strong> — ${r.points}/100 · Note ${r.grade} · ${
+              r.passed ? "bestanden" : "nicht bestanden"
+            }</li>`,
+        )
+        .join("") +
+      "</ol>";
+    [...box.querySelectorAll("li strong")].forEach((el, i) => {
+      el.textContent = results[i].nickname;
+    });
+  }
+
+  async function loadQuizTags(quizId) {
+    const wrap = $("tag-filter-wrap");
+    const list = $("tag-filter");
+    if (!wrap || !list) return;
+    list.innerHTML = "";
+    if (!quizId) {
+      wrap.classList.add("hidden");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/quizzes/${quizId}/tags`);
+      if (!res.ok) throw new Error("tags");
+      const data = await res.json();
+      const tags = data.tags || [];
+      if (!tags.length) {
+        wrap.classList.add("hidden");
+        return;
+      }
+      wrap.classList.remove("hidden");
+      tags.forEach((tag) => {
+        const label = document.createElement("label");
+        label.className = "inline tag-option";
+        label.innerHTML = `<input type="checkbox" data-tag="" /> <span></span>`;
+        label.querySelector("input").dataset.tag = tag;
+        label.querySelector("span").textContent = tag;
+        list.appendChild(label);
+      });
+    } catch {
+      wrap.classList.add("hidden");
+    }
+  }
+
+  function readExamConfig() {
+    const enabled = !!$("exam-enabled")?.checked;
+    const tags = [...document.querySelectorAll("#tag-filter input[data-tag]:checked")].map(
+      (el) => el.dataset.tag,
+    );
+    return { enabled, tags };
+  }
+
+  function syncExamUi() {
+    const on = !!$("exam-enabled")?.checked;
+    const pu = $("powerup-setup");
+    if (pu) {
+      pu.classList.toggle("is-disabled", on);
+      pu.querySelectorAll("input").forEach((el) => {
+        el.disabled = on;
+      });
+    }
   }
 
   function renderBoardEntries(entries) {
@@ -201,6 +309,8 @@
       }
       quizSelect.disabled = false;
       btnCreate.disabled = false;
+      await loadQuizTags(quizSelect.value);
+      syncExamUi();
     } catch (err) {
       quizSelect.innerHTML = `<option value="">Laden fehlgeschlagen</option>`;
       setLobbyStatus(`Quiz-Liste fehlgeschlagen: ${err}`, "is-error");
@@ -286,10 +396,17 @@
     setup.classList.add("hidden");
     live.classList.remove("hidden");
     revealEl.classList.add("hidden");
+    const explEl = $("question-explanation");
+    if (explEl) {
+      explEl.classList.add("hidden");
+      explEl.textContent = "";
+    }
     board.classList.add("hidden");
     boardHint.classList.add("hidden");
     btnNext.classList.add("hidden");
     finishedEl.classList.add("hidden");
+    finishedEl.textContent = "Runde beendet. Danke!";
+    renderIhkResults(null);
     clearReview();
     questionOpen = true;
     hostArenaUsed = false;
@@ -299,7 +416,11 @@
     setArenaVisible(true);
     setArenaButtonsEnabled(true);
     progressEl.textContent = `Frage ${(msg.index ?? 0) + 1} von ${msg.totalQuestions ?? "?"}`;
-    questionText.textContent = msg.text;
+    if (window.TrainArenaQuestionFormat) {
+      window.TrainArenaQuestionFormat.renderQuestionText(questionText, msg.text);
+    } else {
+      questionText.textContent = msg.text;
+    }
     if (msg.imageUrl) {
       questionImage.src = msg.imageUrl;
       questionImage.classList.remove("hidden");
@@ -331,6 +452,22 @@
     });
     revealEl.textContent = `Richtige Antwort: Option ${msg.correctIndex + 1}`;
     revealEl.classList.remove("hidden");
+    const explEl = $("question-explanation");
+    if (explEl) {
+      if (msg.explanation) {
+        explEl.classList.remove("hidden");
+        explEl.innerHTML = `<strong>Erklärung:</strong> <span class="explanation-body"></span>`;
+        const body = explEl.querySelector(".explanation-body");
+        if (window.TrainArenaQuestionFormat) {
+          window.TrainArenaQuestionFormat.renderQuestionText(body, msg.explanation);
+        } else if (body) {
+          body.textContent = msg.explanation;
+        }
+      } else {
+        explEl.classList.add("hidden");
+        explEl.textContent = "";
+      }
+    }
   });
 
   connection.on("Leaderboard", (msg) => {
@@ -365,7 +502,11 @@
     boardHint.classList.add("hidden");
     btnNext.classList.add("hidden");
     finishedEl.classList.remove("hidden");
-    progressEl.textContent = "Finale";
+    progressEl.textContent = msg.examMode ? "Prüfung beendet" : "Finale";
+    if (msg.examMode) {
+      finishedEl.textContent = "Prüfung beendet — IHK-Bewertung unten.";
+    }
+    renderIhkResults(msg.examMode ? msg.ihkResults : null);
     renderReview(msg.review);
   });
 
@@ -504,13 +645,19 @@
     }
     setLobbyStatus("Raum wird erstellt…", "is-loading");
     btnCreate.disabled = true;
-    const config = readPowerUpConfig();
+    const exam = readExamConfig();
+    const config = exam.enabled ? null : readPowerUpConfig();
     const autoAdvance = readAutoAdvanceConfig();
-    connection.invoke("CreateRoom", quizSelect.value, config, autoAdvance).catch((err) => {
+    connection.invoke("CreateRoom", quizSelect.value, config, autoAdvance, exam).catch((err) => {
       btnCreate.disabled = false;
       setLobbyStatus(`Raum erstellen fehlgeschlagen: ${err}`, "is-error");
     });
   });
+
+  quizSelect.addEventListener("change", () => {
+    loadQuizTags(quizSelect.value);
+  });
+  $("exam-enabled")?.addEventListener("change", syncExamUi);
   btnStart.addEventListener("click", () => {
     btnStart.disabled = true;
     connection.invoke("StartGame").catch((err) => {

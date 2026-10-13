@@ -37,11 +37,14 @@ public sealed class GameHub : Hub
 
     public async Task CreateRoom(
         Guid quizId,
-        PowerUpConfigDto? powerUpConfig = null,
-        AutoAdvanceConfigDto? autoAdvance = null)
+        PowerUpConfigDto? powerUpConfig,
+        AutoAdvanceConfigDto? autoAdvance,
+        ExamConfigDto? exam)
     {
+        var examMode = exam?.Enabled == true;
+        // Tag filter applies whenever tags are set (also outside exam mode).
         PowerUpRoomConfig? roomConfig = null;
-        if (powerUpConfig is not null)
+        if (!examMode && powerUpConfig is not null)
         {
             var (mapped, mapError) = MapPowerUpConfig(powerUpConfig);
             if (mapError is not null)
@@ -88,12 +91,25 @@ public sealed class GameHub : Hub
             return;
         }
 
+        var tagFilter = exam?.Tags is { Count: > 0 }
+            ? exam.Tags.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).ToList()
+            : [];
+
         var questions = quiz.Questions
             .OrderBy(q => q.SortOrder)
+            .Where(q => tagFilter.Count == 0 || QuestionTags.MatchesAny(q.Tags, tagFilter))
             .Select(QuizRules.ToDemoQuestion)
             .ToList();
 
-        var session = _sessions.Create(Context.ConnectionId, quizId, roomConfig, autoAdvanceOptions);
+        if (questions.Count == 0)
+        {
+            await Clients.Caller.SendAsync(
+                "JoinError",
+                new JoinErrorMessage("Keine Fragen für die gewählten Tags."));
+            return;
+        }
+
+        var session = _sessions.Create(Context.ConnectionId, quizId, roomConfig, autoAdvanceOptions, examMode);
         session.SetQuestions(questions);
 
         await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(session.Code));
@@ -472,17 +488,18 @@ public sealed class GameHub : Hub
 
     private async Task BroadcastQuestionEndedAsync(GameSession session)
     {
-        if (!session.ForceEndQuestion())
+        var explanation = session.ExamMode ? null : session.CurrentQuestion?.Explanation;
+        var correctIndex = session.CurrentQuestion?.CorrectIndex;
+        var index = session.QuestionIndex;
+        var total = session.QuestionCount;
+        if (!session.ForceEndQuestion() || correctIndex is null)
         {
             return;
         }
 
         await Clients.Group(RoomGroup(session.Code)).SendAsync(
             "QuestionEnded",
-            new QuestionEndedMessage(
-                session.CorrectIndex!.Value,
-                session.QuestionIndex,
-                session.QuestionCount));
+            new QuestionEndedMessage(correctIndex.Value, index, total, explanation));
 
         session.ApplyStreakRewards();
         await BroadcastInventoryUpdatesAsync(session);
@@ -543,17 +560,18 @@ public sealed class GameHub : Hub
 
     private async Task BroadcastQuestionEndedViaHubContextAsync(GameSession session)
     {
-        if (!session.ForceEndQuestion())
+        var explanation = session.ExamMode ? null : session.CurrentQuestion?.Explanation;
+        var correctIndex = session.CurrentQuestion?.CorrectIndex;
+        var index = session.QuestionIndex;
+        var total = session.QuestionCount;
+        if (!session.ForceEndQuestion() || correctIndex is null)
         {
             return;
         }
 
         await _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync(
             "QuestionEnded",
-            new QuestionEndedMessage(
-                session.CorrectIndex!.Value,
-                session.QuestionIndex,
-                session.QuestionCount));
+            new QuestionEndedMessage(correctIndex.Value, index, total, explanation));
 
         session.ApplyStreakRewards();
         await BroadcastInventoryUpdatesViaHubContextAsync(session);
@@ -735,10 +753,23 @@ public sealed class GameHub : Hub
             r.Counts,
             r.AnsweredCount,
             r.PlayerCount,
-            r.CorrectCount)).ToList();
+            r.CorrectCount,
+            r.Explanation,
+            r.Tags.ToList(),
+            r.IhkPoints)).ToList();
 
-    private static GameFinishedMessage ToFinished(GameSession session) =>
-        new(ToLeaderboard(session).Entries, ToReview(session));
+    private static GameFinishedMessage ToFinished(GameSession session)
+    {
+        IReadOnlyList<IhkResultDto>? ihk = null;
+        if (session.ExamMode)
+        {
+            ihk = session.GetIhkResults()
+                .Select(r => new IhkResultDto(r.Nickname, r.Points, r.Grade, r.Passed))
+                .ToList();
+        }
+
+        return new GameFinishedMessage(ToLeaderboard(session).Entries, ToReview(session), session.ExamMode, ihk);
+    }
 
     private async Task SendInventoryUpdateToCaller(GameSession session, string nickname)
     {

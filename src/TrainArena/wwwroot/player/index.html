@@ -39,11 +39,12 @@
         <p id="q-progress" class="muted"></p>
         <p id="q-timer" class="timer" aria-live="polite"></p>
       </div>
-      <h2 id="q-text"></h2>
+      <div id="q-text" class="q-text" role="heading" aria-level="2"></div>
       <img id="q-image" class="q-image hidden" alt="" />
       <div id="powerups" class="powerups hidden" aria-label="Power-Ups"></div>
       <div id="answers" class="answers"></div>
       <p id="answer-status" class="muted" aria-live="polite"></p>
+      <div id="question-explanation" class="explanation hidden" aria-live="polite"></div>
     </section>
 
     <section id="board" class="panel hidden board">
@@ -52,6 +53,7 @@
       <p id="wait-host" class="muted hidden">Warte auf den Host (nächste Frage)…</p>
       <p id="board-auto-advance" class="timer hidden" aria-live="polite"></p>
       <p id="done" class="hidden">Runde beendet — danke!</p>
+      <div id="ihk-results" class="ihk-results hidden" aria-live="polite"></div>
     </section>
 
     <div id="target-picker" class="target-picker hidden" role="dialog" aria-modal="true" aria-labelledby="target-picker-title">
@@ -72,7 +74,11 @@
     <p class="app-version" id="app-version" aria-label="App-Version" hidden></p>
   </main>
 
+  <link rel="stylesheet" href="/lib/prism/prism-tomorrow.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+  <script src="/lib/prism/prism.min.js"></script>
+  <script src="/lib/prism/prism-csharp.min.js"></script>
+  <script src="/js/question-format.js"></script>
   <script src="player.js"></script>
 </body>
 </html>

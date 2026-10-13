@@ -53,9 +53,9 @@ Quizzes liegen in SQLite (`trainarena.db` neben der App, EF Core). Beim ersten S
 dotnet test TrainArena.sln
 ```
 
-### Import CSV / Kahoot
+### Import CSV / JSON
 
-Im Editor unter einem Quiz: **Import CSV / Kahoot**.
+Im Editor unter einem Quiz: **Import CSV / JSON**. Beispiele: [`docs/quizzes/`](docs/quizzes/).
 
 **TrainArena-CSV** (Header-Zeile Pflicht):
 
@@ -67,11 +67,21 @@ Zwei Antworten?,Ja,Nein,,,,,A,15
 
 Mindestens **zwei** der Spalten `OptionA`…`OptionF` ausfüllen (ohne Lücken dazwischen); `OptionE` / `OptionF` optional für 5–6 Antworten.
 
-`Correct`: Buchstabe `A`–`F` oder Index `0`–`5` (auch `1`–`6`). `TimeLimitSeconds` optional (Default 20). Import erzeugt immer Multiple-Choice-Fragen (`DisplayKind=Mc`).
+`Correct`: Buchstabe `A`–`F` oder Index `0`–`5` (auch `1`–`6`). `TimeLimitSeconds` optional (Default 20). CSV-Import erzeugt immer Multiple-Choice (`DisplayKind=Mc`).
 
 **Kahoot-ähnlich:** Excel-Vorlage als CSV speichern mit Spalten `Question`, `Answer 1`…`Answer 6` (mindestens zwei ausgefüllt), `Time limit`, `Correct answer(s)` (1-basiert). Kein natives `.xlsx` — bei Bedarf vorher als CSV exportieren. Ungültige Zeilen werden übersprungen.
 
-**Editor (zusätzlich zum Import):** Fragetyp **Multiple Choice** (2–6 Optionen, genau eine richtig) oder **Wahr/Falsch** (fest „Wahr“ / „Falsch“, korrekte Seite wählen). **50/50** im Spiel skaliert mit der Antwortanzahl: bei ≥4 Optionen werden zwei falsche ausgeblendet, bei 3 eine; bei 2 Optionen (Wahr/Falsch) ist 50/50 deaktiviert.
+**JSON-Quiz-Pack:** Objekt mit `questions[]` oder direkt ein Fragen-Array. Felder u. a. `text`, `displayKind` (`mc` | `trueFalse`), `options`, `correctIndex`, `timeLimitSeconds`, optional `image` (`fileName`, `contentType`, `base64`). Code im Fragetext als Fence:
+
+````markdown
+```csharp
+int x = 5;
+```
+````
+
+Host und Player rendern Fences mit Syntax-Highlighting (Prism, lokal unter `wwwroot/lib/prism/`).
+
+**Editor (zusätzlich zum Import):** Fragetyp **Multiple Choice** (2–6 Optionen, genau eine richtig) oder **Wahr/Falsch**. **50/50** skaliert mit der Antwortanzahl: bei ≥4 Optionen zwei falsche ausblenden, bei 3 eine; bei 2 Optionen deaktiviert.
 
 ## Download (self-contained)
 

@@ -36,6 +36,8 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.Option5).HasMaxLength(400).IsRequired();
             e.Property(x => x.DisplayKind).HasConversion<int>();
             e.Property(x => x.ImagePath).HasMaxLength(400);
+            e.Property(x => x.Explanation).HasMaxLength(2000);
+            e.Property(x => x.Tags).HasMaxLength(400);
             e.HasIndex(x => new { x.QuizId, x.SortOrder });
         });
     }
@@ -88,6 +90,27 @@ public sealed class AppDbContext : DbContext
         {
             await using var alter = conn.CreateCommand();
             alter.CommandText = "ALTER TABLE Questions ADD COLUMN DisplayKind INTEGER NOT NULL DEFAULT 0;";
+            await alter.ExecuteNonQueryAsync(ct);
+        }
+
+        if (!columns.Contains("Explanation"))
+        {
+            await using var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE Questions ADD COLUMN Explanation TEXT NULL;";
+            await alter.ExecuteNonQueryAsync(ct);
+        }
+
+        if (!columns.Contains("Tags"))
+        {
+            await using var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE Questions ADD COLUMN Tags TEXT NULL;";
+            await alter.ExecuteNonQueryAsync(ct);
+        }
+
+        if (!columns.Contains("Points"))
+        {
+            await using var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE Questions ADD COLUMN Points INTEGER NOT NULL DEFAULT 0;";
             await alter.ExecuteNonQueryAsync(ct);
         }
     }

@@ -21,7 +21,11 @@ public sealed record QuestionStartedMessage(
     DateTimeOffset EndsAtUtc,
     string? ImageUrl);
 
-public sealed record QuestionEndedMessage(int CorrectIndex, int Index, int TotalQuestions);
+public sealed record QuestionEndedMessage(
+    int CorrectIndex,
+    int Index,
+    int TotalQuestions,
+    string? Explanation = null);
 
 public sealed record ScoreUpdateMessage(string Nickname, int Score, int PointsAwarded);
 
@@ -41,11 +45,20 @@ public sealed record QuestionReviewDto(
     int[] Counts,
     int AnsweredCount,
     int PlayerCount,
-    int CorrectCount);
+    int CorrectCount,
+    string? Explanation = null,
+    IReadOnlyList<string>? Tags = null,
+    int IhkPoints = 0);
+
+public sealed record IhkResultDto(string Nickname, int Points, int Grade, bool Passed);
 
 public sealed record GameFinishedMessage(
     IReadOnlyList<LeaderboardEntryDto> Entries,
-    IReadOnlyList<QuestionReviewDto> Review);
+    IReadOnlyList<QuestionReviewDto> Review,
+    bool ExamMode = false,
+    IReadOnlyList<IhkResultDto>? IhkResults = null);
+
+public sealed record ExamConfigDto(bool Enabled, IReadOnlyList<string>? Tags = null);
 
 public sealed record PowerUpConfigDto(
     bool Enabled,

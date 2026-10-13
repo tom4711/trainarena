@@ -1,4 +1,5 @@
 @page
+@using TrainArena.Data
 @model TrainArena.Pages.Editor.IndexModel
 @{
     Layout = null;
@@ -44,9 +45,23 @@
             <ul>
             @foreach (var quiz in Model.Quizzes)
             {
+                var quizTags = quiz.Questions
+                    .SelectMany(q => QuestionTags.Parse(q.Tags))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
                 <li>
                     <a asp-page="Edit" asp-route-id="@quiz.Id">@quiz.Title</a>
                     <span class="muted">(@quiz.Questions.Count Fragen)</span>
+                    @if (quizTags.Count > 0)
+                    {
+                        <div class="tag-row">
+                            @foreach (var tag in quizTags)
+                            {
+                                <span class="tag-chip">@tag</span>
+                            }
+                        </div>
+                    }
                     <form method="post" asp-page-handler="Delete" style="display:inline">
                         <input type="hidden" name="id" value="@quiz.Id" />
                         <button type="submit" onclick="return confirm('Quiz löschen?');">Löschen</button>

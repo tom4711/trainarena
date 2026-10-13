@@ -411,7 +411,11 @@
     boardPanel.classList.add("hidden");
     questionPanel.classList.remove("hidden");
     qProgress.textContent = `Frage ${(msg.index ?? 0) + 1} von ${msg.totalQuestions ?? "?"}`;
-    $("q-text").textContent = msg.text;
+    if (window.TrainArenaQuestionFormat) {
+      window.TrainArenaQuestionFormat.renderQuestionText($("q-text"), msg.text);
+    } else {
+      $("q-text").textContent = msg.text;
+    }
     const qImage = $("q-image");
     if (msg.imageUrl) {
       qImage.src = msg.imageUrl;
@@ -422,6 +426,16 @@
     }
     answerStatus.className = "muted";
     answerStatus.textContent = "";
+    const explEl = $("question-explanation");
+    if (explEl) {
+      explEl.classList.add("hidden");
+      explEl.textContent = "";
+    }
+    const ihkBox = $("ihk-results");
+    if (ihkBox) {
+      ihkBox.classList.add("hidden");
+      ihkBox.innerHTML = "";
+    }
     answers.innerHTML = "";
     (msg.options || []).forEach((opt, i) => {
       const btn = document.createElement("button");
@@ -458,7 +472,7 @@
       msg.points > 0 ? `Gesendet (+${msg.points} Punkte)` : "Gesendet";
   });
 
-  connection.on("QuestionEnded", () => {
+  connection.on("QuestionEnded", (msg) => {
     questionOpen = false;
     currentOptionCount = 0;
     stopTimer();
@@ -471,6 +485,22 @@
       answerStatus.className = "status-warn";
       answerStatus.textContent = "Zeit abgelaufen";
     }
+    const explEl = $("question-explanation");
+    if (explEl) {
+      if (msg?.explanation) {
+        explEl.classList.remove("hidden");
+        explEl.innerHTML = `<strong>Erklärung:</strong> <span class="explanation-body"></span>`;
+        const body = explEl.querySelector(".explanation-body");
+        if (window.TrainArenaQuestionFormat) {
+          window.TrainArenaQuestionFormat.renderQuestionText(body, msg.explanation);
+        } else if (body) {
+          body.textContent = msg.explanation;
+        }
+      } else {
+        explEl.classList.add("hidden");
+        explEl.textContent = "";
+      }
+    }
   });
 
   connection.on("Leaderboard", (msg) => {
@@ -481,7 +511,38 @@
   connection.on("GameFinished", (msg) => {
     clearAutoAdvanceCountdown();
     showBoard(msg.entries || [], true, false);
+    renderIhkResults(msg.examMode ? msg.ihkResults : null);
+    if (msg.examMode) {
+      $("done").textContent = "Prüfung beendet — siehe IHK-Ergebnis.";
+    } else {
+      $("done").textContent = "Runde beendet — danke!";
+    }
   });
+
+  function renderIhkResults(results) {
+    const box = $("ihk-results");
+    if (!box) return;
+    if (!results || !results.length) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    box.classList.remove("hidden");
+    box.innerHTML =
+      "<h3>IHK-Ergebnis</h3><ol>" +
+      results
+        .map(
+          (r) =>
+            `<li><strong></strong> — ${r.points}/100 · Note ${r.grade} · ${
+              r.passed ? "bestanden" : "nicht bestanden"
+            }</li>`,
+        )
+        .join("") +
+      "</ol>";
+    [...box.querySelectorAll("li strong")].forEach((el, i) => {
+      el.textContent = results[i].nickname;
+    });
+  }
 
   connection.on("AutoAdvanceScheduled", (msg) => {
     if (msg?.advancesAtUtc) startAutoAdvanceCountdown(msg.advancesAtUtc);

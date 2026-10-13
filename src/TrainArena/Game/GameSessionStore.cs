@@ -23,12 +23,13 @@ public sealed class GameSessionStore
         string hostConnectionId,
         Guid quizId,
         PowerUpRoomConfig? powerUps = null,
-        AutoAdvanceOptions? autoAdvance = null)
+        AutoAdvanceOptions? autoAdvance = null,
+        bool examMode = false)
     {
         for (var attempt = 0; attempt < 32; attempt++)
         {
             var code = _codes.Next();
-            var session = new GameSession(code, hostConnectionId, quizId, powerUps, autoAdvance);
+            var session = new GameSession(code, hostConnectionId, quizId, powerUps, autoAdvance, examMode);
             if (_sessions.TryAdd(code, session))
             {
                 _connectionToCode[hostConnectionId] = code;

@@ -59,6 +59,9 @@ public sealed class EditModel : PageModel
         string? option5,
         int correctIndex,
         int timeLimitSeconds = 20,
+        string? explanation = null,
+        string? tags = null,
+        int points = 0,
         IFormFile? image = null)
     {
         var quiz = await _db.Quizzes.FirstOrDefaultAsync(q => q.Id == id);
@@ -107,6 +110,7 @@ public sealed class EditModel : PageModel
         var maxSort = await _db.Questions
             .Where(q => q.QuizId == id)
             .MaxAsync(q => (int?)q.SortOrder);
+        var tagStorage = QuestionTags.NormalizeStorage(tags);
         var question = new Question
         {
             Id = Guid.NewGuid(),
@@ -116,8 +120,15 @@ public sealed class EditModel : PageModel
             CorrectIndex = correctIndex,
             TimeLimitSeconds = timeLimitSeconds <= 0 ? 20 : timeLimitSeconds,
             SortOrder = maxSort is null ? 0 : maxSort.Value + 1,
-            ImagePath = imagePath
+            ImagePath = imagePath,
+            Explanation = string.IsNullOrWhiteSpace(explanation) ? null : explanation.Trim(),
+            Tags = string.IsNullOrEmpty(tagStorage) ? null : tagStorage,
+            Points = points < 0 ? 0 : points,
         };
+        if (question.Explanation is { Length: > 2000 })
+        {
+            question.Explanation = question.Explanation[..2000];
+        }
         QuizRules.ApplyOptions(question, options);
         _db.Questions.Add(question);
         await _db.SaveChangesAsync();
@@ -147,18 +158,18 @@ public sealed class EditModel : PageModel
 
         if (file is null || file.Length == 0)
         {
-            ErrorMessage = "Bitte eine CSV-Datei wählen.";
+            ErrorMessage = "Bitte eine CSV- oder JSON-Datei wählen.";
             Quiz = quiz;
             return Page();
         }
 
-        string csv;
+        string content;
         using (var reader = new StreamReader(file.OpenReadStream()))
         {
-            csv = await reader.ReadToEndAsync();
+            content = await reader.ReadToEndAsync();
         }
 
-        var parsed = QuizImport.Parse(csv);
+        var parsed = QuizImport.ParseFile(file.FileName, content);
         if (parsed.Questions.Count == 0)
         {
             ErrorMessage = parsed.Errors.Count > 0
@@ -171,12 +182,28 @@ public sealed class EditModel : PageModel
         var sort = quiz.Questions.Count == 0 ? 0 : quiz.Questions.Max(q => q.SortOrder) + 1;
         foreach (var q in parsed.Questions)
         {
-            quiz.Questions.Add(QuizImport.ToEntity(q, id, sort++));
+            string? imagePath = null;
+            if (q.Image is not null)
+            {
+                try
+                {
+                    await using var ms = new MemoryStream(q.Image.Bytes);
+                    imagePath = await _images.SaveAsync(ms, q.Image.FileName, q.Image.ContentType);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    ErrorMessage = $"Bild bei „{q.Text}“: {ex.Message}";
+                    Quiz = await LoadAsync(id);
+                    return Page();
+                }
+            }
+
+            quiz.Questions.Add(QuizImport.ToEntity(q, id, sort++, imagePath));
         }
 
         await _db.SaveChangesAsync();
         InfoMessage = $"{parsed.Questions.Count} Fragen importiert."
-            + (parsed.Errors.Count > 0 ? $" ({parsed.Errors.Count} Zeilen übersprungen.)" : "");
+            + (parsed.Errors.Count > 0 ? $" ({parsed.Errors.Count} Einträge übersprungen.)" : "");
         Quiz = await LoadAsync(id);
         return Page();
     }
