@@ -1,7 +1,7 @@
 # Design: Spieler Frage-Screen — Meta + Power-Ups Polish
 
 **Datum:** 2026-10-13  
-**Status:** Draft for review  
+**Status:** Approved  
 **Ziel:** Visuelles Polish am Spieler-Frage-Screen (Meta-Leiste + Power-Ups), Flows unverändert.
 
 ## Entscheidungen (aus Brainstorming)
