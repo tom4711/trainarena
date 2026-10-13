@@ -1,7 +1,7 @@
 # Design: Async-Rennen (separater Gamemode)
 
 **Datum:** 2026-10-13  
-**Status:** Draft for review  
+**Status:** Approved  
 **Ziel:** Optionaler Raum-Modus, in dem jeder Spieler Fragen in eigener Reihenfolge und in eigenem Tempo spielt; Host sieht Live-Punkte und Fortschritt `x/n`. Sync-Klassikmodus bleibt unverändert.
 
 ## Entscheidungen (Brainstorming)
