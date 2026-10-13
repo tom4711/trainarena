@@ -23,8 +23,11 @@ public class ShutdownApiTests
         await using var factory = new TrainArenaWebAppFactory();
         var client = factory.CreateClient();
         var res = await client.PostAsync("/api/shutdown", content: null);
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-        var json = await res.Content.ReadFromJsonAsync<JsonElement>();
+        var body = await res.Content.ReadAsStringAsync();
+        Assert.True(
+            res.StatusCode == HttpStatusCode.OK,
+            $"Expected OK from /api/shutdown, got {(int)res.StatusCode} {res.StatusCode}. Body: {body}");
+        var json = JsonSerializer.Deserialize<JsonElement>(body);
         Assert.Equal("stopping", json.GetProperty("status").GetString());
     }
 }
