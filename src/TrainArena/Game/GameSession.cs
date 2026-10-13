@@ -623,9 +623,27 @@ public sealed class GameSession
             new PowerUpUseResult(powerUpId, masked, newEndsAt, player.Nickname, null, false, fxKind));
     }
 
-    private (string? targetNickname, string? error) ResolveAsyncDisruptTarget(string actorNickname, string? requested)
+    public IReadOnlyList<string> GetAsyncDisruptTargets(string connectionId)
     {
-        var candidates = _players
+        lock (_gate)
+        {
+            if (!AsyncRaceEnabled || Phase != GamePhase.AsyncRacing)
+            {
+                return Array.Empty<string>();
+            }
+
+            var player = _players.FirstOrDefault(p => p.ConnectionId == connectionId && p.IsConnected);
+            if (player is null)
+            {
+                return Array.Empty<string>();
+            }
+
+            return GetAsyncDisruptCandidates(player.Nickname);
+        }
+    }
+
+    private List<string> GetAsyncDisruptCandidates(string actorNickname) =>
+        _players
             .Where(p =>
             {
                 if (!p.IsConnected
@@ -643,6 +661,10 @@ public sealed class GameSession
             })
             .Select(p => p.Nickname)
             .ToList();
+
+    private (string? targetNickname, string? error) ResolveAsyncDisruptTarget(string actorNickname, string? requested)
+    {
+        var candidates = GetAsyncDisruptCandidates(actorNickname);
 
         if (candidates.Count == 0)
         {

@@ -316,6 +316,17 @@ public sealed class GameHub : Hub
         }
     }
 
+    /// <summary>Eligible Störimpuls targets during async race (open question, not self).</summary>
+    public Task<string[]> ListAsyncDisruptTargets()
+    {
+        if (!_sessions.TryGetByConnection(Context.ConnectionId, out var session) || session is null)
+        {
+            return Task.FromResult(Array.Empty<string>());
+        }
+
+        return Task.FromResult(session.GetAsyncDisruptTargets(Context.ConnectionId).ToArray());
+    }
+
     /// <summary>
     /// Use a player power-up. Always pass <paramref name="targetNickname"/> (null when unused):
     /// SignalR does not support optional parameters or hub overloads.

@@ -43,6 +43,11 @@
   let inventory = {};
   let autoAdvanceHandle = null;
   let boardWaitingForHost = false;
+  let playerAsyncRace = false;
+  let expectNextQuestionWithoutLeaderboard = false;
+  const defaultWaitHint =
+    waitPanel?.querySelector(".hint")?.textContent ||
+    "Warte auf die nächste Frage…";
   let roomCode = sessionStorage.getItem(STORAGE_CODE) || $("code").value.trim().toUpperCase();
   let nickname = sessionStorage.getItem(STORAGE_NICK) || "";
   let lobbyPlayers = [];
@@ -156,15 +161,12 @@
     if (targetList) targetList.innerHTML = "";
   }
 
-  function openTargetPicker() {
-    const opponents = lobbyPlayers.filter(
-      (p) => p && p.toLowerCase() !== nickname.toLowerCase(),
-    );
+  function renderTargetPicker(opponents) {
     if (!targetList || !targetPicker) {
       invokeDisrupt(null);
       return;
     }
-    if (opponents.length === 0) {
+    if (!opponents.length) {
       answerStatus.className = "error";
       answerStatus.textContent = "Kein gültiges Ziel";
       return;
@@ -181,6 +183,25 @@
       targetList.appendChild(btn);
     });
     targetPicker.classList.remove("hidden");
+  }
+
+  function openTargetPicker() {
+    const lobbyOpponents = lobbyPlayers.filter(
+      (p) => p && p.toLowerCase() !== nickname.toLowerCase(),
+    );
+    connection
+      .invoke("ListAsyncDisruptTargets")
+      .then((names) => {
+        const fromServer = (names || []).filter(Boolean);
+        if (fromServer.length) {
+          renderTargetPicker(fromServer);
+          return;
+        }
+        renderTargetPicker(lobbyOpponents);
+      })
+      .catch(() => {
+        renderTargetPicker(lobbyOpponents);
+      });
   }
 
   function invokeDisrupt(targetNickname) {
@@ -363,7 +384,32 @@
     }
   });
 
+  function resetAsyncWaitHint() {
+    const hint = waitPanel?.querySelector(".hint");
+    if (hint) hint.textContent = defaultWaitHint;
+  }
+
+  function showAsyncRaceWaiting() {
+    questionPanel.classList.add("hidden");
+    powerupsEl.classList.add("hidden");
+    hideTargetPicker();
+    resetAsyncWaitHint();
+    const hint = waitPanel?.querySelector(".hint");
+    if (hint) {
+      hint.textContent = "Du bist durch — warte auf die anderen Läufer…";
+    }
+    waitPanel.classList.remove("hidden");
+    expectNextQuestionWithoutLeaderboard = false;
+  }
+
+  connection.on("AsyncScoreboard", () => {
+    playerAsyncRace = true;
+  });
+
   connection.on("LobbyState", (msg) => {
+    playerAsyncRace = false;
+    expectNextQuestionWithoutLeaderboard = false;
+    resetAsyncWaitHint();
     currentOptionCount = 0;
     lobbyPlayers = (msg?.players || [])
       .filter((p) => p && p.isConnected !== false)
@@ -403,6 +449,13 @@
   }
 
   connection.on("QuestionStarted", (msg) => {
+    if (expectNextQuestionWithoutLeaderboard) {
+      playerAsyncRace = true;
+    }
+    expectNextQuestionWithoutLeaderboard = false;
+    waitHost.classList.add("hidden");
+    boardWaitingForHost = false;
+    resetAsyncWaitHint();
     clearAutoAdvanceCountdown();
     answered = false;
     questionOpen = true;
@@ -474,6 +527,7 @@
   });
 
   connection.on("QuestionEnded", (msg) => {
+    expectNextQuestionWithoutLeaderboard = true;
     questionOpen = false;
     currentOptionCount = 0;
     stopTimer();
@@ -502,19 +556,32 @@
         explEl.textContent = "";
       }
     }
+    const idx = msg?.index ?? 0;
+    const total = msg?.totalQuestions ?? 0;
+    if (playerAsyncRace && total > 0 && idx + 1 >= total) {
+      showAsyncRaceWaiting();
+    }
   });
 
   connection.on("Leaderboard", (msg) => {
+    playerAsyncRace = false;
+    expectNextQuestionWithoutLeaderboard = false;
     clearAutoAdvanceCountdown();
     showBoard(msg.entries || [], false, msg.hasMoreQuestions);
   });
 
   connection.on("GameFinished", (msg) => {
+    const wasAsyncRace = playerAsyncRace;
+    playerAsyncRace = false;
+    expectNextQuestionWithoutLeaderboard = false;
+    resetAsyncWaitHint();
     clearAutoAdvanceCountdown();
     showBoard(msg.entries || [], true, false);
     renderIhkResults(msg.examMode ? msg.ihkResults : null);
     if (msg.examMode) {
       $("done").textContent = "Prüfung beendet — siehe IHK-Ergebnis.";
+    } else if (wasAsyncRace) {
+      $("done").textContent = "Rennen beendet — danke!";
     } else {
       $("done").textContent = "Runde beendet — danke!";
     }
