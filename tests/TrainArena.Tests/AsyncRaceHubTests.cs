@@ -115,6 +115,227 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
     }
 
     [Fact]
+    public async Task AsyncTimeout_AdvancesPlayerAndUpdatesScoreboard()
+    {
+        var quizId = await SeedTwoQuestionShortLimitQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var ada = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync(
+            "CreateRoom",
+            quizId,
+            null,
+            null,
+            null,
+            new AsyncRaceConfigDto(true));
+        var room = await roomCreated;
+
+        await ada.InvokeAsync("JoinRoom", room.Code, "Ada");
+
+        var adaFirst = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
+        var hostBoard0 = WaitFor<AsyncScoreboardMessage>(host, "AsyncScoreboard");
+        await host.InvokeAsync("StartGame");
+        await adaFirst;
+        await hostBoard0;
+
+        var timedOut = WaitFor<QuestionEndedMessage>(ada, "QuestionEnded", timeoutSeconds: 15);
+        var nextQ = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted", timeoutSeconds: 15);
+        var boardAfter = WaitFor<AsyncScoreboardMessage>(host, "AsyncScoreboard", timeoutSeconds: 15);
+
+        var ended = await timedOut;
+        Assert.Equal(0, ended.Index);
+
+        var second = await nextQ.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(1, second.Index);
+
+        var board = await boardAfter.WaitAsync(TimeSpan.FromSeconds(2));
+        var adaEntry = board.Entries.First(e =>
+            string.Equals(e.Nickname, "Ada", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(1, adaEntry.AnsweredCount);
+    }
+
+    [Fact]
+    public async Task AsyncRace_LastPlayerFinishes_BroadcastsGameFinished()
+    {
+        var quizId = await SeedSingleQuestionQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var ada = await ConnectAsync();
+        await using var bob = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync(
+            "CreateRoom",
+            quizId,
+            null,
+            null,
+            null,
+            new AsyncRaceConfigDto(true));
+        var room = await roomCreated;
+
+        await ada.InvokeAsync("JoinRoom", room.Code, "Ada");
+        await bob.InvokeAsync("JoinRoom", room.Code, "Bob");
+
+        _ = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
+        _ = WaitFor<QuestionStartedMessage>(bob, "QuestionStarted");
+        await host.InvokeAsync("StartGame");
+
+        var finished = WaitFor<GameFinishedMessage>(host, "GameFinished");
+        await ada.InvokeAsync("SubmitAnswer", 0);
+        await bob.InvokeAsync("SubmitAnswer", 0);
+
+        var gameOver = await finished.WaitAsync(TimeSpan.FromSeconds(8));
+        Assert.Empty(gameOver.Review);
+        Assert.Equal(2, gameOver.Entries.Count);
+    }
+
+    [Fact]
+    public async Task StartGame_HostDoesNotReceiveQuestionStartedWithText()
+    {
+        var quizId = await SeedMultiQuestionQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var ada = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync(
+            "CreateRoom",
+            quizId,
+            null,
+            null,
+            null,
+            new AsyncRaceConfigDto(true));
+        var room = await roomCreated;
+
+        await ada.InvokeAsync("JoinRoom", room.Code, "Ada");
+
+        var hostQuestionStarted = 0;
+        host.On<JsonElement>("QuestionStarted", _ => Interlocked.Increment(ref hostQuestionStarted));
+
+        _ = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
+        await host.InvokeAsync("StartGame");
+        await Task.Delay(500);
+
+        Assert.Equal(0, hostQuestionStarted);
+    }
+
+    [Fact]
+    public async Task RejoinHost_DuringAsyncRace_ReceivesScoreboard()
+    {
+        var quizId = await SeedMultiQuestionQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var ada = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync(
+            "CreateRoom",
+            quizId,
+            null,
+            null,
+            null,
+            new AsyncRaceConfigDto(true));
+        var room = await roomCreated;
+
+        await ada.InvokeAsync("JoinRoom", room.Code, "Ada");
+
+        var adaQ = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
+        var hostBoard = WaitFor<AsyncScoreboardMessage>(host, "AsyncScoreboard");
+        await host.InvokeAsync("StartGame");
+        await adaQ;
+        await hostBoard;
+
+        await host.DisposeAsync();
+
+        await using var host2 = await ConnectAsync();
+        var board = WaitFor<AsyncScoreboardMessage>(host2, "AsyncScoreboard");
+        await host2.InvokeAsync("RejoinHost", room.Code);
+        var restored = await board;
+        Assert.Single(restored.Entries);
+    }
+
+    [Fact]
+    public async Task RejoinRoom_AfterPlayerFinishedWhileOthersRace_ScoreboardAndQuestionEnded()
+    {
+        var quizId = await SeedSingleQuestionQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var ada = await ConnectAsync();
+        await using var bob = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync(
+            "CreateRoom",
+            quizId,
+            null,
+            null,
+            null,
+            new AsyncRaceConfigDto(true));
+        var room = await roomCreated;
+
+        await ada.InvokeAsync("JoinRoom", room.Code, "Ada");
+        await bob.InvokeAsync("JoinRoom", room.Code, "Bob");
+
+        _ = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
+        _ = WaitFor<QuestionStartedMessage>(bob, "QuestionStarted");
+        await host.InvokeAsync("StartGame");
+
+        var adaEnded = WaitFor<QuestionEndedMessage>(ada, "QuestionEnded");
+        await ada.InvokeAsync("SubmitAnswer", 0);
+        await adaEnded;
+
+        await ada.DisposeAsync();
+
+        await using var ada2 = await ConnectAsync();
+        var board = WaitFor<AsyncScoreboardMessage>(ada2, "AsyncScoreboard");
+        var endedAgain = WaitFor<QuestionEndedMessage>(ada2, "QuestionEnded");
+        await ada2.InvokeAsync("RejoinRoom", room.Code, "Ada");
+
+        var scoreboard = await board;
+        var ended = await endedAgain;
+        Assert.Equal(1, scoreboard.Entries.Count(e =>
+            string.Equals(e.Nickname, "Ada", StringComparison.OrdinalIgnoreCase) && e.AnsweredCount == 1));
+        Assert.Equal(0, ended.Index);
+    }
+
+    [Fact]
+    public async Task RejoinHost_AfterAsyncRaceFinished_UsesEmptyReviewPayload()
+    {
+        var quizId = await SeedSingleQuestionQuizAsync();
+
+        await using var host = await ConnectAsync();
+        await using var ada = await ConnectAsync();
+
+        var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
+        await host.InvokeAsync(
+            "CreateRoom",
+            quizId,
+            null,
+            null,
+            null,
+            new AsyncRaceConfigDto(true));
+        var room = await roomCreated;
+
+        await ada.InvokeAsync("JoinRoom", room.Code, "Ada");
+        _ = WaitFor<QuestionStartedMessage>(ada, "QuestionStarted");
+        await host.InvokeAsync("StartGame");
+
+        var liveFinish = WaitFor<GameFinishedMessage>(host, "GameFinished");
+        await ada.InvokeAsync("SubmitAnswer", 0);
+        await liveFinish;
+
+        await host.DisposeAsync();
+
+        await using var host2 = await ConnectAsync();
+        var finished = WaitFor<GameFinishedMessage>(host2, "GameFinished");
+        await host2.InvokeAsync("RejoinHost", room.Code);
+        var payload = await finished;
+        Assert.Empty(payload.Review);
+    }
+
+    [Fact]
     public async Task RejoinRoom_DuringAsyncRace_RestoresCurrentQuestion()
     {
         var quizId = await SeedMultiQuestionQuizAsync();
@@ -147,6 +368,73 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         Assert.Equal(first.Index, again.Index);
         Assert.Equal(first.Text, again.Text);
         Assert.Equal(first.TotalQuestions, again.TotalQuestions);
+    }
+
+    private async Task<Guid> SeedSingleQuestionQuizAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var id = Guid.NewGuid();
+        db.Quizzes.Add(new Quiz
+        {
+            Id = id,
+            Title = "Async One",
+            Questions =
+            [
+                new Question
+                {
+                    Id = Guid.NewGuid(),
+                    QuizId = id,
+                    Text = "Only?",
+                    Option0 = "A",
+                    Option1 = "B",
+                    CorrectIndex = 0,
+                    TimeLimitSeconds = 30,
+                    SortOrder = 0
+                }
+            ]
+        });
+        await db.SaveChangesAsync();
+        return id;
+    }
+
+    private async Task<Guid> SeedTwoQuestionShortLimitQuizAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var id = Guid.NewGuid();
+        db.Quizzes.Add(new Quiz
+        {
+            Id = id,
+            Title = "Async Timeout",
+            Questions =
+            [
+                new Question
+                {
+                    Id = Guid.NewGuid(),
+                    QuizId = id,
+                    Text = "Fast?",
+                    Option0 = "A",
+                    Option1 = "B",
+                    CorrectIndex = 0,
+                    TimeLimitSeconds = 1,
+                    SortOrder = 0
+                },
+                new Question
+                {
+                    Id = Guid.NewGuid(),
+                    QuizId = id,
+                    Text = "Slow?",
+                    Option0 = "A",
+                    Option1 = "B",
+                    CorrectIndex = 0,
+                    TimeLimitSeconds = 1,
+                    SortOrder = 1
+                }
+            ]
+        });
+        await db.SaveChangesAsync();
+        return id;
     }
 
     private async Task<Guid> SeedMultiQuestionQuizAsync()
@@ -211,7 +499,7 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         return connection;
     }
 
-    private static Task<T> WaitFor<T>(HubConnection connection, string methodName)
+    private static Task<T> WaitFor<T>(HubConnection connection, string methodName, double timeoutSeconds = 8)
     {
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
         connection.On<JsonElement>(methodName, payload =>
@@ -225,6 +513,6 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
                 tcs.TrySetResult(value);
             }
         });
-        return tcs.Task.WaitAsync(TimeSpan.FromSeconds(8));
+        return tcs.Task.WaitAsync(TimeSpan.FromSeconds(timeoutSeconds));
     }
 }

@@ -1004,29 +1004,64 @@ public sealed class GameHub : Hub
                 await Clients.Caller.SendAsync("Leaderboard", ToLeaderboard(session));
                 break;
             case GamePhase.Finished:
-                await Clients.Caller.SendAsync("GameFinished", ToFinished(session));
+                await Clients.Caller.SendAsync(
+                    "GameFinished",
+                    session.AsyncRaceEnabled ? ToAsyncFinished(session) : ToFinished(session));
                 break;
             case GamePhase.AsyncRacing:
-            {
-                var player = session.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
-                if (player is null)
-                {
-                    break;
-                }
-
-                var race = session.GetRaceState(player.Nickname);
-                if (race?.Current is null || race.Finished
-                    || race.QuestionStartedAtUtc is null || race.EndsAtUtc is null)
-                {
-                    break;
-                }
-
-                await Clients.Caller.SendAsync(
-                    "QuestionStarted",
-                    ToAsyncQuestionStartedMessage(race));
+                await SyncCallerToAsyncRacingPhase(session);
                 break;
-            }
         }
+    }
+
+    private async Task SyncCallerToAsyncRacingPhase(GameSession session)
+    {
+        if (session.IsHost(Context.ConnectionId))
+        {
+            await Clients.Caller.SendAsync(
+                "AsyncScoreboard",
+                new AsyncScoreboardMessage(session.GetAsyncScoreboard()));
+            return;
+        }
+
+        var player = session.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+        if (player is null)
+        {
+            return;
+        }
+
+        var race = session.GetRaceState(player.Nickname);
+        if (race is null)
+        {
+            return;
+        }
+
+        if (race.Finished)
+        {
+            await Clients.Caller.SendAsync(
+                "AsyncScoreboard",
+                new AsyncScoreboardMessage(session.GetAsyncScoreboard()));
+            if (race.Index > 0)
+            {
+                var last = race.Order[race.Index - 1];
+                await Clients.Caller.SendAsync(
+                    "QuestionEnded",
+                    new QuestionEndedMessage(
+                        last.CorrectIndex,
+                        race.Index - 1,
+                        race.Order.Count,
+                        last.Explanation));
+            }
+
+            return;
+        }
+
+        if (race.Current is null || race.QuestionStartedAtUtc is null || race.EndsAtUtc is null)
+        {
+            return;
+        }
+
+        await Clients.Caller.SendAsync("QuestionStarted", ToAsyncQuestionStartedMessage(race));
     }
 
     private static LobbyStateMessage ToLobbyState(GameSession session)
