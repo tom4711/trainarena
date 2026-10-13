@@ -92,6 +92,67 @@ public class QuizPersistenceTests
     }
 
     [Fact]
+    public async Task ImportCsv_PersistsQuestionsWithoutServerError()
+    {
+        using var factory = new TrainArenaWebAppFactory();
+        var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+
+        Guid quizId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var quiz = new Quiz { Id = Guid.NewGuid(), Title = "CSV Import Bug" };
+            db.Quizzes.Add(quiz);
+            await db.SaveChangesAsync();
+            quizId = quiz.Id;
+        }
+
+        var pageUrl = $"/Editor/Edit/{quizId}";
+        var pageHtml = await client.GetStringAsync(pageUrl);
+        var tokenMatch = Regex.Match(
+            pageHtml,
+            @"name=""__RequestVerificationToken""\s+type=""hidden""\s+value=""([^""]+)""");
+        Assert.True(tokenMatch.Success, "Antiforgery token expected on editor page.");
+
+        const string csv = """
+            Question,OptionA,OptionB,OptionC,OptionD,Correct,TimeLimitSeconds
+            Welcher Typ speichert ganze Zahlen?,int,double,bool,string,A,20
+            Was bedeutet void?,Kein Rückgabewert,Leerer string,Nur private,Immer async,A,22
+            """;
+        using var form = new MultipartFormDataContent
+        {
+            { new StringContent(quizId.ToString()), "id" },
+            { new StringContent(tokenMatch.Groups[1].Value), "__RequestVerificationToken" },
+            { new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes(csv))
+                {
+                    Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv") }
+                },
+                "file", "sample.csv" }
+        };
+
+        var post = await client.PostAsync($"{pageUrl}?handler=Import", form);
+        var postBody = await post.Content.ReadAsStringAsync();
+        Assert.True(
+            post.IsSuccessStatusCode,
+            $"Import should not 500. Status={post.StatusCode}. Body starts: {postBody[..Math.Min(300, postBody.Length)]}");
+        Assert.Contains("2 Fragen importiert", postBody, StringComparison.Ordinal);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var questions = await db.Questions.AsNoTracking()
+                .Where(q => q.QuizId == quizId)
+                .OrderBy(q => q.SortOrder)
+                .ToListAsync();
+            Assert.Equal(2, questions.Count);
+            Assert.Equal("Welcher Typ speichert ganze Zahlen?", questions[0].Text);
+            Assert.Equal("int", questions[0].Option0);
+            Assert.Equal(0, questions[0].CorrectIndex);
+            Assert.Equal("Was bedeutet void?", questions[1].Text);
+        }
+    }
+
+    [Fact]
     public async Task EnsureSchema_UpgradesLegacyQuestionsTable()
     {
         var dbPath = Path.Combine(Path.GetTempPath(), $"legacy-{Guid.NewGuid():N}.db");

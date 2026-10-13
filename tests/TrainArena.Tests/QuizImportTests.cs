@@ -6,6 +6,20 @@ namespace TrainArena.Tests;
 public class QuizImportTests
 {
     [Fact]
+    public void ParseCsv_SampleCsharpGrundlagen_HasSixteenQuestions()
+    {
+        var path = FindRepoFile("docs/quizzes/csharp-grundlagen-programmierung.csv");
+        Assert.True(File.Exists(path), $"Sample CSV missing at {path}");
+
+        var result = QuizImport.Parse(File.ReadAllText(path));
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(16, result.Questions.Count);
+        Assert.Contains(result.Questions, q => q.Options[0] == "int");
+        Assert.Contains(result.Questions, q => q.Options.Contains("foreach"));
+    }
+
+    [Fact]
     public void ParseCsv_MapsFourOptionRows()
     {
         var csv = """
@@ -113,5 +127,22 @@ public class QuizImportTests
 
         Assert.Single(result.Questions);
         Assert.Equal(1, result.Questions[0].CorrectIndex);
+    }
+
+    private static string FindRepoFile(string relativePath)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(dir.FullName, relativePath);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            dir = dir.Parent;
+        }
+
+        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, relativePath));
     }
 }
