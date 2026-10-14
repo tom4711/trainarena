@@ -22,7 +22,7 @@ public class ExamModeSessionTests
         Assert.True(s.ExamMode);
 
         s.TryJoin("Ada", "p1");
-        var q0 = new DemoQuestion
+        var q0 = new QuizQuestion
         {
             Text = "Q0",
             Options = ["a", "b"],
@@ -32,7 +32,7 @@ public class ExamModeSessionTests
             Explanation = "hidden mid-exam",
             Tags = ["sql"],
         };
-        var q1 = new DemoQuestion
+        var q1 = new QuizQuestion
         {
             Text = "Q1",
             Options = ["a", "b"],
@@ -69,7 +69,7 @@ public class ExamModeSessionTests
     {
         var s = new GameSession("EXAM02", "host", Guid.NewGuid(), examMode: true);
         s.TryJoin("Bob", "p1");
-        var q = new DemoQuestion
+        var q = new QuizQuestion
         {
             Text = "Q",
             Options = ["a", "b"],

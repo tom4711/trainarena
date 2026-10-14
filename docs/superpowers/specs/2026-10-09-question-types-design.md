@@ -58,7 +58,7 @@ Replace hard-coded “all four required”:
 
 ### Mapping
 
-`ToDemoQuestion` returns only **filled** options as `string[]` (length 2–6). `DemoQuestion` and `QuestionStartedMessage` already use `string[]` — no wire-shape change required beyond length variance.
+`ToQuizQuestion` returns only **filled** options as `string[]` (length 2–6). `QuizQuestion` and `QuestionStartedMessage` already use `string[]` — no wire-shape change required beyond length variance.
 
 ### SQLite
 

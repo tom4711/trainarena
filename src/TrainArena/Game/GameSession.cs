@@ -1,4 +1,3 @@
-using TrainArena.Contracts;
 using TrainArena.Game.PowerUps;
 
 namespace TrainArena.Game;
@@ -13,7 +12,7 @@ public sealed record AsyncSubmitResult(
     string? Explanation,
     bool PlayerFinished,
     bool RaceFinished,
-    DemoQuestion? NextQuestion,
+    QuizQuestion? NextQuestion,
     DateTimeOffset? NextStartedAtUtc,
     DateTimeOffset? NextEndsAtUtc,
     int NextIndex,
@@ -38,7 +37,7 @@ public sealed class GameSession
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PlayerPowerUpState> _powerUps =
         new(StringComparer.OrdinalIgnoreCase);
-    private List<DemoQuestion> _quizQuestions = new();
+    private List<QuizQuestion> _quizQuestions = new();
     private readonly Dictionary<string, bool> _correctThisQuestion =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<QuestionReviewStat> _review = [];
@@ -58,14 +57,30 @@ public sealed class GameSession
         AutoAdvanceOptions? autoAdvance = null,
         bool examMode = false,
         bool asyncRaceEnabled = false)
+        : this(
+            code,
+            hostConnectionId,
+            quizId,
+            powerUpConfig,
+            autoAdvance,
+            ResolveMode(examMode, asyncRaceEnabled))
+    {
+    }
+
+    public GameSession(
+        string code,
+        string hostConnectionId,
+        Guid quizId,
+        PowerUpRoomConfig? powerUpConfig,
+        AutoAdvanceOptions? autoAdvance,
+        GameMode mode)
     {
         Code = code;
         HostConnectionId = hostConnectionId;
         QuizId = quizId;
-        ExamMode = examMode;
-        AsyncRaceEnabled = asyncRaceEnabled;
+        Mode = mode;
         var pu = powerUpConfig ?? PowerUpRoomConfig.CreateDefault();
-        if (examMode)
+        if (mode == GameMode.Exam)
         {
             pu.Enabled = false;
             pu.HostEventsEnabled = false;
@@ -73,22 +88,32 @@ public sealed class GameSession
 
         PowerUpConfig = pu;
         AutoAdvance = autoAdvance ?? AutoAdvanceOptions.CreateDefault();
-        if (asyncRaceEnabled)
+        if (mode == GameMode.AsyncRace)
         {
             AutoAdvance.Enabled = false;
         }
     }
 
+    private static GameMode ResolveMode(bool examMode, bool asyncRaceEnabled) =>
+        (examMode, asyncRaceEnabled) switch
+        {
+            (true, true) => throw new ArgumentException("Exam and AsyncRace are mutually exclusive."),
+            (true, false) => GameMode.Exam,
+            (false, true) => GameMode.AsyncRace,
+            _ => GameMode.Classic,
+        };
+
     public PowerUpRoomConfig PowerUpConfig { get; }
     public AutoAdvanceOptions AutoAdvance { get; }
-    public bool ExamMode { get; }
-    public bool AsyncRaceEnabled { get; }
+    public GameMode Mode { get; }
+    public bool ExamMode => Mode == GameMode.Exam;
+    public bool AsyncRaceEnabled => Mode == GameMode.AsyncRace;
 
     public string Code { get; }
     public string HostConnectionId { get; private set; }
     public Guid QuizId { get; }
     public GamePhase Phase { get; private set; } = GamePhase.Lobby;
-    public DemoQuestion? CurrentQuestion { get; private set; }
+    public QuizQuestion? CurrentQuestion { get; private set; }
     public DateTimeOffset? QuestionStartedAtUtc { get; private set; }
     public DateTimeOffset? QuestionEndsAtUtc { get; private set; }
     public int QuestionIndex { get; private set; } = -1;
@@ -126,7 +151,7 @@ public sealed class GameSession
         }
     }
 
-    public void SetQuestions(IReadOnlyList<DemoQuestion> questions)
+    public void SetQuestions(IReadOnlyList<QuizQuestion> questions)
     {
         ArgumentNullException.ThrowIfNull(questions);
         lock (_gate)
@@ -170,7 +195,7 @@ public sealed class GameSession
         }
     }
 
-    public DemoQuestion? PeekNextQuestion()
+    public QuizQuestion? PeekNextQuestion()
     {
         lock (_gate)
         {
@@ -211,14 +236,14 @@ public sealed class GameSession
         var trimmed = nickname?.Trim() ?? "";
         if (trimmed.Length == 0)
         {
-            return (false, "Nickname required");
+            return (false, GameErrors.NicknameRequired);
         }
 
         lock (_gate)
         {
             if (Phase != GamePhase.Lobby)
             {
-                return (false, "Game already started");
+                return (false, GameErrors.GameAlreadyStarted);
             }
 
             var existing = _players.FirstOrDefault(p =>
@@ -227,7 +252,7 @@ public sealed class GameSession
             {
                 if (existing.IsConnected)
                 {
-                    return (false, "Nickname already taken");
+                    return (false, GameErrors.NicknameTaken);
                 }
 
                 // Soft rejoin via JoinRoom after disconnect.
@@ -253,7 +278,7 @@ public sealed class GameSession
         var trimmed = nickname?.Trim() ?? "";
         if (trimmed.Length == 0)
         {
-            return (false, "Nickname required");
+            return (false, GameErrors.NicknameRequired);
         }
 
         lock (_gate)
@@ -262,7 +287,7 @@ public sealed class GameSession
                 string.Equals(p.Nickname, trimmed, StringComparison.OrdinalIgnoreCase));
             if (player is null)
             {
-                return (false, "Unknown nickname for this room");
+                return (false, GameErrors.UnknownNickname);
             }
 
             player.ConnectionId = connectionId;
@@ -309,30 +334,30 @@ public sealed class GameSession
         }
     }
 
-    public (bool ok, string? error) StartQuestion(DemoQuestion question, DateTimeOffset nowUtc)
+    public (bool ok, string? error) StartQuestion(QuizQuestion question, DateTimeOffset nowUtc)
     {
         ArgumentNullException.ThrowIfNull(question);
         var n = question.Options.Length;
         if (n is < 2 or > 6)
         {
-            return (false, "Question must have 2–6 options");
+            return (false, GameErrors.OptionsRange);
         }
 
         if (question.CorrectIndex < 0 || question.CorrectIndex >= n)
         {
-            return (false, "Invalid correct index");
+            return (false, GameErrors.InvalidCorrectIndex);
         }
 
         lock (_gate)
         {
             if (_players.Count < 1)
             {
-                return (false, "Need at least one player");
+                return (false, GameErrors.NeedPlayer);
             }
 
             if (Phase is not (GamePhase.Lobby or GamePhase.Leaderboard))
             {
-                return (false, "Cannot start question in current phase");
+                return (false, GameErrors.CannotStartQuestion);
             }
 
             var limit = TimeSpan.FromSeconds(Math.Max(1, question.TimeLimitSeconds));
@@ -358,206 +383,100 @@ public sealed class GameSession
         {
             if (!PowerUpConfig.Enabled)
             {
-                return (false, "Power-ups disabled", null);
+                return (false, GameErrors.PowerUpsDisabled, null);
             }
 
-            if (AsyncRaceEnabled && Phase == GamePhase.AsyncRacing)
+            var asyncRace = AsyncRaceEnabled && Phase == GamePhase.AsyncRacing;
+            if (!asyncRace && (Phase != GamePhase.QuestionActive || CurrentQuestion is null))
             {
-                return TryUsePowerUpAsync(connectionId, powerUpId, targetNickname);
+                return (false, GameErrors.NoActiveQuestion, null);
             }
 
-            if (Phase != GamePhase.QuestionActive || CurrentQuestion is null)
-            {
-                return (false, "No active question", null);
-            }
-
-            var player = _players.FirstOrDefault(p => p.ConnectionId == connectionId && p.IsConnected);
-            if (player is null)
-            {
-                return (false, "Not a player in this room", null);
-            }
-
-            if (_answersThisQuestion.ContainsKey(player.Nickname))
-            {
-                return (false, "Already answered", null);
-            }
-
-            if (!_powerUps.TryGetValue(player.Nickname, out var state))
-            {
-                return (false, "Not a player in this room", null);
-            }
-
-            var definition = PowerUpCatalog.Get(powerUpId);
-            if (definition.Kind != PowerUpKind.Player)
-            {
-                return (false, "Not a player power-up", null);
-            }
-
-            if (state.Inventory[powerUpId] < 1)
-            {
-                return (false, "No power-ups remaining", null);
-            }
-
-            var isSelfEffect = powerUpId is PowerUpId.FiftyFifty or PowerUpId.Double or PowerUpId.ExtraTime;
-            if (isSelfEffect && state.HasSelfEffectActive)
-            {
-                return (false, "Already used a self-effect this question", null);
-            }
-
-            int[]? masked = null;
-            DateTimeOffset? newEndsAt = null;
-            string? target = null;
-            var blocked = false;
-            string? fxKind = null;
-
-            if (powerUpId == PowerUpId.Disrupt)
-            {
-                var resolved = ResolveDisruptTarget(player.Nickname, targetNickname);
-                if (resolved.error is not null)
-                {
-                    return (false, resolved.error, null);
-                }
-
-                target = resolved.targetNickname!;
-                if (!_powerUps.TryGetValue(target, out var targetState))
-                {
-                    return (false, "Target not found", null);
-                }
-
-                state.Inventory[powerUpId]--;
-                if (targetState.HasShield)
-                {
-                    targetState.HasShield = false;
-                    blocked = true;
-                    fxKind = "attack_blocked";
-                }
-                else
-                {
-                    targetState.DisruptedThisQuestion = true;
-                    fxKind = "attack_hit";
-                }
-
-                return (
-                    true,
-                    null,
-                    new PowerUpUseResult(
-                        powerUpId,
-                        null,
-                        null,
-                        player.Nickname,
-                        target,
-                        blocked,
-                        fxKind));
-            }
-
-            if (powerUpId == PowerUpId.FiftyFifty && CurrentQuestion.Options.Length < 3)
-            {
-                return (false, "50/50 requires at least 3 options", null);
-            }
-
-            state.Inventory[powerUpId]--;
-
-            switch (powerUpId)
-            {
-                case PowerUpId.FiftyFifty:
-                {
-                    var optionCount = CurrentQuestion.Options.Length;
-                    var maskCount = optionCount >= 4 ? 2 : 1;
-                    masked = PickWrongIndexes(CurrentQuestion.CorrectIndex, optionCount, maskCount);
-                    state.MaskedWrongIndexes = masked;
-                    break;
-                }
-                case PowerUpId.Double:
-                    state.DoubleActive = true;
-                    break;
-                case PowerUpId.ExtraTime:
-                    state.UsedExtraTimeThisQuestion = true;
-                    if (!_roomExtraTimeExtendedThisQuestion)
-                    {
-                        QuestionEndsAtUtc = QuestionEndsAtUtc!.Value.AddSeconds(5);
-                        _roomExtraTimeExtendedThisQuestion = true;
-                        newEndsAt = QuestionEndsAtUtc;
-                    }
-
-                    break;
-                case PowerUpId.Shield:
-                    state.HasShield = true;
-                    fxKind = "shield_up";
-                    break;
-            }
-
-            return (
-                true,
-                null,
-                new PowerUpUseResult(powerUpId, masked, newEndsAt, player.Nickname, null, false, fxKind));
+            return ApplyPlayerPowerUp(connectionId, powerUpId, targetNickname, asyncRace);
         }
     }
 
-    private (bool ok, string? error, PowerUpUseResult? result) TryUsePowerUpAsync(
+    /// <summary>
+    /// Shared player power-up path for classic sync rounds and async race.
+    /// Mode-specific bits: already-answered (sync), disrupt candidates, ExtraTime clock.
+    /// </summary>
+    private (bool ok, string? error, PowerUpUseResult? result) ApplyPlayerPowerUp(
         string connectionId,
         PowerUpId powerUpId,
-        string? targetNickname)
+        string? targetNickname,
+        bool asyncRace)
     {
         var player = _players.FirstOrDefault(p => p.ConnectionId == connectionId && p.IsConnected);
         if (player is null)
         {
-            return (false, "Not a player in this room", null);
+            return (false, GameErrors.NotInRoom, null);
         }
 
-        if (!_races.TryGetValue(player.Nickname, out var race) || race.Finished)
+        PlayerRaceState? race = null;
+        QuizQuestion question;
+        if (asyncRace)
         {
-            return (false, "No active question", null);
-        }
+            if (!_races.TryGetValue(player.Nickname, out race) || race.Finished)
+            {
+                return (false, GameErrors.NoActiveQuestion, null);
+            }
 
-        var currentQuestion = race.Current;
-        if (currentQuestion is null)
+            if (race.Current is null)
+            {
+                return (false, GameErrors.NoActiveQuestion, null);
+            }
+
+            question = race.Current;
+        }
+        else
         {
-            return (false, "No active question", null);
+            if (_answersThisQuestion.ContainsKey(player.Nickname))
+            {
+                return (false, GameErrors.AlreadyAnswered, null);
+            }
+
+            question = CurrentQuestion!;
         }
 
         if (!_powerUps.TryGetValue(player.Nickname, out var state))
         {
-            return (false, "Not a player in this room", null);
+            return (false, GameErrors.NotInRoom, null);
         }
 
         var definition = PowerUpCatalog.Get(powerUpId);
         if (definition.Kind != PowerUpKind.Player)
         {
-            return (false, "Not a player power-up", null);
+            return (false, GameErrors.NotPlayerPowerUp, null);
         }
 
         if (state.Inventory[powerUpId] < 1)
         {
-            return (false, "No power-ups remaining", null);
+            return (false, GameErrors.NoPowerUpsLeft, null);
         }
 
         var isSelfEffect = powerUpId is PowerUpId.FiftyFifty or PowerUpId.Double or PowerUpId.ExtraTime;
         if (isSelfEffect && state.HasSelfEffectActive)
         {
-            return (false, "Already used a self-effect this question", null);
+            return (false, GameErrors.SelfEffectAlreadyUsed, null);
         }
-
-        int[]? masked = null;
-        DateTimeOffset? newEndsAt = null;
-        string? target = null;
-        var blocked = false;
-        string? fxKind = null;
 
         if (powerUpId == PowerUpId.Disrupt)
         {
-            var resolved = ResolveAsyncDisruptTarget(player.Nickname, targetNickname);
+            var resolved = ResolveDisruptTarget(player.Nickname, targetNickname, asyncRace);
             if (resolved.error is not null)
             {
                 return (false, resolved.error, null);
             }
 
-            target = resolved.targetNickname!;
+            var target = resolved.targetNickname!;
             if (!_powerUps.TryGetValue(target, out var targetState))
             {
-                return (false, "Target not found", null);
+                return (false, GameErrors.TargetNotFound, null);
             }
 
             state.Inventory[powerUpId]--;
+            string fxKind;
+            var blocked = false;
             if (targetState.HasShield)
             {
                 targetState.HasShield = false;
@@ -573,30 +492,27 @@ public sealed class GameSession
             return (
                 true,
                 null,
-                new PowerUpUseResult(
-                    powerUpId,
-                    null,
-                    null,
-                    player.Nickname,
-                    target,
-                    blocked,
-                    fxKind));
+                new PowerUpUseResult(powerUpId, null, null, player.Nickname, target, blocked, fxKind));
         }
 
-        if (powerUpId == PowerUpId.FiftyFifty && currentQuestion.Options.Length < 3)
+        if (powerUpId == PowerUpId.FiftyFifty && question.Options.Length < 3)
         {
-            return (false, "50/50 requires at least 3 options", null);
+            return (false, GameErrors.FiftyFiftyNeedsOptions, null);
         }
 
         state.Inventory[powerUpId]--;
+
+        int[]? masked = null;
+        DateTimeOffset? newEndsAt = null;
+        string? fxKindSelf = null;
 
         switch (powerUpId)
         {
             case PowerUpId.FiftyFifty:
             {
-                var optionCount = currentQuestion.Options.Length;
+                var optionCount = question.Options.Length;
                 var maskCount = optionCount >= 4 ? 2 : 1;
-                masked = PickWrongIndexes(currentQuestion.CorrectIndex, optionCount, maskCount);
+                masked = PickWrongIndexes(question.CorrectIndex, optionCount, maskCount);
                 state.MaskedWrongIndexes = masked;
                 break;
             }
@@ -605,23 +521,32 @@ public sealed class GameSession
                 break;
             case PowerUpId.ExtraTime:
                 state.UsedExtraTimeThisQuestion = true;
-                if (race.EndsAtUtc is not null)
+                if (asyncRace)
                 {
-                    race.EndsAtUtc = race.EndsAtUtc.Value.AddSeconds(5);
-                    newEndsAt = race.EndsAtUtc;
+                    if (race!.EndsAtUtc is not null)
+                    {
+                        race.EndsAtUtc = race.EndsAtUtc.Value.AddSeconds(5);
+                        newEndsAt = race.EndsAtUtc;
+                    }
+                }
+                else if (!_roomExtraTimeExtendedThisQuestion)
+                {
+                    QuestionEndsAtUtc = QuestionEndsAtUtc!.Value.AddSeconds(5);
+                    _roomExtraTimeExtendedThisQuestion = true;
+                    newEndsAt = QuestionEndsAtUtc;
                 }
 
                 break;
             case PowerUpId.Shield:
                 state.HasShield = true;
-                fxKind = "shield_up";
+                fxKindSelf = "shield_up";
                 break;
         }
 
         return (
             true,
             null,
-            new PowerUpUseResult(powerUpId, masked, newEndsAt, player.Nickname, null, false, fxKind));
+            new PowerUpUseResult(powerUpId, masked, newEndsAt, player.Nickname, null, false, fxKindSelf));
     }
 
     public IReadOnlyList<string> GetAsyncDisruptTargets(string connectionId)
@@ -663,33 +588,8 @@ public sealed class GameSession
             .Select(p => p.Nickname)
             .ToList();
 
-    private (string? targetNickname, string? error) ResolveAsyncDisruptTarget(string actorNickname, string? requested)
-    {
-        var candidates = GetAsyncDisruptCandidates(actorNickname);
-
-        if (candidates.Count == 0)
-        {
-            return (null, "No valid target");
-        }
-
-        if (string.IsNullOrWhiteSpace(requested))
-        {
-            return (candidates[Random.Shared.Next(candidates.Count)], null);
-        }
-
-        var match = candidates.FirstOrDefault(n =>
-            string.Equals(n, requested.Trim(), StringComparison.OrdinalIgnoreCase));
-        if (match is null)
-        {
-            return (null, "Invalid target");
-        }
-
-        return (match, null);
-    }
-
-    private (string? targetNickname, string? error) ResolveDisruptTarget(string actorNickname, string? requested)
-    {
-        var candidates = _players
+    private List<string> GetSyncDisruptCandidates(string actorNickname) =>
+        _players
             .Where(p =>
                 p.IsConnected
                 && !string.Equals(p.Nickname, actorNickname, StringComparison.OrdinalIgnoreCase)
@@ -697,9 +597,18 @@ public sealed class GameSession
             .Select(p => p.Nickname)
             .ToList();
 
+    private (string? targetNickname, string? error) ResolveDisruptTarget(
+        string actorNickname,
+        string? requested,
+        bool asyncRace)
+    {
+        var candidates = asyncRace
+            ? GetAsyncDisruptCandidates(actorNickname)
+            : GetSyncDisruptCandidates(actorNickname);
+
         if (candidates.Count == 0)
         {
-            return (null, "No valid target");
+            return (null, GameErrors.NoValidTarget);
         }
 
         if (string.IsNullOrWhiteSpace(requested))
@@ -711,7 +620,7 @@ public sealed class GameSession
             string.Equals(n, requested.Trim(), StringComparison.OrdinalIgnoreCase));
         if (match is null)
         {
-            return (null, "Invalid target");
+            return (null, GameErrors.InvalidTarget);
         }
 
         return (match, null);
@@ -727,28 +636,28 @@ public sealed class GameSession
             if (Phase != GamePhase.QuestionActive || CurrentQuestion is null
                 || QuestionStartedAtUtc is null || QuestionEndsAtUtc is null)
             {
-                return (false, "No active question", 0);
+                return (false, GameErrors.NoActiveQuestion, 0);
             }
 
             if (serverUtc > QuestionEndsAtUtc.Value)
             {
-                return (false, "Question already ended", 0);
+                return (false, GameErrors.QuestionEnded, 0);
             }
 
             var player = _players.FirstOrDefault(p => p.ConnectionId == connectionId && p.IsConnected);
             if (player is null)
             {
-                return (false, "Not a player in this room", 0);
+                return (false, GameErrors.NotInRoom, 0);
             }
 
             if (_answersThisQuestion.ContainsKey(player.Nickname))
             {
-                return (false, "Already answered", 0);
+                return (false, GameErrors.AlreadyAnswered, 0);
             }
 
             if (optionIndex < 0 || optionIndex >= CurrentQuestion.Options.Length)
             {
-                return (false, "Invalid option", 0);
+                return (false, GameErrors.InvalidOption, 0);
             }
 
             _answersThisQuestion[player.Nickname] = optionIndex;
@@ -777,33 +686,33 @@ public sealed class GameSession
         {
             if (!PowerUpConfig.Enabled)
             {
-                return (false, "Power-ups disabled", null);
+                return (false, GameErrors.PowerUpsDisabled, null);
             }
 
             if (!PowerUpConfig.HostEventsEnabled)
             {
-                return (false, "Host arena events disabled", null);
+                return (false, GameErrors.HostEventsDisabled, null);
             }
 
             if (Phase != GamePhase.QuestionActive || CurrentQuestion is null)
             {
-                return (false, "No active question", null);
+                return (false, GameErrors.NoActiveQuestion, null);
             }
 
             if (!string.Equals(HostConnectionId, hostConnectionId, StringComparison.Ordinal))
             {
-                return (false, "Only the host can trigger arena events", null);
+                return (false, GameErrors.HostOnly, null);
             }
 
             if (_hostEventsUsedThisQuestion >= PowerUpConfig.MaxHostEventPerQuestion)
             {
-                return (false, "Host event budget exhausted for this question", null);
+                return (false, GameErrors.HostBudgetExhausted, null);
             }
 
             var definition = PowerUpCatalog.Get(powerUpId);
             if (definition.Kind != PowerUpKind.Host)
             {
-                return (false, "Not a host arena event", null);
+                return (false, GameErrors.NotHostEvent, null);
             }
 
             DateTimeOffset? newEndsAt = null;
@@ -817,7 +726,7 @@ public sealed class GameSession
                     newEndsAt = QuestionEndsAtUtc;
                     break;
                 default:
-                    return (false, "Unknown host arena event", null);
+                    return (false, GameErrors.UnknownHostEvent, null);
             }
 
             _hostEventsUsedThisQuestion++;
@@ -944,12 +853,12 @@ public sealed class GameSession
         {
             if (Phase != GamePhase.Leaderboard)
             {
-                return (false, "Finish only from leaderboard");
+                return (false, GameErrors.FinishOnlyLeaderboard);
             }
 
             if (QuestionIndex + 1 < _quizQuestions.Count)
             {
-                return (false, "More questions remaining");
+                return (false, GameErrors.MoreQuestions);
             }
 
             Phase = GamePhase.Finished;
@@ -986,10 +895,10 @@ public sealed class GameSession
     {
         lock (_gate)
         {
-            if (!AsyncRaceEnabled) return (false, "Kein Async-Modus");
-            if (Phase != GamePhase.Lobby) return (false, "Ungültige Phase");
-            if (_quizQuestions.Count == 0) return (false, "Keine Fragen");
-            if (_players.Count == 0) return (false, "Keine Spieler");
+            if (!AsyncRaceEnabled) return (false, GameErrors.NoAsyncMode);
+            if (Phase != GamePhase.Lobby) return (false, GameErrors.InvalidPhase);
+            if (_quizQuestions.Count == 0) return (false, GameErrors.NoQuestions);
+            if (_players.Count == 0) return (false, GameErrors.NoPlayers);
 
             var rng = Random.Shared;
             _races.Clear();
@@ -1012,7 +921,7 @@ public sealed class GameSession
         }
     }
 
-    public IReadOnlyList<AsyncScoreboardEntryDto> GetAsyncScoreboard()
+    public IReadOnlyList<AsyncScoreboardEntry> GetAsyncScoreboard()
     {
         lock (_gate)
         {
@@ -1022,7 +931,7 @@ public sealed class GameSession
                     var race = _races.GetValueOrDefault(p.Nickname);
                     var total = race?.Order.Count ?? _quizQuestions.Count;
                     var answered = race?.AnsweredCount ?? 0;
-                    return new AsyncScoreboardEntryDto(p.Nickname, p.Score, answered, total);
+                    return new AsyncScoreboardEntry(p.Nickname, p.Score, answered, total);
                 })
                 .OrderByDescending(e => e.Score)
                 .ThenBy(e => e.Nickname, StringComparer.OrdinalIgnoreCase)
@@ -1030,11 +939,20 @@ public sealed class GameSession
         }
     }
 
-    public PlayerRaceState? GetRaceState(string nickname)
+    public PlayerRaceSnapshot? GetRaceState(string nickname)
     {
         lock (_gate)
         {
-            return _races.GetValueOrDefault(nickname);
+            if (!_races.TryGetValue(nickname, out var race))
+            {
+                return null;
+            }
+
+            return new PlayerRaceSnapshot(
+                race.Order,
+                race.Index,
+                race.QuestionStartedAtUtc,
+                race.EndsAtUtc);
         }
     }
 
@@ -1048,39 +966,39 @@ public sealed class GameSession
         {
             if (Phase != GamePhase.AsyncRacing)
             {
-                return AsyncSubmitFail("No async race in progress");
+                return AsyncSubmitFail(GameErrors.NoAsyncRace);
             }
 
             var player = FindPlayerByNickname(nickname);
             if (player is null)
             {
-                return AsyncSubmitFail("Not a player in this room");
+                return AsyncSubmitFail(GameErrors.NotInRoom);
             }
 
             if (!_races.TryGetValue(player.Nickname, out var race) || race.Finished)
             {
-                return AsyncSubmitFail("No active question");
+                return AsyncSubmitFail(GameErrors.NoActiveQuestion);
             }
 
             if (expectedQuestionIndex is not null && expectedQuestionIndex.Value != race.Index)
             {
-                return AsyncSubmitFail("Question already advanced");
+                return AsyncSubmitFail(GameErrors.QuestionAlreadyAdvanced);
             }
 
             var question = race.Current;
             if (question is null)
             {
-                return AsyncSubmitFail("No active question");
+                return AsyncSubmitFail(GameErrors.NoActiveQuestion);
             }
 
             if (race.EndsAtUtc is not null && nowUtc >= race.EndsAtUtc.Value)
             {
-                return AsyncSubmitFail("Question already ended");
+                return AsyncSubmitFail(GameErrors.QuestionEnded);
             }
 
             if (optionIndex < 0 || optionIndex >= question.Options.Length)
             {
-                return AsyncSubmitFail("Invalid option");
+                return AsyncSubmitFail(GameErrors.InvalidOption);
             }
 
             _powerUps.TryGetValue(player.Nickname, out var puState);
@@ -1315,7 +1233,7 @@ public sealed class GameSession
         _players.FirstOrDefault(p =>
             string.Equals(p.Nickname, nickname, StringComparison.OrdinalIgnoreCase));
 
-    private static TimeSpan QuestionTimeLimit(DemoQuestion question) =>
+    private static TimeSpan QuestionTimeLimit(QuizQuestion question) =>
         TimeSpan.FromSeconds(question.TimeLimitSeconds <= 0 ? 20 : question.TimeLimitSeconds);
 
     private static AsyncSubmitResult AsyncSubmitFail(string error) =>
@@ -1375,7 +1293,7 @@ public sealed class GameSession
     private AsyncSubmitResult AdvanceAsyncPlayerAfterAnswer(
         string nickname,
         PlayerRaceState race,
-        DemoQuestion answeredQuestion,
+        QuizQuestion answeredQuestion,
         DateTimeOffset nowUtc,
         int pointsAwarded,
         bool correct,
@@ -1385,7 +1303,7 @@ public sealed class GameSession
 
         race.Index++;
         var playerFinished = race.Finished;
-        DemoQuestion? nextQuestion = null;
+        QuizQuestion? nextQuestion = null;
         DateTimeOffset? nextStartedAtUtc = null;
         DateTimeOffset? nextEndsAtUtc = null;
 

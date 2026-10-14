@@ -1,5 +1,6 @@
 using TrainArena.Data;
 using TrainArena.Data.Entities;
+using TrainArena.Game;
 
 namespace TrainArena.Tests;
 
@@ -73,9 +74,9 @@ public class QuizRulesTests
     }
 
     [Fact]
-    public void ToDemoQuestion_MapsOnlyFilledOptions()
+    public void FromEntity_MapsOnlyFilledOptions()
     {
-        var demo = QuizRules.ToDemoQuestion(new Question
+        var mapped = QuizQuestionMapper.FromEntity(new Question
         {
             Text = "TF?",
             Option0 = "Wahr",
@@ -84,15 +85,15 @@ public class QuizRulesTests
             TimeLimitSeconds = 15,
             DisplayKind = QuestionDisplayKind.TrueFalse
         });
-        Assert.Equal(["Wahr", "Falsch"], demo.Options);
-        Assert.Equal(1, demo.CorrectIndex);
-        Assert.Equal(15, demo.TimeLimitSeconds);
+        Assert.Equal(["Wahr", "Falsch"], mapped.Options);
+        Assert.Equal(1, mapped.CorrectIndex);
+        Assert.Equal(15, mapped.TimeLimitSeconds);
     }
 
     [Fact]
-    public void ToDemoQuestion_MapsImagePathToImageUrl()
+    public void FromEntity_MapsImagePathToImageUrl()
     {
-        var demo = QuizRules.ToDemoQuestion(new Question
+        var mapped = QuizQuestionMapper.FromEntity(new Question
         {
             Text = "Mit Bild?",
             Option0 = "a",
@@ -103,7 +104,7 @@ public class QuizRulesTests
             TimeLimitSeconds = 20,
             ImagePath = "/uploads/abc.png"
         });
-        Assert.Equal("/uploads/abc.png", demo.ImageUrl);
+        Assert.Equal("/uploads/abc.png", mapped.ImageUrl);
     }
 
     [Fact]

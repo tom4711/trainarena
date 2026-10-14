@@ -4,7 +4,7 @@
 
 **Goal:** Support Wahr/Falsch and MC with 2–6 options (single correct), without breaking existing 4-option quizzes, CSV imports, or Power-Ups.
 
-**Architecture:** Persist `Option0`…`Option5` plus `DisplayKind` on `Question`; gameplay continues to use `DemoQuestion.Options` (`string[]`). `QuizRules` validates contiguous 2–6 options; `GameSession` accepts variable length and scales 50/50 (mask 2 / 1 / reject). Editor offers MC vs Wahr/Falsch UI; import stays backward compatible with optional E/F.
+**Architecture:** Persist `Option0`…`Option5` plus `DisplayKind` on `Question`; gameplay continues to use `QuizQuestion.Options` (`string[]`). `QuizRules` validates contiguous 2–6 options; `GameSession` accepts variable length and scales 50/50 (mask 2 / 1 / reject). Editor offers MC vs Wahr/Falsch UI; import stays backward compatible with optional E/F.
 
 **Tech Stack:** .NET 10 · ASP.NET Core · SignalR · SQLite/EF Core · Razor Editor · vanilla Host/Player JS · xUnit
 
@@ -28,7 +28,7 @@
 | `src/TrainArena/Data/Entities/QuestionDisplayKind.cs` | Enum `Mc`, `TrueFalse` |
 | `src/TrainArena/Data/Entities/Question.cs` | `Option4`, `Option5`, `DisplayKind` |
 | `src/TrainArena/Data/AppDbContext.cs` | EF config + `EnsureSchemaAsync` column patches |
-| `src/TrainArena/Data/QuizRules.cs` | Validate 2–6; `GetFilledOptions`; map to `DemoQuestion` |
+| `src/TrainArena/Data/QuizRules.cs` | Validate 2–6; `GetFilledOptions`; map to `QuizQuestion` |
 | `src/TrainArena/Data/QuizImport.cs` | Variable options + E/F; `ImportedQuestion.Options` |
 | `src/TrainArena/Game/GameSession.cs` | `StartQuestion` length; answer bounds; 50/50 mask count |
 | `src/TrainArena/Game/PowerUps/PlayerPowerUpState.cs` | Comment: mask length 1 or 2 |
@@ -58,8 +58,8 @@
   - `Question.Option4`, `Option5` (`string`, default `""`), `DisplayKind`
   - `QuizRules.ValidateQuestion(string text, IReadOnlyList<string> options, int correctIndex, QuestionDisplayKind kind = QuestionDisplayKind.Mc) → string?`
   - `QuizRules.GetFilledOptions(Question q) → IReadOnlyList<string>`
-  - `QuizRules.ToDemoQuestion(Question q)` — only filled options
-- Consumes: existing `Question`, `DemoQuestion`
+  - `QuizRules.ToQuizQuestion(Question q)` — only filled options
+- Consumes: existing `Question`, `QuizQuestion`
 
 - [ ] **Step 1: Rewrite failing QuizRules tests**
 
@@ -141,9 +141,9 @@ public class QuizRulesTests
     }
 
     [Fact]
-    public void ToDemoQuestion_MapsOnlyFilledOptions()
+    public void ToQuizQuestion_MapsOnlyFilledOptions()
     {
-        var demo = QuizRules.ToDemoQuestion(new Question
+        var demo = QuizRules.ToQuizQuestion(new Question
         {
             Text = "TF?",
             Option0 = "Wahr",
@@ -158,9 +158,9 @@ public class QuizRulesTests
     }
 
     [Fact]
-    public void ToDemoQuestion_MapsImagePathToImageUrl()
+    public void ToQuizQuestion_MapsImagePathToImageUrl()
     {
-        var demo = QuizRules.ToDemoQuestion(new Question
+        var demo = QuizRules.ToQuizQuestion(new Question
         {
             Text = "Mit Bild?",
             Option0 = "a",
@@ -299,7 +299,7 @@ public static class QuizRules
         q.Option5 = slots[5];
     }
 
-    public static DemoQuestion ToDemoQuestion(Question q) => new()
+    public static QuizQuestion ToQuizQuestion(Question q) => new()
     {
         Text = q.Text,
         Options = GetFilledOptions(q).ToArray(),
@@ -362,7 +362,7 @@ git commit -m "feat(quiz): Option4/5 + DisplayKind and flexible QuizRules"
 - Test: `tests/TrainArena.Tests/GameSessionQuestionTests.cs` (add cases)
 
 **Interfaces:**
-- Consumes: `DemoQuestion.Options` length 2–6
+- Consumes: `QuizQuestion.Options` length 2–6
 - Produces: `PickWrongIndexes(correctIndex, optionCount, maskCount) → int[]`; 50/50 uses `maskCount = optionCount >= 4 ? 2 : optionCount == 3 ? 1 : 0`
 
 - [ ] **Step 1: Failing tests**
@@ -375,7 +375,7 @@ public void FiftyFifty_OnThreeOptions_MasksOneWrong()
 {
     var s = new GameSession("ABC123", "host", Guid.NewGuid(), PowerUpRoomConfig.CreateDefault());
     s.TryJoin("Ada", "p1");
-    var q = new DemoQuestion { Text = "Q?", Options = ["a", "b", "c"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+    var q = new QuizQuestion { Text = "Q?", Options = ["a", "b", "c"], CorrectIndex = 0, TimeLimitSeconds = 20 };
     s.SetQuestions([q]);
     Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
     var (ok, err, result) = s.TryUsePowerUp("p1", PowerUpId.FiftyFifty);
@@ -390,7 +390,7 @@ public void FiftyFifty_OnTwoOptions_Rejected()
 {
     var s = new GameSession("ABC123", "host", Guid.NewGuid(), PowerUpRoomConfig.CreateDefault());
     s.TryJoin("Ada", "p1");
-    var q = new DemoQuestion { Text = "Q?", Options = ["Wahr", "Falsch"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+    var q = new QuizQuestion { Text = "Q?", Options = ["Wahr", "Falsch"], CorrectIndex = 0, TimeLimitSeconds = 20 };
     s.SetQuestions([q]);
     Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
     var (ok, err, _) = s.TryUsePowerUp("p1", PowerUpId.FiftyFifty);
@@ -407,7 +407,7 @@ public void StartQuestion_AcceptsTwoToSixOptions()
 {
     var s = new GameSession("ABC123", "host", Guid.NewGuid());
     s.TryJoin("Ada", "p1");
-    var q = new DemoQuestion { Text = "Q?", Options = ["a", "b"], CorrectIndex = 1, TimeLimitSeconds = 20 };
+    var q = new QuizQuestion { Text = "Q?", Options = ["a", "b"], CorrectIndex = 1, TimeLimitSeconds = 20 };
     s.SetQuestions([q]);
     Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
 }
@@ -417,7 +417,7 @@ public void SubmitAnswer_RejectsIndexPastOptionCount()
 {
     var s = new GameSession("ABC123", "host", Guid.NewGuid());
     s.TryJoin("Ada", "p1");
-    var q = new DemoQuestion { Text = "Q?", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+    var q = new QuizQuestion { Text = "Q?", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 };
     s.SetQuestions([q]);
     Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
     var (ok, err, _) = s.SubmitAnswer("p1", 2, DateTimeOffset.UtcNow);

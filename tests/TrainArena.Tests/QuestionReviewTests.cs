@@ -5,13 +5,13 @@ namespace TrainArena.Tests;
 
 public class QuestionReviewTests
 {
-    private static (GameSession s, DemoQuestion q0, DemoQuestion q1) TwoQuestionRoom()
+    private static (GameSession s, QuizQuestion q0, QuizQuestion q1) TwoQuestionRoom()
     {
         var s = new GameSession("ABC123", "host", Guid.NewGuid());
         s.TryJoin("Ada", "p1");
         s.TryJoin("Bob", "p2");
-        var q0 = new DemoQuestion { Text = "Q0?", Options = ["a", "b", "c"], CorrectIndex = 0, TimeLimitSeconds = 20 };
-        var q1 = new DemoQuestion { Text = "Q1?", Options = ["Wahr", "Falsch"], CorrectIndex = 1, TimeLimitSeconds = 20 };
+        var q0 = new QuizQuestion { Text = "Q0?", Options = ["a", "b", "c"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+        var q1 = new QuizQuestion { Text = "Q1?", Options = ["Wahr", "Falsch"], CorrectIndex = 1, TimeLimitSeconds = 20 };
         s.SetQuestions([q0, q1]);
         return (s, q0, q1);
     }
@@ -87,7 +87,7 @@ public class QuestionReviewTests
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg);
         s.TryJoin("Ada", "p1");
         s.TryJoin("Bob", "p2");
-        var q = new DemoQuestion { Text = "Q?", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+        var q = new QuizQuestion { Text = "Q?", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 };
         s.SetQuestions([q]);
         Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
         Assert.True(s.TryUsePowerUp("p1", PowerUpId.Disrupt, "Bob").ok);

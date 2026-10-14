@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.SignalR.Client;
 using TrainArena.Contracts;
 using TrainArena.Data;
+using TrainArena.Game;
 
 namespace TrainArena.Tests;
 
@@ -73,7 +74,7 @@ public class PowerUpHubTests : IClassFixture<TrainArenaWebAppFactory>
         await player1.InvokeAsync("UsePowerUp", "double", null);
         var err = await powerUpError;
 
-        Assert.Contains("answered", err.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(GameErrors.AlreadyAnswered, err.Error);
     }
 
     [Fact]

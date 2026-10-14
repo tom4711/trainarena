@@ -4,7 +4,7 @@ namespace TrainArena.Tests;
 
 public class GameSessionQuestionTests
 {
-    private static DemoQuestion Demo() => new()
+    private static QuizQuestion Demo() => new()
     {
         Text = "2+2?",
         Options = ["1", "2", "3", "4"],
@@ -17,7 +17,7 @@ public class GameSessionQuestionTests
     {
         var s = new GameSession("ABC123", "host", Guid.NewGuid());
         s.TryJoin("Ada", "p1");
-        var q = new DemoQuestion { Text = "Q?", Options = ["a", "b"], CorrectIndex = 1, TimeLimitSeconds = 20 };
+        var q = new QuizQuestion { Text = "Q?", Options = ["a", "b"], CorrectIndex = 1, TimeLimitSeconds = 20 };
         s.SetQuestions([q]);
         Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
     }
@@ -27,12 +27,12 @@ public class GameSessionQuestionTests
     {
         var s = new GameSession("ABC123", "host", Guid.NewGuid());
         s.TryJoin("Ada", "p1");
-        var q = new DemoQuestion { Text = "Q?", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+        var q = new QuizQuestion { Text = "Q?", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 };
         s.SetQuestions([q]);
         Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
         var (ok, err, _) = s.SubmitAnswer("p1", 2, DateTimeOffset.UtcNow);
         Assert.False(ok);
-        Assert.Contains("Invalid option", err!, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(GameErrors.InvalidOption, err);
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public class GameSessionQuestionTests
         var session = new GameSessionStore(new RoomCodeGenerator()).Create("host", Guid.Parse("11111111-1111-1111-1111-111111111111"));
         var (ok, error) = session.StartQuestion(Demo(), DateTimeOffset.UtcNow);
         Assert.False(ok);
-        Assert.Equal("Need at least one player", error);
+        Assert.Equal(GameErrors.NeedPlayer, error);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public class GameSessionQuestionTests
         var (ok, error, _) = session.SubmitAnswer("p1", 3, start.AddSeconds(25));
 
         Assert.False(ok);
-        Assert.Equal("Question already ended", error);
+        Assert.Equal(GameErrors.QuestionEnded, error);
     }
 
     [Fact]

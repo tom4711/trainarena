@@ -8,14 +8,14 @@ public class PowerUpScoringTests
     private static int TotalInventory(PlayerPowerUpState state) =>
         PowerUpCatalog.PlayerIds.Sum(id => state.Inventory[id]);
 
-    private static (GameSession s, DemoQuestion q, DateTimeOffset t0) ActiveRoom(
+    private static (GameSession s, QuizQuestion q, DateTimeOffset t0) ActiveRoom(
         PowerUpRoomConfig? config = null,
         int timeLimitSeconds = 20)
     {
         var t0 = DateTimeOffset.UtcNow;
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), config ?? PowerUpRoomConfig.CreateDefault());
         s.TryJoin("Ada", "p1");
-        var q = new DemoQuestion
+        var q = new QuizQuestion
         {
             Text = "Q?",
             Options = ["a", "b", "c", "d"],
@@ -70,14 +70,14 @@ public class PowerUpScoringTests
         var cfg = PowerUpRoomConfig.CreateDefault();
         cfg.StreakRewardEvery = 2;
         cfg.StreakRewardPool = [PowerUpId.Double];
-        var q1 = new DemoQuestion
+        var q1 = new QuizQuestion
         {
             Text = "Q?",
             Options = ["a", "b", "c", "d"],
             CorrectIndex = 0,
             TimeLimitSeconds = 20,
         };
-        var q2 = new DemoQuestion
+        var q2 = new QuizQuestion
         {
             Text = "Q2?",
             Options = ["a", "b", "c", "d"],
