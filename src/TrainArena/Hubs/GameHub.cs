@@ -39,9 +39,17 @@ public sealed class GameHub : Hub
         Guid quizId,
         PowerUpConfigDto? powerUpConfig,
         AutoAdvanceConfigDto? autoAdvance,
-        ExamConfigDto? exam)
+        ExamConfigDto? exam,
+        AsyncRaceConfigDto? asyncRace = null)
     {
         var examMode = exam?.Enabled == true;
+        var asyncRaceEnabled = asyncRace?.Enabled == true;
+        if (asyncRaceEnabled && examMode)
+        {
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(
+                "Async-Rennen und Prüfungsmodus sind nicht kombinierbar."));
+            return;
+        }
         // Tag filter applies whenever tags are set (also outside exam mode).
         PowerUpRoomConfig? roomConfig = null;
         if (!examMode && powerUpConfig is not null)
@@ -78,6 +86,13 @@ public sealed class GameHub : Hub
             }
         }
 
+        if (asyncRaceEnabled && autoAdvanceOptions is { Enabled: true })
+        {
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(
+                "Async-Rennen und Auto-Advance sind nicht kombinierbar."));
+            return;
+        }
+
         await using var scope = _scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var quiz = await db.Quizzes
@@ -109,7 +124,13 @@ public sealed class GameHub : Hub
             return;
         }
 
-        var session = _sessions.Create(Context.ConnectionId, quizId, roomConfig, autoAdvanceOptions, examMode);
+        var session = _sessions.Create(
+            Context.ConnectionId,
+            quizId,
+            roomConfig,
+            autoAdvanceOptions,
+            examMode,
+            asyncRaceEnabled);
         session.SetQuestions(questions);
 
         await Groups.AddToGroupAsync(Context.ConnectionId, RoomGroup(session.Code));
@@ -230,10 +251,16 @@ public sealed class GameHub : Hub
             return;
         }
 
+        if (session.AsyncRaceEnabled)
+        {
+            await StartAsyncRaceAsync(session);
+            return;
+        }
+
         await StartCurrentNextQuestion(session);
     }
 
-    public async Task SubmitAnswer(int optionIndex)
+    public async Task SubmitAnswer(int optionIndex, int? questionIndex)
     {
         if (!_sessions.TryGetByConnection(Context.ConnectionId, out var session) || session is null)
         {
@@ -242,6 +269,41 @@ public sealed class GameHub : Hub
         }
 
         var now = DateTimeOffset.UtcNow;
+
+        if (session.Phase == GamePhase.AsyncRacing)
+        {
+            var asyncPlayer = session.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+            if (asyncPlayer is null)
+            {
+                await Clients.Caller.SendAsync(
+                    "AnswerAccepted",
+                    new AnswerAcceptedMessage(false, "Not a player", 0));
+                return;
+            }
+
+            var asyncResult = session.SubmitAsyncAnswer(
+                asyncPlayer.Nickname,
+                optionIndex,
+                now,
+                questionIndex);
+            await Clients.Caller.SendAsync(
+                "AnswerAccepted",
+                new AnswerAcceptedMessage(asyncResult.Ok, asyncResult.Error, asyncResult.PointsAwarded));
+            if (!asyncResult.Ok)
+            {
+                return;
+            }
+
+            session.ApplyStreakRewardForPlayer(asyncPlayer.Nickname, asyncResult.CountsAsCorrect);
+            await SendInventoryUpdateToPlayerAsync(session, asyncPlayer.Nickname, viaHubContext: false);
+
+            await DeliverAsyncSubmitResultToPlayerAsync(session, asyncPlayer, asyncResult, viaHubContext: false);
+            await BroadcastAsyncScoreboardAsync(session, viaHubContext: false);
+            await ProcessAsyncTimeoutsForSessionAsync(session, viaHubContext: false);
+            RescheduleAsyncTimeouts(session.Code);
+            return;
+        }
+
         var (ok, error, points) = session.SubmitAnswer(Context.ConnectionId, optionIndex, now);
         await Clients.Caller.SendAsync("AnswerAccepted", new AnswerAcceptedMessage(ok, error, points));
 
@@ -259,6 +321,17 @@ public sealed class GameHub : Hub
         {
             await BroadcastQuestionEndedAsync(session);
         }
+    }
+
+    /// <summary>Eligible Störimpuls targets during async race (open question, not self).</summary>
+    public Task<string[]> ListAsyncDisruptTargets()
+    {
+        if (!_sessions.TryGetByConnection(Context.ConnectionId, out var session) || session is null)
+        {
+            return Task.FromResult(Array.Empty<string>());
+        }
+
+        return Task.FromResult(session.GetAsyncDisruptTargets(Context.ConnectionId).ToArray());
     }
 
     /// <summary>
@@ -335,8 +408,15 @@ public sealed class GameHub : Hub
 
         if (result.NewEndsAtUtc is not null)
         {
-            await Clients.OthersInGroup(RoomGroup(session.Code)).SendAsync("PowerUpUsed", message);
-            RescheduleQuestionEnd(session.Code, result.NewEndsAtUtc.Value);
+            if (session.Phase == GamePhase.AsyncRacing)
+            {
+                RescheduleAsyncTimeouts(session.Code);
+            }
+            else
+            {
+                await Clients.OthersInGroup(RoomGroup(session.Code)).SendAsync("PowerUpUsed", message);
+                RescheduleQuestionEnd(session.Code, result.NewEndsAtUtc.Value);
+            }
         }
     }
 
@@ -401,6 +481,30 @@ public sealed class GameHub : Hub
         }
 
         await AdvanceFromLeaderboardAsync(session, notifyHostOnError: true, viaHubContext: false);
+    }
+
+    private async Task StartAsyncRaceAsync(
+        GameSession session,
+        bool notifyHostOnError = true,
+        bool viaHubContext = false)
+    {
+        CancelAutoAdvance(session.Code, broadcastIfActive: false);
+
+        var now = DateTimeOffset.UtcNow;
+        var (ok, error) = session.StartAsyncRace(now);
+        if (!ok)
+        {
+            if (notifyHostOnError)
+            {
+                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Cannot start"));
+            }
+
+            return;
+        }
+
+        await BroadcastAsyncQuestionStartsAsync(session, viaHubContext);
+        await BroadcastAsyncScoreboardAsync(session, viaHubContext);
+        RescheduleAsyncTimeouts(session.Code);
     }
 
     private async Task StartCurrentNextQuestion(
@@ -485,6 +589,225 @@ public sealed class GameHub : Hub
             session.QuestionStartedAtUtc!.Value,
             session.QuestionEndsAtUtc!.Value,
             q.ImageUrl);
+
+    private static QuestionStartedMessage ToAsyncQuestionStartedMessage(PlayerRaceState race) =>
+        new(
+            race.Index,
+            race.Order.Count,
+            race.Current!.Text,
+            race.Current.Options,
+            race.QuestionStartedAtUtc!.Value,
+            race.EndsAtUtc!.Value,
+            race.Current.ImageUrl);
+
+    private async Task BroadcastAsyncQuestionStartsAsync(GameSession session, bool viaHubContext)
+    {
+        foreach (var player in session.Players.Where(p => p.IsConnected && !string.IsNullOrEmpty(p.ConnectionId)))
+        {
+            var race = session.GetRaceState(player.Nickname);
+            if (race?.Current is null || race.Finished)
+            {
+                continue;
+            }
+
+            var message = ToAsyncQuestionStartedMessage(race);
+            if (viaHubContext)
+            {
+                await _hubContext.Clients.Client(player.ConnectionId).SendAsync("QuestionStarted", message);
+            }
+            else
+            {
+                await Clients.Client(player.ConnectionId).SendAsync("QuestionStarted", message);
+            }
+        }
+    }
+
+    private async Task BroadcastAsyncScoreboardAsync(GameSession session, bool viaHubContext)
+    {
+        var message = new AsyncScoreboardMessage(session.GetAsyncScoreboard());
+        if (viaHubContext)
+        {
+            await _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync("AsyncScoreboard", message);
+        }
+        else
+        {
+            await Clients.Group(RoomGroup(session.Code)).SendAsync("AsyncScoreboard", message);
+        }
+    }
+
+    private async Task DeliverAsyncSubmitResultToPlayerAsync(
+        GameSession session,
+        PlayerInfo player,
+        AsyncSubmitResult result,
+        bool viaHubContext,
+        bool broadcastRaceFinished = true)
+    {
+        if (string.IsNullOrEmpty(player.ConnectionId))
+        {
+            return;
+        }
+
+        var endedIndex = result.NextIndex - 1;
+        var ended = new QuestionEndedMessage(
+            result.CorrectIndex,
+            endedIndex,
+            result.Total,
+            result.Explanation);
+
+        var client = viaHubContext
+            ? _hubContext.Clients.Client(player.ConnectionId)
+            : Clients.Client(player.ConnectionId);
+
+        await client.SendAsync("QuestionEnded", ended);
+
+        if (!result.PlayerFinished && result.NextQuestion is not null
+            && result.NextStartedAtUtc is not null && result.NextEndsAtUtc is not null)
+        {
+            var next = new QuestionStartedMessage(
+                result.NextIndex,
+                result.Total,
+                result.NextQuestion.Text,
+                result.NextQuestion.Options,
+                result.NextStartedAtUtc.Value,
+                result.NextEndsAtUtc.Value,
+                result.NextQuestion.ImageUrl);
+
+            await client.SendAsync("QuestionStarted", next);
+        }
+
+        if (broadcastRaceFinished && result.RaceFinished)
+        {
+            await BroadcastAsyncGameFinishedAsync(session, viaHubContext);
+        }
+    }
+
+    private async Task ProcessAsyncTimeoutsForSessionAsync(GameSession session, bool viaHubContext)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var anyTimeout = false;
+        var raceFinished = false;
+        foreach (var player in session.Players.ToList())
+        {
+            var (timedOut, result) = session.TryTimeoutAsyncPlayer(player.Nickname, now);
+            if (!timedOut || result is null)
+            {
+                continue;
+            }
+
+            anyTimeout = true;
+            if (result.RaceFinished)
+            {
+                raceFinished = true;
+            }
+
+            if (player.IsConnected && !string.IsNullOrEmpty(player.ConnectionId))
+            {
+                session.ApplyStreakRewardForPlayer(player.Nickname, result.CountsAsCorrect);
+                await SendInventoryUpdateToPlayerAsync(session, player.Nickname, viaHubContext);
+
+                await DeliverAsyncSubmitResultToPlayerAsync(
+                    session,
+                    player,
+                    result,
+                    viaHubContext,
+                    broadcastRaceFinished: false);
+            }
+        }
+
+        if (anyTimeout)
+        {
+            await BroadcastAsyncScoreboardAsync(session, viaHubContext);
+        }
+
+        if (raceFinished)
+        {
+            await BroadcastAsyncGameFinishedAsync(session, viaHubContext);
+        }
+    }
+
+    private async Task BroadcastAsyncGameFinishedAsync(GameSession session, bool viaHubContext)
+    {
+        var finished = ToAsyncFinished(session);
+        if (viaHubContext)
+        {
+            await _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync("GameFinished", finished);
+        }
+        else
+        {
+            await Clients.Group(RoomGroup(session.Code)).SendAsync("GameFinished", finished);
+        }
+    }
+
+    private static GameFinishedMessage ToAsyncFinished(GameSession session) =>
+        new(
+            session.GetLeaderboard()
+                .Select(e => new LeaderboardEntryDto(e.Nickname, e.Score))
+                .ToList(),
+            Array.Empty<QuestionReviewDto>(),
+            false,
+            null);
+
+    private void RescheduleAsyncTimeouts(string code)
+    {
+        CancelQuestionEndTimer(code);
+
+        if (!_sessions.TryGet(code, out var session) || session is null || session.Phase != GamePhase.AsyncRacing)
+        {
+            return;
+        }
+
+        DateTimeOffset? earliest = null;
+        foreach (var player in session.Players)
+        {
+            var race = session.GetRaceState(player.Nickname);
+            if (race is null || race.Finished || race.EndsAtUtc is null)
+            {
+                continue;
+            }
+
+            if (earliest is null || race.EndsAtUtc.Value < earliest.Value)
+            {
+                earliest = race.EndsAtUtc;
+            }
+        }
+
+        if (earliest is null)
+        {
+            return;
+        }
+
+        var delay = earliest.Value - DateTimeOffset.UtcNow;
+        if (delay < TimeSpan.Zero)
+        {
+            delay = TimeSpan.Zero;
+        }
+
+        var cts = new CancellationTokenSource();
+        QuestionEndTimers[code] = cts;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(delay, cts.Token);
+                if (!_sessions.TryGet(code, out var live) || live is null || live.Phase != GamePhase.AsyncRacing)
+                {
+                    return;
+                }
+
+                await ProcessAsyncTimeoutsForSessionAsync(live, viaHubContext: true);
+                RescheduleAsyncTimeouts(code);
+            }
+            catch (OperationCanceledException)
+            {
+                // Superseded by a newer end time.
+            }
+            catch
+            {
+                // Timer best-effort.
+            }
+        });
+    }
 
     private async Task BroadcastQuestionEndedAsync(GameSession session)
     {
@@ -722,9 +1045,67 @@ public sealed class GameHub : Hub
                 await Clients.Caller.SendAsync("Leaderboard", ToLeaderboard(session));
                 break;
             case GamePhase.Finished:
-                await Clients.Caller.SendAsync("GameFinished", ToFinished(session));
+                await Clients.Caller.SendAsync(
+                    "GameFinished",
+                    session.AsyncRaceEnabled ? ToAsyncFinished(session) : ToFinished(session));
+                break;
+            case GamePhase.AsyncRacing:
+                await SyncCallerToAsyncRacingPhase(session);
                 break;
         }
+    }
+
+    private async Task SyncCallerToAsyncRacingPhase(GameSession session)
+    {
+        if (session.IsHost(Context.ConnectionId))
+        {
+            await Clients.Caller.SendAsync(
+                "AsyncScoreboard",
+                new AsyncScoreboardMessage(session.GetAsyncScoreboard()));
+            return;
+        }
+
+        var player = session.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+        if (player is null)
+        {
+            return;
+        }
+
+        var race = session.GetRaceState(player.Nickname);
+        if (race is null)
+        {
+            return;
+        }
+
+        if (race.Finished)
+        {
+            await Clients.Caller.SendAsync(
+                "AsyncScoreboard",
+                new AsyncScoreboardMessage(session.GetAsyncScoreboard()));
+            if (race.Index > 0)
+            {
+                var last = race.Order[race.Index - 1];
+                await Clients.Caller.SendAsync(
+                    "QuestionEnded",
+                    new QuestionEndedMessage(
+                        last.CorrectIndex,
+                        race.Index - 1,
+                        race.Order.Count,
+                        last.Explanation));
+            }
+
+            return;
+        }
+
+        if (race.Current is null || race.QuestionStartedAtUtc is null || race.EndsAtUtc is null)
+        {
+            return;
+        }
+
+        await Clients.Caller.SendAsync(
+            "AsyncScoreboard",
+            new AsyncScoreboardMessage(session.GetAsyncScoreboard()));
+        await Clients.Caller.SendAsync("QuestionStarted", ToAsyncQuestionStartedMessage(race));
     }
 
     private static LobbyStateMessage ToLobbyState(GameSession session)
@@ -773,13 +1154,36 @@ public sealed class GameHub : Hub
 
     private async Task SendInventoryUpdateToCaller(GameSession session, string nickname)
     {
+        await SendInventoryUpdateToPlayerAsync(session, nickname, viaHubContext: false);
+    }
+
+    private async Task SendInventoryUpdateToPlayerAsync(
+        GameSession session,
+        string nickname,
+        bool viaHubContext)
+    {
         var state = session.GetPowerUpState(nickname);
         if (state is null)
         {
             return;
         }
 
-        await Clients.Caller.SendAsync("InventoryUpdate", ToInventoryUpdateMessage(state));
+        var player = session.Players.FirstOrDefault(p =>
+            string.Equals(p.Nickname, nickname, StringComparison.OrdinalIgnoreCase));
+        if (player is null || string.IsNullOrEmpty(player.ConnectionId))
+        {
+            return;
+        }
+
+        var message = ToInventoryUpdateMessage(state);
+        if (viaHubContext)
+        {
+            await _hubContext.Clients.Client(player.ConnectionId).SendAsync("InventoryUpdate", message);
+        }
+        else
+        {
+            await Clients.Client(player.ConnectionId).SendAsync("InventoryUpdate", message);
+        }
     }
 
     private async Task BroadcastInventoryUpdatesAsync(GameSession session)

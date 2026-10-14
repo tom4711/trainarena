@@ -26,7 +26,7 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         await using var player = await ConnectAsync();
 
         var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
-        await host.InvokeAsync("CreateRoom", quizId, null, null, null);
+        await host.InvokeAsync("CreateRoom", quizId, null, null, null, null);
         var room = await roomCreated;
 
         var joined = WaitFor<PlayerJoinedMessage>(host, "PlayerJoined");
@@ -43,7 +43,7 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         Assert.Equal(0, first.Index);
         Assert.Equal(2, first.TotalQuestions);
 
-        await player.InvokeAsync("SubmitAnswer", 0);
+        await player.InvokeAsync("SubmitAnswer", 0, null);
         Assert.True((await a1).Ok);
         await end1;
         var lb1 = await board1;
@@ -59,7 +59,7 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         var second = await q2;
         Assert.Equal(1, second.Index);
 
-        await player.InvokeAsync("SubmitAnswer", 1);
+        await player.InvokeAsync("SubmitAnswer", 1, null);
         Assert.True((await a2).Ok);
         await end2;
         var lb2 = await board2;
@@ -83,7 +83,7 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         await using var player = await ConnectAsync();
 
         var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
-        await host.InvokeAsync("CreateRoom", quizId, null, null, null);
+        await host.InvokeAsync("CreateRoom", quizId, null, null, null, null);
         var room = await roomCreated;
 
         var joined = WaitFor<PlayerJoinedMessage>(host, "PlayerJoined");
@@ -94,14 +94,14 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         var end1 = WaitFor<QuestionEndedMessage>(player, "QuestionEnded");
         await host.InvokeAsync("StartGame");
         await q1;
-        await player.InvokeAsync("SubmitAnswer", 0);
+        await player.InvokeAsync("SubmitAnswer", 0, null);
         await end1;
 
         var q2 = WaitFor<QuestionStartedMessage>(player, "QuestionStarted");
         var end2 = WaitFor<QuestionEndedMessage>(player, "QuestionEnded");
         await host.InvokeAsync("NextQuestion");
         await q2;
-        await player.InvokeAsync("SubmitAnswer", 1);
+        await player.InvokeAsync("SubmitAnswer", 1, null);
         await end2;
 
         var finished = WaitFor<GameFinishedMessage>(player, "GameFinished");
@@ -128,7 +128,7 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         await using var player = await ConnectAsync();
 
         var roomCreated = WaitFor<RoomCreatedMessage>(host, "RoomCreated");
-        await host.InvokeAsync("CreateRoom", quizId, null, null, null);
+        await host.InvokeAsync("CreateRoom", quizId, null, null, null, null);
         var room = await roomCreated;
 
         var joined = WaitFor<PlayerJoinedMessage>(host, "PlayerJoined");
@@ -144,7 +144,7 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         var first = await q1;
         Assert.Equal(["Wahr", "Falsch"], first.Options);
 
-        await player.InvokeAsync("SubmitAnswer", 1);
+        await player.InvokeAsync("SubmitAnswer", 1, null);
         var accepted1 = await a1;
         Assert.True(accepted1.Ok);
         Assert.True(accepted1.Points > 0);
@@ -162,7 +162,7 @@ public class FullRoundTests : IClassFixture<TrainArenaWebAppFactory>
         var second = await q2;
         Assert.Equal(2, second.Options.Length);
 
-        await player.InvokeAsync("SubmitAnswer", 0);
+        await player.InvokeAsync("SubmitAnswer", 0, null);
         var accepted2 = await a2;
         Assert.True(accepted2.Ok);
         Assert.True(accepted2.Points > 0);

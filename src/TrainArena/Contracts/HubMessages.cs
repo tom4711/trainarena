@@ -60,6 +60,12 @@ public sealed record GameFinishedMessage(
 
 public sealed record ExamConfigDto(bool Enabled, IReadOnlyList<string>? Tags = null);
 
+public sealed record AsyncRaceConfigDto(bool Enabled);
+
+public sealed record AsyncScoreboardEntryDto(string Nickname, int Score, int AnsweredCount, int Total);
+
+public sealed record AsyncScoreboardMessage(IReadOnlyList<AsyncScoreboardEntryDto> Entries);
+
 public sealed record PowerUpConfigDto(
     bool Enabled,
     Dictionary<string, int>? Starter,

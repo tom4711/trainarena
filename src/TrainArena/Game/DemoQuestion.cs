@@ -15,6 +15,7 @@ public sealed class DemoQuestion
 public enum GamePhase
 {
     Lobby,
+    AsyncRacing,
     QuestionActive,
     Reveal,
     Leaderboard,

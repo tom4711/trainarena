@@ -43,6 +43,15 @@
   let inventory = {};
   let autoAdvanceHandle = null;
   let boardWaitingForHost = false;
+  let playerAsyncRace = false;
+  let expectNextQuestionWithoutLeaderboard = false;
+  let currentQuestionIndex = 0;
+  const ASYNC_FEEDBACK_BEAT_MS = 1200;
+  let pendingQuestionStarted = null;
+  let pendingQuestionStartedTimer = null;
+  const defaultWaitHint =
+    waitPanel?.querySelector(".hint")?.textContent ||
+    "Warte auf die nächste Frage…";
   let roomCode = sessionStorage.getItem(STORAGE_CODE) || $("code").value.trim().toUpperCase();
   let nickname = sessionStorage.getItem(STORAGE_NICK) || "";
   let lobbyPlayers = [];
@@ -156,15 +165,12 @@
     if (targetList) targetList.innerHTML = "";
   }
 
-  function openTargetPicker() {
-    const opponents = lobbyPlayers.filter(
-      (p) => p && p.toLowerCase() !== nickname.toLowerCase(),
-    );
+  function renderTargetPicker(opponents) {
     if (!targetList || !targetPicker) {
       invokeDisrupt(null);
       return;
     }
-    if (opponents.length === 0) {
+    if (!opponents.length) {
       answerStatus.className = "error";
       answerStatus.textContent = "Kein gültiges Ziel";
       return;
@@ -181,6 +187,24 @@
       targetList.appendChild(btn);
     });
     targetPicker.classList.remove("hidden");
+  }
+
+  function openTargetPicker() {
+    if (playerAsyncRace) {
+      connection
+        .invoke("ListAsyncDisruptTargets")
+        .then((names) => {
+          renderTargetPicker((names || []).filter(Boolean));
+        })
+        .catch(() => {
+          renderTargetPicker([]);
+        });
+      return;
+    }
+    const lobbyOpponents = lobbyPlayers.filter(
+      (p) => p && p.toLowerCase() !== nickname.toLowerCase(),
+    );
+    renderTargetPicker(lobbyOpponents);
   }
 
   function invokeDisrupt(targetNickname) {
@@ -363,12 +387,39 @@
     }
   });
 
+  function resetAsyncWaitHint() {
+    const hint = waitPanel?.querySelector(".hint");
+    if (hint) hint.textContent = defaultWaitHint;
+  }
+
+  function showAsyncRaceWaiting() {
+    questionPanel.classList.add("hidden");
+    powerupsEl.classList.add("hidden");
+    hideTargetPicker();
+    resetAsyncWaitHint();
+    const hint = waitPanel?.querySelector(".hint");
+    if (hint) {
+      hint.textContent = "Du bist durch — warte auf die anderen Läufer…";
+    }
+    waitPanel.classList.remove("hidden");
+    expectNextQuestionWithoutLeaderboard = false;
+  }
+
+  connection.on("AsyncScoreboard", () => {
+    playerAsyncRace = true;
+  });
+
   connection.on("LobbyState", (msg) => {
-    currentOptionCount = 0;
     lobbyPlayers = (msg?.players || [])
       .filter((p) => p && p.isConnected !== false)
       .map((p) => p.nickname)
       .filter(Boolean);
+    if (playerAsyncRace || questionOpen) {
+      return;
+    }
+    expectNextQuestionWithoutLeaderboard = false;
+    resetAsyncWaitHint();
+    currentOptionCount = 0;
     joinPanel.classList.add("hidden");
     waitPanel.classList.remove("hidden");
     questionPanel.classList.add("hidden");
@@ -402,7 +453,20 @@
     autoAdvanceHandle = setInterval(tick, 200);
   }
 
-  connection.on("QuestionStarted", (msg) => {
+  function explanationVisible() {
+    const explEl = $("question-explanation");
+    return explEl && !explEl.classList.contains("hidden");
+  }
+
+  function applyQuestionStarted(msg) {
+    currentQuestionIndex = msg.index ?? 0;
+    if (expectNextQuestionWithoutLeaderboard) {
+      playerAsyncRace = true;
+    }
+    expectNextQuestionWithoutLeaderboard = false;
+    waitHost.classList.add("hidden");
+    boardWaitingForHost = false;
+    resetAsyncWaitHint();
     clearAutoAdvanceCountdown();
     answered = false;
     questionOpen = true;
@@ -450,6 +514,29 @@
     ensurePowerUpButtons();
     refreshPowerUpButtons();
     startTimer();
+  }
+
+  connection.on("QuestionStarted", (msg) => {
+    const holdForFeedback =
+      (expectNextQuestionWithoutLeaderboard || playerAsyncRace) && explanationVisible();
+    if (holdForFeedback) {
+      pendingQuestionStarted = msg;
+      if (!pendingQuestionStartedTimer) {
+        pendingQuestionStartedTimer = setTimeout(() => {
+          pendingQuestionStartedTimer = null;
+          const next = pendingQuestionStarted;
+          pendingQuestionStarted = null;
+          if (next) applyQuestionStarted(next);
+        }, ASYNC_FEEDBACK_BEAT_MS);
+      }
+      return;
+    }
+    if (pendingQuestionStartedTimer) {
+      clearTimeout(pendingQuestionStartedTimer);
+      pendingQuestionStartedTimer = null;
+    }
+    pendingQuestionStarted = null;
+    applyQuestionStarted(msg);
   });
 
   connection.on("AnswerAccepted", (msg) => {
@@ -474,6 +561,7 @@
   });
 
   connection.on("QuestionEnded", (msg) => {
+    expectNextQuestionWithoutLeaderboard = true;
     questionOpen = false;
     currentOptionCount = 0;
     stopTimer();
@@ -502,19 +590,32 @@
         explEl.textContent = "";
       }
     }
+    const idx = msg?.index ?? 0;
+    const total = msg?.totalQuestions ?? 0;
+    if (playerAsyncRace && total > 0 && idx + 1 >= total) {
+      showAsyncRaceWaiting();
+    }
   });
 
   connection.on("Leaderboard", (msg) => {
+    playerAsyncRace = false;
+    expectNextQuestionWithoutLeaderboard = false;
     clearAutoAdvanceCountdown();
     showBoard(msg.entries || [], false, msg.hasMoreQuestions);
   });
 
   connection.on("GameFinished", (msg) => {
+    const wasAsyncRace = playerAsyncRace;
+    playerAsyncRace = false;
+    expectNextQuestionWithoutLeaderboard = false;
+    resetAsyncWaitHint();
     clearAutoAdvanceCountdown();
     showBoard(msg.entries || [], true, false);
     renderIhkResults(msg.examMode ? msg.ihkResults : null);
     if (msg.examMode) {
       $("done").textContent = "Prüfung beendet — siehe IHK-Ergebnis.";
+    } else if (wasAsyncRace) {
+      $("done").textContent = "Rennen beendet — danke!";
     } else {
       $("done").textContent = "Runde beendet — danke!";
     }
@@ -592,7 +693,9 @@
     btn.classList.add("is-selected");
     answerStatus.className = "muted";
     answerStatus.textContent = "Sende…";
-    connection.invoke("SubmitAnswer", index).catch((err) => {
+    connection
+      .invoke("SubmitAnswer", index, playerAsyncRace ? currentQuestionIndex : null)
+      .catch((err) => {
       answered = false;
       [...answers.querySelectorAll("button")].forEach((b) => {
         b.disabled = false;
