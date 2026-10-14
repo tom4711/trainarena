@@ -65,11 +65,11 @@
         {
             var filled = QuizRules.GetFilledOptions(q);
             var isEditing = Model.EditingQuestionId == q.Id;
+            var qTags = QuestionTags.Parse(q.Tags);
+            var tagsDisplay = qTags.Count > 0 ? string.Join(", ", qTags) : "";
             <div class="q-card">
                 @if (isEditing)
                 {
-                    var qTagsEdit = QuestionTags.Parse(q.Tags);
-                    var tagsDisplay = qTagsEdit.Count > 0 ? string.Join(", ", qTagsEdit) : "";
                     <form method="post" asp-page-handler="UpdateQuestion" enctype="multipart/form-data" class="edit-question-form" data-edit-form>
                         <input type="hidden" name="id" value="@quiz.Id" />
                         <input type="hidden" name="questionId" value="@q.Id" />
@@ -77,8 +77,16 @@
                         <label>Fragetext<textarea name="text" required rows="2">@q.Text</textarea></label>
                         <label>Fragetyp
                             <select name="displayKind" id="edit-displayKind-@q.Id">
-                                <option value="Mc" @(q.DisplayKind == QuestionDisplayKind.Mc ? "selected" : null)>Multiple Choice</option>
-                                <option value="TrueFalse" @(q.DisplayKind == QuestionDisplayKind.TrueFalse ? "selected" : null)>Wahr/Falsch</option>
+                                @if (q.DisplayKind == QuestionDisplayKind.Mc)
+                                {
+                                    <option value="Mc" selected>Multiple Choice</option>
+                                    <option value="TrueFalse">Wahr/Falsch</option>
+                                }
+                                else
+                                {
+                                    <option value="Mc">Multiple Choice</option>
+                                    <option value="TrueFalse" selected>Wahr/Falsch</option>
+                                }
                             </select>
                         </label>
                         @if (!string.IsNullOrEmpty(q.ImagePath))
@@ -103,7 +111,14 @@
                                 <select name="correctIndex" class="js-correct-select">
                                     @for (var ci = 0; ci < 6; ci++)
                                     {
-                                        <option value="@ci" @(q.CorrectIndex == ci ? "selected" : null)>@((char)('A' + ci))</option>
+                                        if (q.CorrectIndex == ci)
+                                        {
+                                            <option value="@ci" selected>@((char)('A' + ci))</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@ci">@((char)('A' + ci))</option>
+                                        }
                                     }
                                 </select>
                             </label>
@@ -111,8 +126,16 @@
                         <div id="edit-tf-options-@q.Id" class="js-tf-options" hidden>
                             <p class="muted">Antworten: Wahr und Falsch (fest)</p>
                             <div class="tf-row">
-                                <label><input type="radio" name="correctIndex" value="0" @(q.CorrectIndex == 0 ? "checked" : null) /> Wahr</label>
-                                <label><input type="radio" name="correctIndex" value="1" @(q.CorrectIndex == 1 ? "checked" : null) /> Falsch</label>
+                                @if (q.CorrectIndex == 0)
+                                {
+                                    <label><input type="radio" name="correctIndex" value="0" checked /> Wahr</label>
+                                    <label><input type="radio" name="correctIndex" value="1" /> Falsch</label>
+                                }
+                                else
+                                {
+                                    <label><input type="radio" name="correctIndex" value="0" /> Wahr</label>
+                                    <label><input type="radio" name="correctIndex" value="1" checked /> Falsch</label>
+                                }
                             </div>
                         </div>
                         <label>Zeitlimit (Sekunden)
@@ -148,9 +171,6 @@
                             <li class="@(q.CorrectIndex == i ? "reveal" : null)">@filled[i]</li>
                         }
                     </ol>
-                    @{
-                        var qTags = QuestionTags.Parse(q.Tags);
-                    }
                     @if (qTags.Count > 0)
                     {
                         <div class="tag-row">
