@@ -20,11 +20,22 @@ public sealed class EditModel : PageModel
     public Quiz? Quiz { get; private set; }
     public string? ErrorMessage { get; private set; }
     public string? InfoMessage { get; private set; }
+    public Guid? EditingQuestionId { get; private set; }
 
-    public async Task<IActionResult> OnGetAsync(Guid id)
+    public async Task<IActionResult> OnGetAsync(Guid id, Guid? edit = null)
     {
         Quiz = await LoadAsync(id);
-        return Quiz is null ? NotFound() : Page();
+        if (Quiz is null)
+        {
+            return NotFound();
+        }
+
+        if (edit is Guid editId && Quiz.Questions.Any(q => q.Id == editId))
+        {
+            EditingQuestionId = editId;
+        }
+
+        return Page();
     }
 
     public async Task<IActionResult> OnPostSaveTitleAsync(Guid id, string title)
@@ -131,6 +142,94 @@ public sealed class EditModel : PageModel
         }
         QuizRules.ApplyOptions(question, options);
         _db.Questions.Add(question);
+        await _db.SaveChangesAsync();
+        return RedirectToPage(new { id });
+    }
+
+    public async Task<IActionResult> OnPostUpdateQuestionAsync(
+        Guid id,
+        Guid questionId,
+        string text,
+        string? displayKind,
+        string? option0,
+        string? option1,
+        string? option2,
+        string? option3,
+        string? option4,
+        string? option5,
+        int correctIndex,
+        int timeLimitSeconds = 20,
+        string? explanation = null,
+        string? tags = null,
+        int points = 0,
+        IFormFile? image = null,
+        bool removeImage = false)
+    {
+        var question = await _db.Questions.FirstOrDefaultAsync(q => q.Id == questionId && q.QuizId == id);
+        if (question is null)
+        {
+            return NotFound();
+        }
+
+        var kind = string.Equals(displayKind, "TrueFalse", StringComparison.OrdinalIgnoreCase)
+            ? QuestionDisplayKind.TrueFalse
+            : QuestionDisplayKind.Mc;
+
+        if (kind == QuestionDisplayKind.TrueFalse)
+        {
+            option0 = QuizRules.TrueLabel;
+            option1 = QuizRules.FalseLabel;
+            option2 = option3 = option4 = option5 = "";
+        }
+
+        var options = QuizRules.CollectOptions([option0, option1, option2, option3, option4, option5]);
+
+        var error = QuizRules.ValidateQuestion(text, options, correctIndex, kind);
+        if (error is not null)
+        {
+            ErrorMessage = error;
+            EditingQuestionId = questionId;
+            Quiz = await LoadAsync(id);
+            return Page();
+        }
+
+        if (removeImage)
+        {
+            _images.TryDelete(question.ImagePath);
+            question.ImagePath = null;
+        }
+        else if (image is { Length: > 0 })
+        {
+            try
+            {
+                await using var stream = image.OpenReadStream();
+                var newPath = await _images.SaveAsync(stream, image.FileName, image.ContentType);
+                _images.TryDelete(question.ImagePath);
+                question.ImagePath = newPath;
+            }
+            catch (InvalidOperationException ex)
+            {
+                ErrorMessage = ex.Message;
+                EditingQuestionId = questionId;
+                Quiz = await LoadAsync(id);
+                return Page();
+            }
+        }
+
+        question.Text = text.Trim();
+        question.DisplayKind = kind;
+        question.CorrectIndex = correctIndex;
+        question.TimeLimitSeconds = timeLimitSeconds <= 0 ? 20 : timeLimitSeconds;
+        question.Explanation = string.IsNullOrWhiteSpace(explanation) ? null : explanation.Trim();
+        if (question.Explanation is { Length: > 2000 })
+        {
+            question.Explanation = question.Explanation[..2000];
+        }
+
+        var tagStorage = QuestionTags.NormalizeStorage(tags);
+        question.Tags = string.IsNullOrEmpty(tagStorage) ? null : tagStorage;
+        question.Points = points < 0 ? 0 : points;
+        QuizRules.ApplyOptions(question, options);
         await _db.SaveChangesAsync();
         return RedirectToPage(new { id });
     }

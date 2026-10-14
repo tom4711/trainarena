@@ -120,7 +120,7 @@ Stoppen: `docker compose down` (Volumes bleiben). Volumes mit löschen: `docker 
 
 ## Features (aktueller Stand)
 
-- Text-MC-Editor (2–6 Optionen, 1 richtig) + Wahr/Falsch + optionale Bilder
+- Text-MC-Editor (2–6 Optionen, 1 richtig) + Wahr/Falsch + optionale Bilder; bestehende Fragen inline bearbeiten (inkl. Typwechsel MC ↔ Wahr/Falsch)
 - CSV- / Kahoot-ähnlicher Import
 - Host-Raum + Code/QR-Join, Live-Runde, Server-Timer, Rangliste; nach dem Finale zeigt der Host ein **Fragen-Review** (Anteil richtig und Antwortverteilung pro Frage)
 - **Auto-Advance:** optional beim Raumerstellen — nach der Rangliste automatisch weiter (3/5/10 s; Host kann weiterhin manuell **Weiter** drücken)
