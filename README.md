@@ -1,5 +1,11 @@
 # TrainArena
 
+[![CI](https://github.com/tom4711/trainarena/actions/workflows/ci.yml/badge.svg)](https://github.com/tom4711/trainarena/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/tom4711/trainarena)](https://github.com/tom4711/trainarena/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/tom4711/trainarena/total)](https://github.com/tom4711/trainarena/releases)
+[![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 <p align="center">
   <img src="docs/brand/banner.png" alt="TrainArena — Live-Quiz für Ausbildung" width="820" />
 </p>
