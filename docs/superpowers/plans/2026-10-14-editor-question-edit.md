@@ -235,7 +235,7 @@ if (question.Explanation is { Length: > 2000 })
 {
     question.Explanation = question.Explanation[..2000];
 }
-var tagStorage = QuestionTags.NormalizeMap(tags); // use same helper as Add: NormalizeStorage
+var tagStorage = QuestionTags.NormalizeStorage(tags);
 question.Tags = string.IsNullOrEmpty(tagStorage) ? null : tagStorage;
 question.Points = points < 0 ? 0 : points;
 QuizRules.ApplyOptions(question, options);
@@ -303,16 +303,9 @@ public async Task EditPage_WithEditQuery_ShowsUpdateForm()
     var html = await client.GetStringAsync($"/Editor/Edit/{quizId}?edit={questionId}");
     Assert.Contains("handler=UpdateQuestion", html, StringComparison.OrdinalIgnoreCase);
     Assert.Contains("name=\"questionId\"", html, StringComparison.OrdinalIgnoreCase);
-    Assert.Contains("Neu?", html) // WRONG — assert existing text instead:
-        ;
+    Assert.Contains("Q?", html, StringComparison.Ordinal);
+    Assert.Contains("Bild entfernen", html, StringComparison.Ordinal);
 }
-```
-
-Fix the assert to check for `Q?` (prefilled text) and `Änderungen speichern` or `Bild entfernen`:
-
-```csharp
-Assert.Contains("Q?", html, StringComparison.Ordinal);
-Assert.Contains("Bild entfernen", html, StringComparison.Ordinal);
 ```
 
 - [ ] **Step 2: FAIL → implement UI**
