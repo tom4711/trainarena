@@ -192,6 +192,70 @@ public class QuizPersistenceTests
     }
 
     [Fact]
+    public async Task UpdateQuestion_McToTrueFalse_RewritesOptions()
+    {
+        using var factory = new TrainArenaWebAppFactory();
+        var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+
+        Guid quizId;
+        Guid questionId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            quizId = Guid.NewGuid();
+            questionId = Guid.NewGuid();
+            db.Quizzes.Add(new Quiz { Id = quizId, Title = "Type Switch" });
+            db.Questions.Add(new Question
+            {
+                Id = questionId,
+                QuizId = quizId,
+                Text = "MC zuerst?",
+                Option0 = "Rot",
+                Option1 = "Grün",
+                Option2 = "Blau",
+                CorrectIndex = 0,
+                TimeLimitSeconds = 20,
+                SortOrder = 3,
+                DisplayKind = QuestionDisplayKind.Mc
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var pageUrl = $"/Editor/Edit/{quizId}";
+        var pageHtml = await client.GetStringAsync(pageUrl);
+        var tokenMatch = Regex.Match(
+            pageHtml,
+            @"name=""__RequestVerificationToken""\s+type=""hidden""\s+value=""([^""]+)""");
+        Assert.True(tokenMatch.Success);
+
+        using var form = new MultipartFormDataContent
+        {
+            { new StringContent(quizId.ToString()), "id" },
+            { new StringContent(questionId.ToString()), "questionId" },
+            { new StringContent("Jetzt W/F?"), "text" },
+            { new StringContent("TrueFalse"), "displayKind" },
+            { new StringContent("0"), "correctIndex" },
+            { new StringContent("20"), "timeLimitSeconds" },
+            { new StringContent(tokenMatch.Groups[1].Value), "__RequestVerificationToken" }
+        };
+
+        var post = await client.PostAsync($"{pageUrl}?handler=UpdateQuestion", form);
+        Assert.Equal(HttpStatusCode.Redirect, post.StatusCode);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var q = await db.Questions.AsNoTracking().SingleAsync(x => x.Id == questionId);
+            Assert.Equal("Jetzt W/F?", q.Text);
+            Assert.Equal(QuestionDisplayKind.TrueFalse, q.DisplayKind);
+            Assert.Equal("Wahr", q.Option0);
+            Assert.Equal("Falsch", q.Option1);
+            Assert.Equal(0, q.CorrectIndex);
+            Assert.Equal(3, q.SortOrder);
+        }
+    }
+
+    [Fact]
     public async Task UpdateQuestion_RemoveImage_ClearsPath()
     {
         using var factory = new TrainArenaWebAppFactory();

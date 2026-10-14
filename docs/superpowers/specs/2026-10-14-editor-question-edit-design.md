@@ -1,7 +1,7 @@
 # Design: Bestehende Fragen im Quiz-Editor bearbeiten
 
 **Datum:** 2026-10-14  
-**Status:** Draft (awaiting review)  
+**Status:** Implemented  
 **Ziel:** Im Quiz-Editor bestehende Fragen inline anpassen können (nicht nur hinzufügen/löschen).
 
 ## Entscheidungen (Brainstorming)
