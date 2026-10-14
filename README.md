@@ -3,6 +3,7 @@
 [![CI](https://github.com/tom4711/trainarena/actions/workflows/ci.yml/badge.svg)](https://github.com/tom4711/trainarena/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/tom4711/trainarena)](https://github.com/tom4711/trainarena/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/tom4711/trainarena/total)](https://github.com/tom4711/trainarena/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com/tom4711/trainarena/releases)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/download)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -30,7 +31,7 @@ Dann im Browser — am besten über die **LAN-IP** (nicht nur `localhost`), dami
 | Spieler (Azubi) | `http://<lan-ip>:5175/player/` oder QR vom Host |
 | Editor | `http://<lan-ip>:5175/Editor` |
 
-1. Host: Quiz wählen → Power-Ups / Auto-Advance optional setzen → **Raum erstellen** → Code/QR zeigen  
+1. Host: Quiz wählen → optional Power-Ups, Auto-Weiter, Async-Rennen oder Prüfungsmodus → **Raum erstellen** → Code/QR zeigen  
 2. Spieler: Code scannen oder eingeben + Nickname → warten  
 3. Host: **Quiz starten** → nach jeder Frage **Weiter**, oder beim Raumerstellen **Automatisch weiter** (3/5/10 s nach der Rangliste, standardmäßig aus)
 
@@ -77,7 +78,7 @@ Mindestens **zwei** der Spalten `OptionA`…`OptionF` ausfüllen (ohne Lücken d
 
 **Kahoot-ähnlich:** Excel-Vorlage als CSV speichern mit Spalten `Question`, `Answer 1`…`Answer 6` (mindestens zwei ausgefüllt), `Time limit`, `Correct answer(s)` (1-basiert). Kein natives `.xlsx` — bei Bedarf vorher als CSV exportieren. Ungültige Zeilen werden übersprungen.
 
-**JSON-Quiz-Pack:** Objekt mit `questions[]` oder direkt ein Fragen-Array. Felder u. a. `text`, `displayKind` (`mc` | `trueFalse`), `options`, `correctIndex`, `timeLimitSeconds`, optional `image` (`fileName`, `contentType`, `base64`). Code im Fragetext als Fence:
+**JSON-Quiz-Pack:** Objekt mit `questions[]` oder direkt ein Fragen-Array. Felder u. a. `text`, `displayKind` (`mc` | `trueFalse`), `options`, `correctIndex`, `timeLimitSeconds`, optional `explanation`, `tags` (String-Array), `points` (IHK-Gewichtung), optional `image` (`fileName`, `contentType`, `base64`). Code im Fragetext als Fence:
 
 ````markdown
 ```csharp
@@ -87,7 +88,7 @@ int x = 5;
 
 Host und Player rendern Fences mit Syntax-Highlighting (Prism, lokal unter `wwwroot/lib/prism/`).
 
-**Editor (zusätzlich zum Import):** Fragetyp **Multiple Choice** (2–6 Optionen, genau eine richtig) oder **Wahr/Falsch**. **50/50** skaliert mit der Antwortanzahl: bei ≥4 Optionen zwei falsche ausblenden, bei 3 eine; bei 2 Optionen deaktiviert.
+**Editor (zusätzlich zum Import):** Fragetyp **Multiple Choice** (2–6 Optionen, genau eine richtig) oder **Wahr/Falsch**; optionale **Erklärung**, **Themen-Tags** und **IHK-Punkte**. **50/50** skaliert mit der Antwortanzahl: bei ≥4 Optionen zwei falsche ausblenden, bei 3 eine; bei 2 Optionen deaktiviert.
 
 ## Download (self-contained)
 
@@ -126,13 +127,14 @@ Stoppen: `docker compose down` (Volumes bleiben). Volumes mit löschen: `docker 
 
 ## Features (aktueller Stand)
 
-- Text-MC-Editor (2–6 Optionen, 1 richtig) + Wahr/Falsch + optionale Bilder; bestehende Fragen inline bearbeiten (inkl. Typwechsel MC ↔ Wahr/Falsch)
-- CSV- / Kahoot-ähnlicher Import
-- Host-Raum + Code/QR-Join, Live-Runde, Server-Timer, Rangliste; nach dem Finale zeigt der Host ein **Fragen-Review** (Anteil richtig und Antwortverteilung pro Frage)
+- Text-MC-Editor (2–6 Optionen, 1 richtig) + Wahr/Falsch + optionale Bilder, Erklärungen und Themen-Tags; bestehende Fragen inline bearbeiten (inkl. Typwechsel MC ↔ Wahr/Falsch)
+- CSV- / Kahoot-ähnlicher Import sowie JSON-Quiz-Pack (inkl. Erklärung/Tags/Punkte)
+- Host-Raum + Code/QR-Join, Live-Runde, Server-Timer, Rangliste; nach dem Finale zeigt der Host ein **Fragen-Review** (Anteil richtig, Antwortverteilung, Erklärung/Tags)
 - **Auto-Advance:** optional beim Raumerstellen — nach der Rangliste automatisch weiter (3/5/10 s; Host kann weiterhin manuell **Weiter** drücken)
-- **Async-Rennen:** optional beim Raumerstellen — jeder Spieler bekommt die Fragen in **eigener Reihenfolge** (Shuffle) und mit **eigenem Timer**; der Host sieht Live-Punkte und Fortschritt **x/n** (ohne Fragetext). **Nicht kombinierbar** mit Prüfungsmodus (Exam) oder Auto-Advance. Power-Ups inkl. Störimpuls gelten wie im Sync-Modus; das Rennen endet automatisch, wenn **alle** fertig sind → Abschluss-Rangliste.
+- **Async-Rennen:** optional beim Raumerstellen — jeder Spieler bekommt die Fragen in **eigener Reihenfolge** (Shuffle) und mit **eigenem Timer**; der Host sieht Live-Punkte und Fortschritt **x/n** (ohne Fragetext). **Nicht kombinierbar** mit Prüfungsmodus oder Auto-Advance. Power-Ups inkl. Störimpuls gelten wie im Sync-Modus; das Rennen endet automatisch, wenn **alle** fertig sind → Abschluss-Rangliste.
+- **Prüfungsmodus (IHK):** optional beim Raumerstellen — ohne Power-Ups, optionale Themen-Filter (ODER), Punkte/Note nach IHK-Schema (100-Punkte-Skala); Erklärungen erst im Review, nicht live während der Frage
 - Classroom-Größe ~≤40, ein Prozess
-- **Power-Ups** (siehe unten)
+- **Power-Ups** (siehe unten); self-contained Releases für **Windows / Linux / macOS**
 
 ## Power-Ups
 
@@ -167,7 +169,7 @@ Wettbewerbs-Power-Ups (Schild / Störimpuls) senden Full-Screen-Overlays an Host
 
 ## Scope vs Non-Goals
 
-**Im Scope:** self-host (LAN / Docker), Classroom, Editor, Live-Runde, Auto-Advance, Async-Rennen, Power-Ups inkl. Arena-FX.
+**Im Scope:** self-host (LAN / Docker / native Releases), Classroom, Editor, Live-Runde, Auto-Advance, Async-Rennen, Prüfungsmodus (IHK), Power-Ups inkl. Arena-FX.
 
 **Nicht im Scope:** öffentliche Demo-/Cloud-Hosting-Instanz · App-Store · Marketplace · Aula-Scale · SSO.
 
@@ -181,7 +183,7 @@ Wettbewerbs-Power-Ups (Schild / Störimpuls) senden Full-Screen-Overlays an Host
 
 ### Versionierung
 
-[MinVer](https://github.com/adamralph/minver) liest SemVer aus Git-Tags mit Prefix `v` (z. B. `v1.2.0`). CI/Release checken mit `fetch-depth: 0`. Die Version steht im Binary, unter `/health` (`version`) und dezent in Host-, Editor- und Player-UI.
+[MinVer](https://github.com/adamralph/minver) liest SemVer aus Git-Tags mit Prefix `v` (z. B. `v1.3.0`). CI/Release checken mit `fetch-depth: 0`. Die Version steht im Binary, unter `/health` (`version`) und dezent in Host-, Editor- und Player-UI.
 
 ```bash
 git tag v1.0.0
