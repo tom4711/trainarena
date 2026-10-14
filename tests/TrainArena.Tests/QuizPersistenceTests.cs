@@ -92,6 +92,131 @@ public class QuizPersistenceTests
     }
 
     [Fact]
+    public async Task UpdateQuestion_ChangesTextAndOptions()
+    {
+        using var factory = new TrainArenaWebAppFactory();
+        var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+
+        Guid quizId;
+        Guid questionId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            quizId = Guid.NewGuid();
+            questionId = Guid.NewGuid();
+            db.Quizzes.Add(new Quiz { Id = quizId, Title = "Edit Me" });
+            db.Questions.Add(new Question
+            {
+                Id = questionId,
+                QuizId = quizId,
+                Text = "Alt?",
+                Option0 = "A",
+                Option1 = "B",
+                CorrectIndex = 0,
+                TimeLimitSeconds = 20,
+                SortOrder = 0,
+                DisplayKind = QuestionDisplayKind.Mc
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var pageUrl = $"/Editor/Edit/{quizId}";
+        var pageHtml = await client.GetStringAsync(pageUrl);
+        var tokenMatch = Regex.Match(
+            pageHtml,
+            @"name=""__RequestVerificationToken""\s+type=""hidden""\s+value=""([^""]+)""");
+        Assert.True(tokenMatch.Success);
+
+        using var form = new MultipartFormDataContent
+        {
+            { new StringContent(quizId.ToString()), "id" },
+            { new StringContent(questionId.ToString()), "questionId" },
+            { new StringContent("Neu?"), "text" },
+            { new StringContent("Mc"), "displayKind" },
+            { new StringContent("X"), "option0" },
+            { new StringContent("Y"), "option1" },
+            { new StringContent("1"), "correctIndex" },
+            { new StringContent("25"), "timeLimitSeconds" },
+            { new StringContent(tokenMatch.Groups[1].Value), "__RequestVerificationToken" }
+        };
+
+        var post = await client.PostAsync($"{pageUrl}?handler=UpdateQuestion", form);
+        Assert.Equal(HttpStatusCode.Redirect, post.StatusCode);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var q = await db.Questions.AsNoTracking().SingleAsync(x => x.Id == questionId);
+            Assert.Equal("Neu?", q.Text);
+            Assert.Equal("X", q.Option0);
+            Assert.Equal("Y", q.Option1);
+            Assert.Equal(1, q.CorrectIndex);
+            Assert.Equal(25, q.TimeLimitSeconds);
+            Assert.Equal(0, q.SortOrder);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateQuestion_RemoveImage_ClearsPath()
+    {
+        using var factory = new TrainArenaWebAppFactory();
+        var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+
+        Guid quizId;
+        Guid questionId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            quizId = Guid.NewGuid();
+            questionId = Guid.NewGuid();
+            db.Quizzes.Add(new Quiz { Id = quizId, Title = "Img Edit" });
+            db.Questions.Add(new Question
+            {
+                Id = questionId,
+                QuizId = quizId,
+                Text = "Mit Bild?",
+                Option0 = "A",
+                Option1 = "B",
+                CorrectIndex = 0,
+                TimeLimitSeconds = 20,
+                SortOrder = 0,
+                ImagePath = "/uploads/fake-old.png"
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var pageUrl = $"/Editor/Edit/{quizId}";
+        var pageHtml = await client.GetStringAsync(pageUrl);
+        var token = Regex.Match(
+            pageHtml,
+            @"name=""__RequestVerificationToken""\s+type=""hidden""\s+value=""([^""]+)""").Groups[1].Value;
+
+        using var form = new MultipartFormDataContent
+        {
+            { new StringContent(quizId.ToString()), "id" },
+            { new StringContent(questionId.ToString()), "questionId" },
+            { new StringContent("Mit Bild?"), "text" },
+            { new StringContent("Mc"), "displayKind" },
+            { new StringContent("A"), "option0" },
+            { new StringContent("B"), "option1" },
+            { new StringContent("0"), "correctIndex" },
+            { new StringContent("20"), "timeLimitSeconds" },
+            { new StringContent("true"), "removeImage" },
+            { new StringContent(token), "__RequestVerificationToken" }
+        };
+
+        var post = await client.PostAsync($"{pageUrl}?handler=UpdateQuestion", form);
+        Assert.Equal(HttpStatusCode.Redirect, post.StatusCode);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var q = await db.Questions.AsNoTracking().SingleAsync(x => x.Id == questionId);
+            Assert.Null(q.ImagePath);
+        }
+    }
+
+    [Fact]
     public async Task ImportCsv_PersistsQuestionsWithoutServerError()
     {
         using var factory = new TrainArenaWebAppFactory();
