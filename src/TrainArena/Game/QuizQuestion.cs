@@ -1,6 +1,7 @@
 namespace TrainArena.Game;
 
-public sealed class DemoQuestion
+/// <summary>Runtime question used by live rooms (mapped from persisted entities).</summary>
+public sealed class QuizQuestion
 {
     public required string Text { get; init; }
     public required string[] Options { get; init; }

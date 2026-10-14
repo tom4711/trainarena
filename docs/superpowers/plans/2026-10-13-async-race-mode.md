@@ -27,7 +27,7 @@
 
 | File | Role |
 |------|------|
-| `src/TrainArena/Game/DemoQuestion.cs` | Add `GamePhase.AsyncRacing` |
+| `src/TrainArena/Game/QuizQuestion.cs` | Add `GamePhase.AsyncRacing` |
 | `src/TrainArena/Game/PlayerRaceState.cs` | **Create** — per-player race progress |
 | `src/TrainArena/Game/GameSession.cs` | AsyncRace flag, StartAsyncRace, submit/timeout/advance, scoreboard, disrupt targets |
 | `src/TrainArena/Game/GameSessionStore.cs` | Pass `asyncRace` into ctor |
@@ -44,7 +44,7 @@
 ### Task 1: DTOs, phase enum, CreateRoom flag (server reject combo)
 
 **Files:**
-- Modify: `src/TrainArena/Game/DemoQuestion.cs` (`GamePhase`)
+- Modify: `src/TrainArena/Game/QuizQuestion.cs` (`GamePhase`)
 - Modify: `src/TrainArena/Contracts/HubMessages.cs`
 - Modify: `src/TrainArena/Game/GameSession.cs` (ctor + `AsyncRaceEnabled` property)
 - Modify: `src/TrainArena/Game/GameSessionStore.cs`
@@ -122,7 +122,7 @@ dotnet test tests/TrainArena.Tests/TrainArena.Tests.csproj --filter "FullyQualif
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/TrainArena/Game/DemoQuestion.cs src/TrainArena/Game/GameSession.cs src/TrainArena/Game/GameSessionStore.cs src/TrainArena/Contracts/HubMessages.cs src/TrainArena/Hubs/GameHub.cs tests/TrainArena.Tests/AsyncRaceSessionTests.cs
+git add src/TrainArena/Game/QuizQuestion.cs src/TrainArena/Game/GameSession.cs src/TrainArena/Game/GameSessionStore.cs src/TrainArena/Contracts/HubMessages.cs src/TrainArena/Hubs/GameHub.cs tests/TrainArena.Tests/AsyncRaceSessionTests.cs
 git commit -m "feat(async-race): CreateRoom flag and AsyncRacing phase"
 ```
 
@@ -141,12 +141,12 @@ git commit -m "feat(async-race): CreateRoom flag and AsyncRacing phase"
 ```csharp
 public sealed class PlayerRaceState
 {
-    public required IReadOnlyList<DemoQuestion> Order { get; init; }
+    public required IReadOnlyList<QuizQuestion> Order { get; init; }
     public int Index { get; set; } // 0..Order.Count (Count means finished)
     public DateTimeOffset? QuestionStartedAtUtc { get; set; }
     public DateTimeOffset? EndsAtUtc { get; set; }
     public bool Finished => Index >= Order.Count;
-    public DemoQuestion? Current => Finished ? null : Order[Index];
+    public QuizQuestion? Current => Finished ? null : Order[Index];
     public int AnsweredCount => Math.Min(Index, Order.Count);
 }
 
@@ -166,7 +166,7 @@ public PlayerRaceState? GetRaceState(string nickname);
 public void StartAsyncRace_ShufflesPerPlayer_AndSetsPhase()
 {
     var s = new GameSession("ABC123", "host", Guid.NewGuid(), asyncRaceEnabled: true);
-    s.SetQuestions(Enumerable.Range(0, 5).Select(i => new DemoQuestion
+    s.SetQuestions(Enumerable.Range(0, 5).Select(i => new QuizQuestion
     {
         Text = $"Q{i}", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20
     }).ToList());
@@ -191,7 +191,7 @@ public void StartAsyncRace_ShufflesPerPlayer_AndSetsPhase()
 public void StartAsyncRace_RejectedWhenNotAsyncMode()
 {
     var s = new GameSession("ABC123", "host", Guid.NewGuid(), asyncRaceEnabled: false);
-    s.SetQuestions([new DemoQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0 }]);
+    s.SetQuestions([new QuizQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0 }]);
     s.TryJoin("Ada", "c1");
     Assert.False(s.StartAsyncRace(DateTimeOffset.UtcNow).ok);
 }
@@ -200,7 +200,7 @@ public void StartAsyncRace_RejectedWhenNotAsyncMode()
 public void GetAsyncScoreboard_ShowsZeroProgress()
 {
     var s = new GameSession("ABC123", "host", Guid.NewGuid(), asyncRaceEnabled: true);
-    s.SetQuestions([new DemoQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0 }]);
+    s.SetQuestions([new QuizQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0 }]);
     s.TryJoin("Ada", "c1");
     Assert.True(s.StartAsyncRace(DateTimeOffset.UtcNow).ok);
     var board = s.GetAsyncScoreboard();
@@ -294,7 +294,7 @@ public sealed record AsyncSubmitResult(
     string? Explanation,
     bool PlayerFinished,
     bool RaceFinished,
-    DemoQuestion? NextQuestion,
+    QuizQuestion? NextQuestion,
     DateTimeOffset? NextStartedAtUtc,
     DateTimeOffset? NextEndsAtUtc,
     int NextIndex,

@@ -5,7 +5,7 @@ namespace TrainArena.Tests;
 
 public class PowerUpDisruptTests
 {
-    private static (GameSession s, DemoQuestion q) TwoPlayerRoom(PowerUpRoomConfig? config = null)
+    private static (GameSession s, QuizQuestion q) TwoPlayerRoom(PowerUpRoomConfig? config = null)
     {
         var cfg = config ?? PowerUpRoomConfig.CreateDefault();
         cfg.Starter[PowerUpId.Disrupt] = 1;
@@ -13,7 +13,7 @@ public class PowerUpDisruptTests
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg);
         s.TryJoin("Ada", "p1");
         s.TryJoin("Bob", "p2");
-        var q = new DemoQuestion
+        var q = new QuizQuestion
         {
             Text = "Q?",
             Options = ["a", "b", "c", "d"],

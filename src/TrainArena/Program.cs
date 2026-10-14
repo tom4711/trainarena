@@ -230,6 +230,7 @@ try
     });
     builder.Services.AddSingleton<RoomCodeGenerator>();
     builder.Services.AddSingleton<GameSessionStore>();
+    builder.Services.AddSingleton<RoomScheduler>();
     builder.Services.AddSingleton(sp =>
         new QuestionImageStore(sp.GetRequiredService<IWebHostEnvironment>().ContentRootPath));
 

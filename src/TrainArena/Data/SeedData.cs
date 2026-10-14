@@ -1,25 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using TrainArena.Data.Entities;
-using TrainArena.Game;
 
 namespace TrainArena.Data;
 
 /// <summary>
-/// Seeds „Ausbildung Basics“ and exposes the legacy single demo question.
+/// Seeds „Ausbildung Basics“ into SQLite (persistence only — no live-game types).
 /// </summary>
 public static class SeedData
 {
     public static readonly Guid AusbildungBasicsQuizId =
         Guid.Parse("11111111-1111-1111-1111-111111111111");
-
-    /// <summary>First question of the seed quiz — kept for Phase 0 tests.</summary>
-    public static DemoQuestion DemoQuestion { get; } = new()
-    {
-        Text = "Wie viele Bundesländer hat Deutschland?",
-        Options = ["14", "15", "16", "17"],
-        CorrectIndex = 2,
-        TimeLimitSeconds = 20
-    };
 
     public static async Task EnsureSeededAsync(AppDbContext db, CancellationToken ct = default)
     {

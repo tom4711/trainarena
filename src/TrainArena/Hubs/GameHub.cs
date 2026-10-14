@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using TrainArena.Contracts;
@@ -9,29 +8,31 @@ using TrainArena.Game.PowerUps;
 namespace TrainArena.Hubs;
 
 /// <summary>
-/// SignalR hub for live quiz rooms.
+/// SignalR hub for live quiz rooms (transport + orchestration; timers via <see cref="RoomScheduler"/>).
 /// </summary>
 public sealed class GameHub : Hub
 {
-    private static readonly ConcurrentDictionary<string, CancellationTokenSource> QuestionEndTimers =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    private static readonly ConcurrentDictionary<string, CancellationTokenSource> AutoAdvanceTimers =
-        new(StringComparer.OrdinalIgnoreCase);
-
     private readonly GameSessionStore _sessions;
     private readonly IHubContext<GameHub> _hubContext;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly RoomScheduler _scheduler;
 
     public GameHub(
         GameSessionStore sessions,
         IHubContext<GameHub> hubContext,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        RoomScheduler scheduler)
     {
         _sessions = sessions;
         _hubContext = hubContext;
         _scopeFactory = scopeFactory;
+        _scheduler = scheduler;
     }
+
+    private IClientProxy RoomClients(string code, bool viaHubContext) =>
+        viaHubContext
+            ? _hubContext.Clients.Group(RoomGroup(code))
+            : Clients.Group(RoomGroup(code));
 
     public static string RoomGroup(string code) => $"room:{code.ToUpperInvariant()}";
 
@@ -46,8 +47,7 @@ public sealed class GameHub : Hub
         var asyncRaceEnabled = asyncRace?.Enabled == true;
         if (asyncRaceEnabled && examMode)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(
-                "Async-Rennen und Prüfungsmodus sind nicht kombinierbar."));
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(GameErrors.AsyncExamIncompatible));
             return;
         }
         // Tag filter applies whenever tags are set (also outside exam mode).
@@ -88,8 +88,7 @@ public sealed class GameHub : Hub
 
         if (asyncRaceEnabled && autoAdvanceOptions is { Enabled: true })
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(
-                "Async-Rennen und Auto-Advance sind nicht kombinierbar."));
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(GameErrors.AsyncAutoAdvanceIncompatible));
             return;
         }
 
@@ -102,7 +101,7 @@ public sealed class GameHub : Hub
 
         if (quiz is null || quiz.Questions.Count == 0)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Quiz nicht gefunden oder leer"));
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(GameErrors.QuizNotFoundOrEmpty));
             return;
         }
 
@@ -113,14 +112,14 @@ public sealed class GameHub : Hub
         var questions = quiz.Questions
             .OrderBy(q => q.SortOrder)
             .Where(q => tagFilter.Count == 0 || QuestionTags.MatchesAny(q.Tags, tagFilter))
-            .Select(QuizRules.ToDemoQuestion)
+            .Select(QuizQuestionMapper.FromEntity)
             .ToList();
 
         if (questions.Count == 0)
         {
             await Clients.Caller.SendAsync(
                 "JoinError",
-                new JoinErrorMessage("Keine Fragen für die gewählten Tags."));
+                new JoinErrorMessage(GameErrors.NoQuestionsForTags));
             return;
         }
 
@@ -142,14 +141,14 @@ public sealed class GameHub : Hub
     {
         if (!_sessions.TryGet(code, out var session) || session is null)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Raum nicht gefunden"));
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(GameErrors.RoomNotFound));
             return;
         }
 
         var (ok, error) = session.TryJoin(nickname, Context.ConnectionId);
         if (!ok)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Beitritt fehlgeschlagen"));
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? GameErrors.JoinFailed));
             return;
         }
 
@@ -168,14 +167,14 @@ public sealed class GameHub : Hub
     {
         if (!_sessions.TryGet(code, out var session) || session is null)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Raum nicht gefunden"));
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(GameErrors.RoomNotFound));
             return;
         }
 
         var (ok, error) = session.TryRejoin(nickname, Context.ConnectionId);
         if (!ok)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Reconnect fehlgeschlagen"));
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? GameErrors.ReconnectFailed));
             return;
         }
 
@@ -191,7 +190,7 @@ public sealed class GameHub : Hub
     {
         if (!_sessions.TryGet(code, out var session) || session is null)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Raum nicht gefunden"));
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(GameErrors.RoomNotFound));
             return;
         }
 
@@ -233,7 +232,7 @@ public sealed class GameHub : Hub
             return;
         }
 
-        session.SetQuestions([SeedData.DemoQuestion]);
+        session.SetQuestions([SeedQuestions.ClassicDemo]);
         await StartCurrentNextQuestion(session);
     }
 
@@ -247,7 +246,7 @@ public sealed class GameHub : Hub
 
         if (session.QuestionCount == 0)
         {
-            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("Quiz has no questions"));
+            await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(GameErrors.QuizHasNoQuestions));
             return;
         }
 
@@ -264,7 +263,7 @@ public sealed class GameHub : Hub
     {
         if (!_sessions.TryGetByConnection(Context.ConnectionId, out var session) || session is null)
         {
-            await Clients.Caller.SendAsync("AnswerAccepted", new AnswerAcceptedMessage(false, "Not in a room", 0));
+            await Clients.Caller.SendAsync("AnswerAccepted", new AnswerAcceptedMessage(false, GameErrors.NotInRoom, 0));
             return;
         }
 
@@ -277,7 +276,7 @@ public sealed class GameHub : Hub
             {
                 await Clients.Caller.SendAsync(
                     "AnswerAccepted",
-                    new AnswerAcceptedMessage(false, "Not a player", 0));
+                    new AnswerAcceptedMessage(false, GameErrors.NotAPlayer, 0));
                 return;
             }
 
@@ -342,20 +341,20 @@ public sealed class GameHub : Hub
     {
         if (!_sessions.TryGetByConnection(Context.ConnectionId, out var session) || session is null)
         {
-            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage("Not in a room"));
+            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage(GameErrors.NotInRoom));
             return;
         }
 
         if (!PowerUpIdParser.TryParse(powerUpId, out var id))
         {
-            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage("Unknown power-up"));
+            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage(GameErrors.UnknownPowerUp));
             return;
         }
 
         var (ok, error, result) = session.TryUsePowerUp(Context.ConnectionId, id, targetNickname);
         if (!ok || result is null)
         {
-            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage(error ?? "Power-up failed"));
+            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage(error ?? GameErrors.PowerUpFailed));
             return;
         }
 
@@ -424,26 +423,26 @@ public sealed class GameHub : Hub
     {
         if (!_sessions.TryGetByConnection(Context.ConnectionId, out var session) || session is null)
         {
-            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage("Not in a room"));
+            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage(GameErrors.NotInRoom));
             return;
         }
 
         if (!session.IsHost(Context.ConnectionId))
         {
-            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage("Only the host can trigger arena events"));
+            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage(GameErrors.HostOnly));
             return;
         }
 
         if (!PowerUpIdParser.TryParse(powerUpId, out var id))
         {
-            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage("Unknown power-up"));
+            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage(GameErrors.UnknownPowerUp));
             return;
         }
 
         var (ok, error, newEndsAt) = session.TryHostArenaEvent(Context.ConnectionId, id);
         if (!ok)
         {
-            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage(error ?? "Arena event failed"));
+            await Clients.Caller.SendAsync("PowerUpError", new PowerUpErrorMessage(error ?? GameErrors.ArenaEventFailed));
             return;
         }
 
@@ -496,7 +495,7 @@ public sealed class GameHub : Hub
         {
             if (notifyHostOnError)
             {
-                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Cannot start"));
+                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? GameErrors.CannotStart));
             }
 
             return;
@@ -519,7 +518,7 @@ public sealed class GameHub : Hub
         {
             if (notifyHostOnError)
             {
-                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage("No question available"));
+                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(GameErrors.NoQuestionAvailable));
             }
 
             return;
@@ -531,7 +530,7 @@ public sealed class GameHub : Hub
         {
             if (notifyHostOnError)
             {
-                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Cannot start"));
+                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? GameErrors.CannotStart));
             }
 
             return;
@@ -580,7 +579,7 @@ public sealed class GameHub : Hub
             ToQuestionStartedMessage(session, q));
     }
 
-    private static QuestionStartedMessage ToQuestionStartedMessage(GameSession session, DemoQuestion q) =>
+    private static QuestionStartedMessage ToQuestionStartedMessage(GameSession session, QuizQuestion q) =>
         new(
             session.QuestionIndex,
             session.QuestionCount,
@@ -590,7 +589,7 @@ public sealed class GameHub : Hub
             session.QuestionEndsAtUtc!.Value,
             q.ImageUrl);
 
-    private static QuestionStartedMessage ToAsyncQuestionStartedMessage(PlayerRaceState race) =>
+    private static QuestionStartedMessage ToAsyncQuestionStartedMessage(PlayerRaceSnapshot race) =>
         new(
             race.Index,
             race.Order.Count,
@@ -624,7 +623,7 @@ public sealed class GameHub : Hub
 
     private async Task BroadcastAsyncScoreboardAsync(GameSession session, bool viaHubContext)
     {
-        var message = new AsyncScoreboardMessage(session.GetAsyncScoreboard());
+        var message = new AsyncScoreboardMessage(ToAsyncScoreboard(session));
         if (viaHubContext)
         {
             await _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync("AsyncScoreboard", message);
@@ -728,14 +727,8 @@ public sealed class GameHub : Hub
     private async Task BroadcastAsyncGameFinishedAsync(GameSession session, bool viaHubContext)
     {
         var finished = ToAsyncFinished(session);
-        if (viaHubContext)
-        {
-            await _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync("GameFinished", finished);
-        }
-        else
-        {
-            await Clients.Group(RoomGroup(session.Code)).SendAsync("GameFinished", finished);
-        }
+        await RoomClients(session.Code, viaHubContext).SendAsync("GameFinished", finished);
+        DisposeRoom(session.Code);
     }
 
     private static GameFinishedMessage ToAsyncFinished(GameSession session) =>
@@ -749,7 +742,7 @@ public sealed class GameHub : Hub
 
     private void RescheduleAsyncTimeouts(string code)
     {
-        CancelQuestionEndTimer(code);
+        _scheduler.CancelQuestionOrAsync(code);
 
         if (!_sessions.TryGet(code, out var session) || session is null || session.Phase != GamePhase.AsyncRacing)
         {
@@ -777,39 +770,25 @@ public sealed class GameHub : Hub
         }
 
         var delay = earliest.Value - DateTimeOffset.UtcNow;
-        if (delay < TimeSpan.Zero)
+        _scheduler.ScheduleQuestionOrAsync(code, delay, async _ =>
         {
-            delay = TimeSpan.Zero;
-        }
-
-        var cts = new CancellationTokenSource();
-        QuestionEndTimers[code] = cts;
-
-        _ = Task.Run(async () =>
-        {
-            try
+            if (!_sessions.TryGet(code, out var live) || live is null || live.Phase != GamePhase.AsyncRacing)
             {
-                await Task.Delay(delay, cts.Token);
-                if (!_sessions.TryGet(code, out var live) || live is null || live.Phase != GamePhase.AsyncRacing)
-                {
-                    return;
-                }
+                return;
+            }
 
-                await ProcessAsyncTimeoutsForSessionAsync(live, viaHubContext: true);
-                RescheduleAsyncTimeouts(code);
-            }
-            catch (OperationCanceledException)
-            {
-                // Superseded by a newer end time.
-            }
-            catch
-            {
-                // Timer best-effort.
-            }
+            await ProcessAsyncTimeoutsForSessionAsync(live, viaHubContext: true);
+            RescheduleAsyncTimeouts(code);
         });
     }
 
-    private async Task BroadcastQuestionEndedAsync(GameSession session)
+    private Task BroadcastQuestionEndedAsync(GameSession session) =>
+        BroadcastQuestionEndedCoreAsync(session, viaHubContext: false);
+
+    private Task BroadcastQuestionEndedViaHubContextAsync(GameSession session) =>
+        BroadcastQuestionEndedCoreAsync(session, viaHubContext: true);
+
+    private async Task BroadcastQuestionEndedCoreAsync(GameSession session, bool viaHubContext)
     {
         var explanation = session.ExamMode ? null : session.CurrentQuestion?.Explanation;
         var correctIndex = session.CurrentQuestion?.CorrectIndex;
@@ -820,19 +799,25 @@ public sealed class GameHub : Hub
             return;
         }
 
-        await Clients.Group(RoomGroup(session.Code)).SendAsync(
+        var group = RoomClients(session.Code, viaHubContext);
+        await group.SendAsync(
             "QuestionEnded",
             new QuestionEndedMessage(correctIndex.Value, index, total, explanation));
 
         session.ApplyStreakRewards();
-        await BroadcastInventoryUpdatesAsync(session);
+        if (viaHubContext)
+        {
+            await BroadcastInventoryUpdatesViaHubContextAsync(session);
+        }
+        else
+        {
+            await BroadcastInventoryUpdatesAsync(session);
+        }
 
         session.ShowLeaderboard();
-        await Clients.Group(RoomGroup(session.Code)).SendAsync(
-            "Leaderboard",
-            ToLeaderboard(session));
+        await group.SendAsync("Leaderboard", ToLeaderboard(session));
 
-        CancelQuestionEndTimer(session.Code);
+        _scheduler.CancelQuestionOrAsync(session.Code);
         ScheduleAutoAdvance(session);
     }
 
@@ -842,70 +827,21 @@ public sealed class GameHub : Hub
     /// </summary>
     private void RescheduleQuestionEnd(string code, DateTimeOffset endsAtUtc)
     {
-        CancelQuestionEndTimer(code);
-
         var delay = endsAtUtc - DateTimeOffset.UtcNow;
-        if (delay < TimeSpan.Zero)
+        _scheduler.ScheduleQuestionOrAsync(code, delay, async _ =>
         {
-            delay = TimeSpan.Zero;
-        }
-
-        var cts = new CancellationTokenSource();
-        QuestionEndTimers[code] = cts;
-
-        _ = Task.Run(async () =>
-        {
-            try
+            if (!_sessions.TryGet(code, out var session) || session is null)
             {
-                await Task.Delay(delay, cts.Token);
-                if (!_sessions.TryGet(code, out var session) || session is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                if (session.Phase != GamePhase.QuestionActive)
-                {
-                    return;
-                }
+            if (session.Phase != GamePhase.QuestionActive)
+            {
+                return;
+            }
 
-                await BroadcastQuestionEndedViaHubContextAsync(session);
-            }
-            catch (OperationCanceledException)
-            {
-                // Superseded by a newer end time.
-            }
-            catch
-            {
-                // Timer best-effort; end is always server-driven via QuestionEnded.
-            }
+            await BroadcastQuestionEndedViaHubContextAsync(session);
         });
-    }
-
-    private async Task BroadcastQuestionEndedViaHubContextAsync(GameSession session)
-    {
-        var explanation = session.ExamMode ? null : session.CurrentQuestion?.Explanation;
-        var correctIndex = session.CurrentQuestion?.CorrectIndex;
-        var index = session.QuestionIndex;
-        var total = session.QuestionCount;
-        if (!session.ForceEndQuestion() || correctIndex is null)
-        {
-            return;
-        }
-
-        await _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync(
-            "QuestionEnded",
-            new QuestionEndedMessage(correctIndex.Value, index, total, explanation));
-
-        session.ApplyStreakRewards();
-        await BroadcastInventoryUpdatesViaHubContextAsync(session);
-
-        session.ShowLeaderboard();
-        await _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync(
-            "Leaderboard",
-            ToLeaderboard(session));
-
-        CancelQuestionEndTimer(session.Code);
-        ScheduleAutoAdvance(session);
     }
 
     private void ScheduleAutoAdvance(GameSession session)
@@ -919,51 +855,34 @@ public sealed class GameHub : Hub
 
         var delay = TimeSpan.FromSeconds(session.AutoAdvance.DelaySeconds);
         var advancesAtUtc = DateTimeOffset.UtcNow + delay;
-        var cts = new CancellationTokenSource();
-        AutoAdvanceTimers[session.Code] = cts;
+        var code = session.Code;
 
-        _ = _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync(
+        _ = _hubContext.Clients.Group(RoomGroup(code)).SendAsync(
             "AutoAdvanceScheduled",
             new AutoAdvanceScheduledMessage(advancesAtUtc));
 
-        var code = session.Code;
-        _ = Task.Run(async () =>
+        _scheduler.ScheduleAutoAdvance(code, delay, async _ =>
         {
-            try
+            if (!_sessions.TryGet(code, out var live) || live is null)
             {
-                await Task.Delay(delay, cts.Token);
-                if (!_sessions.TryGet(code, out var live) || live is null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                if (live.Phase != GamePhase.Leaderboard)
-                {
-                    return;
-                }
+            if (live.Phase != GamePhase.Leaderboard)
+            {
+                return;
+            }
 
-                await AdvanceFromLeaderboardAsync(live, notifyHostOnError: false, viaHubContext: true);
-            }
-            catch (OperationCanceledException)
-            {
-                // Host Next or rescheduled auto-advance.
-            }
-            catch
-            {
-                // Timer best-effort; host can always advance manually.
-            }
+            await AdvanceFromLeaderboardAsync(live, notifyHostOnError: false, viaHubContext: true);
         });
     }
 
     private void CancelAutoAdvance(string code, bool broadcastIfActive)
     {
-        if (!AutoAdvanceTimers.TryRemove(code, out var existing))
+        if (!_scheduler.CancelAutoAdvance(code))
         {
             return;
         }
-
-        existing.Cancel();
-        existing.Dispose();
 
         if (broadcastIfActive)
         {
@@ -996,30 +915,31 @@ public sealed class GameHub : Hub
         {
             if (notifyHostOnError)
             {
-                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? "Cannot finish"));
+                await Clients.Caller.SendAsync("JoinError", new JoinErrorMessage(error ?? GameErrors.FinishFailed));
             }
 
             return;
         }
 
         var finished = ToFinished(session);
-        if (viaHubContext)
-        {
-            await _hubContext.Clients.Group(RoomGroup(session.Code)).SendAsync("GameFinished", finished);
-        }
-        else
-        {
-            await Clients.Group(RoomGroup(session.Code)).SendAsync("GameFinished", finished);
-        }
+        await RoomClients(session.Code, viaHubContext).SendAsync("GameFinished", finished);
+        DisposeRoom(session.Code);
     }
 
-    private static void CancelQuestionEndTimer(string code)
+    private void CancelQuestionEndTimer(string code) => _scheduler.CancelQuestionOrAsync(code);
+
+    /// <summary>
+    /// Stop gameplay timers and schedule deferred store removal so host/player can still
+    /// <c>RejoinHost</c>/<c>RejoinRoom</c> briefly to restore the Finished/review payload.
+    /// </summary>
+    private void DisposeRoom(string code)
     {
-        if (QuestionEndTimers.TryRemove(code, out var existing))
+        _scheduler.CancelGameplay(code);
+        _scheduler.ScheduleCleanup(code, RoomScheduler.FinishedRetention, _ =>
         {
-            existing.Cancel();
-            existing.Dispose();
-        }
+            _sessions.Remove(code);
+            return Task.CompletedTask;
+        });
     }
 
     private async Task SyncCallerToCurrentPhase(GameSession session)
@@ -1061,7 +981,7 @@ public sealed class GameHub : Hub
         {
             await Clients.Caller.SendAsync(
                 "AsyncScoreboard",
-                new AsyncScoreboardMessage(session.GetAsyncScoreboard()));
+                new AsyncScoreboardMessage(ToAsyncScoreboard(session)));
             return;
         }
 
@@ -1081,7 +1001,7 @@ public sealed class GameHub : Hub
         {
             await Clients.Caller.SendAsync(
                 "AsyncScoreboard",
-                new AsyncScoreboardMessage(session.GetAsyncScoreboard()));
+                new AsyncScoreboardMessage(ToAsyncScoreboard(session)));
             if (race.Index > 0)
             {
                 var last = race.Order[race.Index - 1];
@@ -1104,7 +1024,7 @@ public sealed class GameHub : Hub
 
         await Clients.Caller.SendAsync(
             "AsyncScoreboard",
-            new AsyncScoreboardMessage(session.GetAsyncScoreboard()));
+            new AsyncScoreboardMessage(ToAsyncScoreboard(session)));
         await Clients.Caller.SendAsync("QuestionStarted", ToAsyncQuestionStartedMessage(race));
     }
 
@@ -1124,6 +1044,11 @@ public sealed class GameHub : Hub
             session.QuestionIndex,
             session.QuestionCount,
             session.HasMoreQuestions);
+
+    private static IReadOnlyList<AsyncScoreboardEntryDto> ToAsyncScoreboard(GameSession session) =>
+        session.GetAsyncScoreboard()
+            .Select(e => new AsyncScoreboardEntryDto(e.Nickname, e.Score, e.AnsweredCount, e.Total))
+            .ToList();
 
     private static IReadOnlyList<QuestionReviewDto> ToReview(GameSession session) =>
         session.Review.Select(r => new QuestionReviewDto(
@@ -1235,7 +1160,7 @@ public sealed class GameHub : Hub
             {
                 if (!PowerUpIdParser.TryParse(wire, out var id))
                 {
-                    return (null, $"Unknown starter power-up: {wire}");
+                    return (null, $"{GameErrors.UnknownPowerUp}: {wire}");
                 }
 
                 starter[id] = count;

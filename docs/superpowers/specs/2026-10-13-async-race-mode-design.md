@@ -44,7 +44,7 @@
 
 - `GameSession.AsyncRaceEnabled` (bool, bei Create gesetzt).
 - **`PlayerRaceState`** (pro Spieler, keyed wie Player):
-  - `Order`: `IReadOnlyList<DemoQuestion>` (Shuffle-Kopie)
+  - `Order`: `IReadOnlyList<QuizQuestion>` (Shuffle-Kopie)
   - `Index`: aktuelle Frage (0-based), oder „fertig“
   - `EndsAt`: Deadline der aktuellen Frage
   - `Finished`: bool

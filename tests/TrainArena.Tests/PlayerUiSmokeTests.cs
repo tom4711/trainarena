@@ -17,6 +17,19 @@ public class PlayerUiSmokeTests : IClassFixture<TrainArenaWebAppFactory>
         Assert.Contains("id=\"q-timer-track\"", html, StringComparison.Ordinal);
         Assert.Contains("class=\"q-meta\"", html, StringComparison.Ordinal);
         Assert.Contains("id=\"powerups\"", html, StringComparison.Ordinal);
+        Assert.Contains("/js/shared.js", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SharedJs_ExposesTimerBoardFxHelpers()
+    {
+        var res = await _client.GetAsync("/js/shared.js");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var js = await res.Content.ReadAsStringAsync();
+        Assert.Contains("TrainArenaShared", js, StringComparison.Ordinal);
+        Assert.Contains("setTimerUrgency", js, StringComparison.Ordinal);
+        Assert.Contains("renderBoardList", js, StringComparison.Ordinal);
+        Assert.Contains("createFxController", js, StringComparison.Ordinal);
     }
 
     [Fact]

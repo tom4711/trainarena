@@ -28,7 +28,7 @@ public class ReconnectTests
         var session = new GameSessionStore(new RoomCodeGenerator()).Create("host", QuizId);
         var (ok, error) = session.TryRejoin("Ghost", "c1");
         Assert.False(ok);
-        Assert.Equal("Unknown nickname for this room", error);
+        Assert.Equal(GameErrors.UnknownNickname, error);
     }
 
     [Fact]

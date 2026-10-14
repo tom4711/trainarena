@@ -41,7 +41,7 @@ public class GameSessionTests
         var (ok, error) = session.TryJoin("azubi1", "conn-b");
 
         Assert.False(ok);
-        Assert.Equal("Nickname already taken", error);
+        Assert.Equal(GameErrors.NicknameTaken, error);
         Assert.Single(session.Players);
     }
 
@@ -54,7 +54,7 @@ public class GameSessionTests
         var (ok, error) = session.TryJoin("   ", "conn-a");
 
         Assert.False(ok);
-        Assert.Equal("Nickname required", error);
+        Assert.Equal(GameErrors.NicknameRequired, error);
         Assert.Empty(session.Players);
     }
 

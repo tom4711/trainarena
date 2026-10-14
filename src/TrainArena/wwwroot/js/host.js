@@ -34,9 +34,13 @@
   const fxSub = $("fx-sub");
 
   const STORAGE_ROOM = "trainarena.host.room";
-  let fxTimer = null;
-  const fxQueue = [];
-  let fxShowing = false;
+  const shared = window.TrainArenaShared;
+  const fx = shared.createFxController({
+    overlay: fxOverlay,
+    titleEl: fxTitle,
+    subEl: fxSub,
+  });
+  const escapeHtml = shared.escapeHtml;
 
   let startedAt = null;
   let endsAt = null;
@@ -125,14 +129,6 @@
     lobbyStatus.textContent = text;
     lobbyStatus.classList.remove("is-loading", "is-error", "is-ok");
     if (kind) lobbyStatus.classList.add(kind);
-  }
-
-  function escapeHtml(s) {
-    return String(s)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;");
   }
 
   function clearReview() {
@@ -355,25 +351,11 @@
   }
 
   function renderBoardEntries(entries) {
-    boardList.innerHTML = "";
-    (entries || []).forEach((e, i) => {
-      const li = document.createElement("li");
-      li.innerHTML =
-        `<span class="rank">${i + 1}.</span>` +
-        `<span class="nick"></span>` +
-        `<span class="score"></span>`;
-      li.querySelector(".nick").textContent = e.nickname;
-      li.querySelector(".score").textContent = String(e.score);
-      boardList.appendChild(li);
-    });
+    shared.renderBoardList(boardList, entries);
   }
 
   function setTimerUrgency(msLeft) {
-    timerEl.classList.remove("is-urgent", "is-critical");
-    if (!questionOpen || msLeft <= 0) return;
-    const sec = Math.ceil(msLeft / 1000);
-    if (sec <= 5) timerEl.classList.add("is-critical");
-    else if (sec <= 10) timerEl.classList.add("is-urgent");
+    shared.setTimerUrgency(timerEl, msLeft, questionOpen);
   }
 
   async function loadQuizzes() {
@@ -631,28 +613,7 @@
   }
 
   function showFx(kind, title, sub) {
-    fxQueue.push({ kind, title, sub });
-    if (!fxShowing) drainFxQueue();
-  }
-
-  function drainFxQueue() {
-    if (!fxOverlay || fxQueue.length === 0) {
-      fxShowing = false;
-      return;
-    }
-    fxShowing = true;
-    const { kind, title, sub } = fxQueue.shift();
-    if (fxTimer) clearTimeout(fxTimer);
-    fxOverlay.className = `fx-overlay is-${kind}`;
-    fxTitle.textContent = title;
-    fxSub.textContent = sub || "";
-    fxOverlay.classList.remove("hidden");
-    const ms = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1600 : 1100;
-    fxTimer = window.setTimeout(() => {
-      fxOverlay.classList.add("hidden");
-      fxOverlay.className = "fx-overlay hidden";
-      drainFxQueue();
-    }, ms);
+    fx.show(kind, title, sub);
   }
 
   connection.on("PowerUpFx", (msg) => {

@@ -17,7 +17,7 @@ public class AsyncRaceSessionTests
     public void StartAsyncRace_ShufflesPerPlayer_AndSetsPhase()
     {
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), asyncRaceEnabled: true);
-        s.SetQuestions(Enumerable.Range(0, 5).Select(i => new DemoQuestion
+        s.SetQuestions(Enumerable.Range(0, 5).Select(i => new QuizQuestion
         {
             Text = $"Q{i}", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20
         }).ToList());
@@ -41,7 +41,7 @@ public class AsyncRaceSessionTests
     public void StartAsyncRace_RejectedWhenNotAsyncMode()
     {
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), asyncRaceEnabled: false);
-        s.SetQuestions([new DemoQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0 }]);
+        s.SetQuestions([new QuizQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0 }]);
         s.TryJoin("Ada", "c1");
         Assert.False(s.StartAsyncRace(DateTimeOffset.UtcNow).ok);
     }
@@ -50,7 +50,7 @@ public class AsyncRaceSessionTests
     public void GetAsyncScoreboard_ShowsZeroProgress()
     {
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), asyncRaceEnabled: true);
-        s.SetQuestions([new DemoQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0 }]);
+        s.SetQuestions([new QuizQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0 }]);
         s.TryJoin("Ada", "c1");
         Assert.True(s.StartAsyncRace(DateTimeOffset.UtcNow).ok);
         var board = s.GetAsyncScoreboard();
@@ -92,8 +92,8 @@ public class AsyncRaceSessionTests
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg, asyncRaceEnabled: true);
         s.SetQuestions(
         [
-            new DemoQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
-            new DemoQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+            new QuizQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+            new QuizQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
         ]);
         s.TryJoin("Ada", "c1");
         s.TryJoin("Bob", "c2");
@@ -111,7 +111,7 @@ public class AsyncRaceSessionTests
 
         var (ok, err, _) = s.TryUsePowerUp("c2", PowerUpId.Disrupt, "Ada");
         Assert.False(ok);
-        Assert.Contains("Invalid target", err!, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(GameErrors.InvalidTarget, err);
     }
 
     [Fact]
@@ -122,14 +122,14 @@ public class AsyncRaceSessionTests
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg, asyncRaceEnabled: true);
         s.SetQuestions(
         [
-            new DemoQuestion
+            new QuizQuestion
             {
                 Text = "Q1",
                 Options = ["a", "b", "c", "d"],
                 CorrectIndex = 0,
                 TimeLimitSeconds = 20,
             },
-            new DemoQuestion
+            new QuizQuestion
             {
                 Text = "Q2",
                 Options = ["a", "b", "c", "d"],
@@ -161,8 +161,8 @@ public class AsyncRaceSessionTests
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg, asyncRaceEnabled: true);
         s.SetQuestions(
         [
-            new DemoQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
-            new DemoQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+            new QuizQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+            new QuizQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
         ]);
         s.TryJoin("Ada", "c1");
         var start = DateTimeOffset.UtcNow;
@@ -189,7 +189,7 @@ public class AsyncRaceSessionTests
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg, asyncRaceEnabled: true);
         s.SetQuestions(
         [
-            new DemoQuestion
+            new QuizQuestion
             {
                 Text = "Q",
                 Options = ["a", "b", "c", "d"],
@@ -218,7 +218,7 @@ public class AsyncRaceSessionTests
         Assert.True(s.SubmitAsyncAnswer("Ada", adaQ.CorrectIndex, now, expectedQuestionIndex: 0).Ok);
         var r = s.SubmitAsyncAnswer("Ada", 0, now, expectedQuestionIndex: 0);
         Assert.False(r.Ok);
-        Assert.Contains("advanced", r.Error!, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(GameErrors.QuestionAlreadyAdvanced, r.Error);
     }
 
     [Fact]
@@ -229,7 +229,7 @@ public class AsyncRaceSessionTests
         var endsAt = s.GetRaceState("Ada")!.EndsAtUtc!.Value;
         var r = s.SubmitAsyncAnswer("Ada", 0, endsAt);
         Assert.False(r.Ok);
-        Assert.Contains("ended", r.Error!, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(GameErrors.QuestionEnded, r.Error);
     }
 
     [Fact]
@@ -239,8 +239,8 @@ public class AsyncRaceSessionTests
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg, asyncRaceEnabled: true);
         s.SetQuestions(
         [
-            new DemoQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
-            new DemoQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+            new QuizQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+            new QuizQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
         ]);
         s.TryJoin("Ada", "c1");
         Assert.True(s.StartAsyncRace(DateTimeOffset.UtcNow).ok);
@@ -264,8 +264,8 @@ public class AsyncRaceSessionTests
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg, asyncRaceEnabled: true);
         s.SetQuestions(
         [
-            new DemoQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
-            new DemoQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+            new QuizQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+            new QuizQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
         ]);
         s.TryJoin("Ada", "c1");
         var start = DateTimeOffset.UtcNow;
@@ -284,8 +284,8 @@ public class AsyncRaceSessionTests
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), asyncRaceEnabled: true);
         s.SetQuestions(
         [
-            new DemoQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
-            new DemoQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 1, TimeLimitSeconds = 20 },
+            new QuizQuestion { Text = "Q1", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+            new QuizQuestion { Text = "Q2", Options = ["a", "b"], CorrectIndex = 1, TimeLimitSeconds = 20 },
         ]);
         s.TryJoin("Ada", "c1");
         s.TryJoin("Bob", "c2");
@@ -295,7 +295,7 @@ public class AsyncRaceSessionTests
     private static GameSession NewAsyncOnePlayerOneQuestion()
     {
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), asyncRaceEnabled: true);
-        s.SetQuestions([new DemoQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0 }]);
+        s.SetQuestions([new QuizQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0 }]);
         s.TryJoin("Ada", "c1");
         return s;
     }

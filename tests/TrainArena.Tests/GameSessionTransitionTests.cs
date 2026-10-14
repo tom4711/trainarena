@@ -6,7 +6,7 @@ public class GameSessionTransitionTests
 {
     private static readonly Guid QuizId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
-    private static DemoQuestion Q(string text = "Q?", int correct = 0, int seconds = 20) => new()
+    private static QuizQuestion Q(string text = "Q?", int correct = 0, int seconds = 20) => new()
     {
         Text = text,
         Options = ["A", "B", "C", "D"],
@@ -32,7 +32,7 @@ public class GameSessionTransitionTests
         var session = ReadyLobby("Azubi1");
         var (ok, error, _) = session.SubmitAnswer("p0", 0, DateTimeOffset.UtcNow);
         Assert.False(ok);
-        Assert.Equal("No active question", error);
+        Assert.Equal(GameErrors.NoActiveQuestion, error);
         Assert.Equal(GamePhase.Lobby, session.Phase);
     }
 
@@ -45,7 +45,7 @@ public class GameSessionTransitionTests
 
         var (ok, error) = session.StartQuestion(Q("Two"), now);
         Assert.False(ok);
-        Assert.Equal("Cannot start question in current phase", error);
+        Assert.Equal(GameErrors.CannotStartQuestion, error);
         Assert.Equal(GamePhase.QuestionActive, session.Phase);
     }
 
@@ -98,7 +98,7 @@ public class GameSessionTransitionTests
 
         var (ok, error) = session.TryFinish();
         Assert.False(ok);
-        Assert.Equal("More questions remaining", error);
+        Assert.Equal(GameErrors.MoreQuestions, error);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class GameSessionTransitionTests
 
         var (ok, error, _) = session.SubmitAnswer("p0", 0, t0.AddSeconds(1));
         Assert.False(ok);
-        Assert.Equal("No active question", error);
+        Assert.Equal(GameErrors.NoActiveQuestion, error);
     }
 
     [Fact]

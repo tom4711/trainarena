@@ -34,6 +34,12 @@
   const fxOverlay = $("fx-overlay");
   const fxTitle = $("fx-title");
   const fxSub = $("fx-sub");
+  const shared = window.TrainArenaShared;
+  const fx = shared.createFxController({
+    overlay: fxOverlay,
+    titleEl: fxTitle,
+    subEl: fxSub,
+  });
 
   let startedAt = null;
   let endsAt = null;
@@ -55,9 +61,6 @@
   let roomCode = sessionStorage.getItem(STORAGE_CODE) || $("code").value.trim().toUpperCase();
   let nickname = sessionStorage.getItem(STORAGE_NICK) || "";
   let lobbyPlayers = [];
-  let fxTimer = null;
-  const fxQueue = [];
-  let fxShowing = false;
 
   if (roomCode) $("code").value = roomCode;
   if (nickname) $("nickname").value = nickname;
@@ -136,28 +139,7 @@
   }
 
   function showFx(kind, title, sub) {
-    fxQueue.push({ kind, title, sub });
-    if (!fxShowing) drainFxQueue();
-  }
-
-  function drainFxQueue() {
-    if (!fxOverlay || fxQueue.length === 0) {
-      fxShowing = false;
-      return;
-    }
-    fxShowing = true;
-    const { kind, title, sub } = fxQueue.shift();
-    if (fxTimer) clearTimeout(fxTimer);
-    fxOverlay.className = `fx-overlay is-${kind}`;
-    fxTitle.textContent = title;
-    fxSub.textContent = sub || "";
-    fxOverlay.classList.remove("hidden");
-    const ms = reducedMotion ? 1600 : 1100;
-    fxTimer = window.setTimeout(() => {
-      fxOverlay.classList.add("hidden");
-      fxOverlay.className = "fx-overlay hidden";
-      drainFxQueue();
-    }, ms);
+    fx.show(kind, title, sub);
   }
 
   function hideTargetPicker() {
@@ -661,17 +643,7 @@
     questionPanel.classList.add("hidden");
     boardPanel.classList.remove("hidden");
     powerupsEl.classList.add("hidden");
-    boardList.innerHTML = "";
-    entries.forEach((e, i) => {
-      const li = document.createElement("li");
-      li.innerHTML =
-        `<span class="rank">${i + 1}.</span>` +
-        `<span class="nick"></span>` +
-        `<span class="score"></span>`;
-      li.querySelector(".nick").textContent = e.nickname;
-      li.querySelector(".score").textContent = String(e.score);
-      boardList.appendChild(li);
-    });
+    shared.renderBoardList(boardList, entries);
     $("done").classList.toggle("hidden", !done);
     boardWaitingForHost = !done;
     if (done) {
@@ -712,17 +684,7 @@
   }
 
   function setTimerUrgency(msLeft) {
-    qTimer.classList.remove("is-urgent", "is-critical");
-    if (qTimerTrack) qTimerTrack.classList.remove("is-urgent", "is-critical");
-    if (!questionOpen || msLeft <= 0) return;
-    const sec = Math.ceil(msLeft / 1000);
-    if (sec <= 5) {
-      qTimer.classList.add("is-critical");
-      if (qTimerTrack) qTimerTrack.classList.add("is-critical");
-    } else if (sec <= 10) {
-      qTimer.classList.add("is-urgent");
-      if (qTimerTrack) qTimerTrack.classList.add("is-urgent");
-    }
+    shared.setTimerUrgency(qTimer, msLeft, questionOpen, qTimerTrack ? [qTimerTrack] : null);
   }
 
   function updateTimerTrack(msLeft) {

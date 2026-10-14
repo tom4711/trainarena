@@ -5,11 +5,11 @@ namespace TrainArena.Tests;
 
 public class PowerUpUseTests
 {
-    private static (GameSession s, DemoQuestion q) ActiveRoom(PowerUpRoomConfig? config = null)
+    private static (GameSession s, QuizQuestion q) ActiveRoom(PowerUpRoomConfig? config = null)
     {
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), config ?? PowerUpRoomConfig.CreateDefault());
         s.TryJoin("Ada", "p1");
-        var q = new DemoQuestion { Text = "Q?", Options = ["a", "b", "c", "d"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+        var q = new QuizQuestion { Text = "Q?", Options = ["a", "b", "c", "d"], CorrectIndex = 0, TimeLimitSeconds = 20 };
         s.SetQuestions([q]);
         Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
         return (s, q);
@@ -35,7 +35,7 @@ public class PowerUpUseTests
         s.SubmitAnswer("p1", 0, DateTimeOffset.UtcNow);
         var (ok, err, _) = s.TryUsePowerUp("p1", PowerUpId.Double);
         Assert.False(ok);
-        Assert.Contains("answered", err!, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(GameErrors.AlreadyAnswered, err);
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public class PowerUpUseTests
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg);
         s.TryJoin("Ada", "p1");
         s.TryJoin("Bob", "p2");
-        var q = new DemoQuestion { Text = "Q?", Options = ["a", "b", "c", "d"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+        var q = new QuizQuestion { Text = "Q?", Options = ["a", "b", "c", "d"], CorrectIndex = 0, TimeLimitSeconds = 20 };
         s.SetQuestions([q]);
         Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
         var before = s.QuestionEndsAtUtc!.Value;
@@ -83,7 +83,7 @@ public class PowerUpUseTests
     {
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), PowerUpRoomConfig.CreateDefault());
         s.TryJoin("Ada", "p1");
-        var q = new DemoQuestion { Text = "Q?", Options = ["a", "b", "c"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+        var q = new QuizQuestion { Text = "Q?", Options = ["a", "b", "c"], CorrectIndex = 0, TimeLimitSeconds = 20 };
         s.SetQuestions([q]);
         Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
         var (ok, err, result) = s.TryUsePowerUp("p1", PowerUpId.FiftyFifty);
@@ -98,7 +98,7 @@ public class PowerUpUseTests
     {
         var s = new GameSession("ABC123", "host", Guid.NewGuid(), PowerUpRoomConfig.CreateDefault());
         s.TryJoin("Ada", "p1");
-        var q = new DemoQuestion { Text = "Q?", Options = ["Wahr", "Falsch"], CorrectIndex = 0, TimeLimitSeconds = 20 };
+        var q = new QuizQuestion { Text = "Q?", Options = ["Wahr", "Falsch"], CorrectIndex = 0, TimeLimitSeconds = 20 };
         s.SetQuestions([q]);
         Assert.True(s.StartQuestion(q, DateTimeOffset.UtcNow).ok);
         var (ok, err, _) = s.TryUsePowerUp("p1", PowerUpId.FiftyFifty);

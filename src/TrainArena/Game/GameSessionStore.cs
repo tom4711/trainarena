@@ -27,6 +27,23 @@ public sealed class GameSessionStore
         bool examMode = false,
         bool asyncRaceEnabled = false)
     {
+        var mode = (examMode, asyncRaceEnabled) switch
+        {
+            (true, true) => throw new ArgumentException("Exam and AsyncRace are mutually exclusive."),
+            (true, false) => GameMode.Exam,
+            (false, true) => GameMode.AsyncRace,
+            _ => GameMode.Classic,
+        };
+        return Create(hostConnectionId, quizId, powerUps, autoAdvance, mode);
+    }
+
+    public GameSession Create(
+        string hostConnectionId,
+        Guid quizId,
+        PowerUpRoomConfig? powerUps,
+        AutoAdvanceOptions? autoAdvance,
+        GameMode mode)
+    {
         for (var attempt = 0; attempt < 32; attempt++)
         {
             var code = _codes.Next();
@@ -36,8 +53,7 @@ public sealed class GameSessionStore
                 quizId,
                 powerUps,
                 autoAdvance,
-                examMode,
-                asyncRaceEnabled);
+                mode);
             if (_sessions.TryAdd(code, session))
             {
                 _connectionToCode[hostConnectionId] = code;
@@ -75,4 +91,33 @@ public sealed class GameSessionStore
 
     public void UnbindConnection(string connectionId) =>
         _connectionToCode.TryRemove(connectionId, out _);
+
+    /// <summary>
+    /// Remove a finished/abandoned room and all connection bindings that point at it.
+    /// </summary>
+    public bool Remove(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return false;
+        }
+
+        var key = code.Trim();
+        if (!_sessions.TryRemove(key, out _))
+        {
+            return false;
+        }
+
+        foreach (var pair in _connectionToCode)
+        {
+            if (string.Equals(pair.Value, key, StringComparison.OrdinalIgnoreCase))
+            {
+                _connectionToCode.TryRemove(pair.Key, out _);
+            }
+        }
+
+        return true;
+    }
+
+    public int ActiveSessionCount => _sessions.Count;
 }
