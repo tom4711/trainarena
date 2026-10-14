@@ -92,6 +92,41 @@ public class QuizPersistenceTests
     }
 
     [Fact]
+    public async Task EditPage_WithEditQuery_ShowsUpdateForm()
+    {
+        using var factory = new TrainArenaWebAppFactory();
+        var client = factory.CreateClient();
+        Guid quizId;
+        Guid questionId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            quizId = Guid.NewGuid();
+            questionId = Guid.NewGuid();
+            db.Quizzes.Add(new Quiz { Id = quizId, Title = "UI" });
+            db.Questions.Add(new Question
+            {
+                Id = questionId,
+                QuizId = quizId,
+                Text = "Q?",
+                Option0 = "A",
+                Option1 = "B",
+                CorrectIndex = 0,
+                TimeLimitSeconds = 20,
+                SortOrder = 0,
+                ImagePath = "/uploads/smoke-thumb.png"
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var html = await client.GetStringAsync($"/Editor/Edit/{quizId}?edit={questionId}");
+        Assert.Contains("handler=UpdateQuestion", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("name=\"questionId\"", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Q?", html, StringComparison.Ordinal);
+        Assert.Contains("Bild entfernen", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task UpdateQuestion_ChangesTextAndOptions()
     {
         using var factory = new TrainArenaWebAppFactory();

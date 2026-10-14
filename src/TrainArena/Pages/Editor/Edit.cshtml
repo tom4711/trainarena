@@ -64,44 +64,114 @@
         @foreach (var q in quiz.Questions.OrderBy(x => x.SortOrder))
         {
             var filled = QuizRules.GetFilledOptions(q);
+            var isEditing = Model.EditingQuestionId == q.Id;
             <div class="q-card">
-                <strong>@(q.SortOrder + 1). @q.Text</strong>
-                @if (q.DisplayKind == QuestionDisplayKind.TrueFalse)
+                @if (isEditing)
                 {
-                    <span class="badge-tf">Wahr/Falsch</span>
-                }
-                @if (!string.IsNullOrEmpty(q.ImagePath))
-                {
-                    <img class="q-thumb" src="@q.ImagePath" alt="" />
-                }
-                <ol>
-                    @for (var i = 0; i < filled.Count; i++)
-                    {
-                        <li class="@(q.CorrectIndex == i ? "reveal" : null)">@filled[i]</li>
-                    }
-                </ol>
-                @{
-                    var qTags = QuestionTags.Parse(q.Tags);
-                }
-                @if (qTags.Count > 0)
-                {
-                    <div class="tag-row">
-                        @foreach (var tag in qTags)
+                    var qTagsEdit = QuestionTags.Parse(q.Tags);
+                    var tagsDisplay = qTagsEdit.Count > 0 ? string.Join(", ", qTagsEdit) : "";
+                    <form method="post" asp-page-handler="UpdateQuestion" enctype="multipart/form-data" class="edit-question-form" data-edit-form>
+                        <input type="hidden" name="id" value="@quiz.Id" />
+                        <input type="hidden" name="questionId" value="@q.Id" />
+                        <p class="muted">Frage @(q.SortOrder + 1) bearbeiten</p>
+                        <label>Fragetext<textarea name="text" required rows="2">@q.Text</textarea></label>
+                        <label>Fragetyp
+                            <select name="displayKind" id="edit-displayKind-@q.Id">
+                                <option value="Mc" @(q.DisplayKind == QuestionDisplayKind.Mc ? "selected" : null)>Multiple Choice</option>
+                                <option value="TrueFalse" @(q.DisplayKind == QuestionDisplayKind.TrueFalse ? "selected" : null)>Wahr/Falsch</option>
+                            </select>
+                        </label>
+                        @if (!string.IsNullOrEmpty(q.ImagePath))
                         {
-                            <span class="tag-chip">@tag</span>
+                            <img class="q-thumb" src="@q.ImagePath" alt="" />
+                            <label>
+                                <input type="checkbox" name="removeImage" value="true" />
+                                Bild entfernen
+                            </label>
                         }
-                    </div>
+                        <label>Bild (optional, max. 2&nbsp;MB — JPEG/PNG/WebP/GIF)
+                            <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" />
+                        </label>
+                        <div id="edit-mc-options-@q.Id" class="js-mc-options">
+                            <label>Option A<input class="mc-option" name="option0" data-required-mc="true" required value="@q.Option0" /></label>
+                            <label>Option B<input class="mc-option" name="option1" data-required-mc="true" required value="@q.Option1" /></label>
+                            <label>Option C<input class="mc-option" name="option2" value="@q.Option2" /></label>
+                            <label>Option D<input class="mc-option" name="option3" value="@q.Option3" /></label>
+                            <label>Option E<input class="mc-option" name="option4" value="@q.Option4" /></label>
+                            <label>Option F<input class="mc-option" name="option5" value="@q.Option5" /></label>
+                            <label>Richtige Antwort
+                                <select name="correctIndex" class="js-correct-select">
+                                    @for (var ci = 0; ci < 6; ci++)
+                                    {
+                                        <option value="@ci" @(q.CorrectIndex == ci ? "selected" : null)>@((char)('A' + ci))</option>
+                                    }
+                                </select>
+                            </label>
+                        </div>
+                        <div id="edit-tf-options-@q.Id" class="js-tf-options" hidden>
+                            <p class="muted">Antworten: Wahr und Falsch (fest)</p>
+                            <div class="tf-row">
+                                <label><input type="radio" name="correctIndex" value="0" @(q.CorrectIndex == 0 ? "checked" : null) /> Wahr</label>
+                                <label><input type="radio" name="correctIndex" value="1" @(q.CorrectIndex == 1 ? "checked" : null) /> Falsch</label>
+                            </div>
+                        </div>
+                        <label>Zeitlimit (Sekunden)
+                            <input name="timeLimitSeconds" type="number" min="5" max="120" value="@q.TimeLimitSeconds" />
+                        </label>
+                        <label>Erklärung (optional)
+                            <textarea name="explanation" rows="2" maxlength="2000" placeholder="Wird nach der Auflösung gezeigt (im Prüfungsmodus erst in der Abschluss-Review)">@q.Explanation</textarea>
+                        </label>
+                        <label>Tags (optional, kommagetrennt)
+                            <input name="tags" maxlength="400" placeholder="z. B. sql, join, netzwerk" value="@tagsDisplay" />
+                        </label>
+                        <label>IHK-Gewicht (optional, 0 = gleichmäßig)
+                            <input name="points" type="number" min="0" max="100" value="@q.Points" />
+                        </label>
+                        <button type="submit">Änderungen speichern</button>
+                        <a class="secondary" href="/Editor/Edit/@quiz.Id">Abbrechen</a>
+                    </form>
                 }
-                @if (!string.IsNullOrWhiteSpace(q.Explanation))
+                else
                 {
-                    <p class="explanation"><strong>Erklärung:</strong> @q.Explanation</p>
+                    <strong>@(q.SortOrder + 1). @q.Text</strong>
+                    @if (q.DisplayKind == QuestionDisplayKind.TrueFalse)
+                    {
+                        <span class="badge-tf">Wahr/Falsch</span>
+                    }
+                    @if (!string.IsNullOrEmpty(q.ImagePath))
+                    {
+                        <img class="q-thumb" src="@q.ImagePath" alt="" />
+                    }
+                    <ol>
+                        @for (var i = 0; i < filled.Count; i++)
+                        {
+                            <li class="@(q.CorrectIndex == i ? "reveal" : null)">@filled[i]</li>
+                        }
+                    </ol>
+                    @{
+                        var qTags = QuestionTags.Parse(q.Tags);
+                    }
+                    @if (qTags.Count > 0)
+                    {
+                        <div class="tag-row">
+                            @foreach (var tag in qTags)
+                            {
+                                <span class="tag-chip">@tag</span>
+                            }
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(q.Explanation))
+                    {
+                        <p class="explanation"><strong>Erklärung:</strong> @q.Explanation</p>
+                    }
+                    <p class="muted">Zeit: @q.TimeLimitSeconds s@(q.Points > 0 ? $" · IHK-Gewicht: {q.Points}" : "")</p>
+                    <a class="secondary" asp-page="/Editor/Edit" asp-route-id="@quiz.Id" asp-route-edit="@q.Id">Bearbeiten</a>
+                    <form method="post" asp-page-handler="DeleteQuestion">
+                        <input type="hidden" name="id" value="@quiz.Id" />
+                        <input type="hidden" name="questionId" value="@q.Id" />
+                        <button type="submit" class="danger">Frage löschen</button>
+                    </form>
                 }
-                <p class="muted">Zeit: @q.TimeLimitSeconds s@(q.Points > 0 ? $" · IHK-Gewicht: {q.Points}" : "")</p>
-                <form method="post" asp-page-handler="DeleteQuestion">
-                    <input type="hidden" name="id" value="@quiz.Id" />
-                    <input type="hidden" name="questionId" value="@q.Id" />
-                    <button type="submit" class="danger">Frage löschen</button>
-                </form>
             </div>
         }
     </section>
@@ -120,7 +190,7 @@
             <label>Bild (optional, max. 2&nbsp;MB — JPEG/PNG/WebP/GIF)
                 <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" />
             </label>
-            <div id="mc-options">
+            <div id="mc-options" class="js-mc-options">
                 <label>Option A<input class="mc-option" name="option0" data-required-mc="true" required /></label>
                 <label>Option B<input class="mc-option" name="option1" data-required-mc="true" required /></label>
                 <label>Option C<input class="mc-option" name="option2" /></label>
@@ -128,7 +198,7 @@
                 <label>Option E<input class="mc-option" name="option4" /></label>
                 <label>Option F<input class="mc-option" name="option5" /></label>
                 <label>Richtige Antwort
-                    <select name="correctIndex" id="correctIndexSelect">
+                    <select name="correctIndex" id="correctIndexSelect" class="js-correct-select">
                         <option value="0">A</option>
                         <option value="1">B</option>
                         <option value="2">C</option>
@@ -136,7 +206,7 @@
                     </select>
                 </label>
             </div>
-            <div id="tf-options" hidden>
+            <div id="tf-options" class="js-tf-options" hidden>
                 <p class="muted">Antworten: Wahr und Falsch (fest)</p>
                 <div class="tf-row">
                     <label><input type="radio" name="correctIndex" value="0" checked /> Wahr</label>
@@ -163,61 +233,80 @@
 </main>
 <script>
 (function () {
-  const kindSelect = document.getElementById('displayKind');
-  const mcBlock = document.getElementById('mc-options');
-  const tfBlock = document.getElementById('tf-options');
-  const correctSelect = document.getElementById('correctIndexSelect');
   const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
 
-  function mcInputs() {
-    return Array.from(document.querySelectorAll('.mc-option'));
-  }
-
-  function filledMcCount() {
-    const inputs = mcInputs();
-    let count = 0;
-    for (const inp of inputs) {
-      if (!inp.value.trim()) break;
-      count++;
+  function wireQuestionForm(root) {
+    const kindSelect = root.querySelector('select[name="displayKind"]');
+    const mcBlock = root.querySelector('.js-mc-options');
+    const tfBlock = root.querySelector('.js-tf-options');
+    const correctSelect = root.querySelector('.js-correct-select');
+    if (!kindSelect || !mcBlock || !tfBlock) {
+      return;
     }
-    return count;
-  }
 
-  function refreshCorrectSelect() {
-    const count = Math.max(2, filledMcCount());
-    const prev = correctSelect.value;
-    correctSelect.innerHTML = '';
-    for (let i = 0; i < count && i < labels.length; i++) {
-      const opt = document.createElement('option');
-      opt.value = String(i);
-      opt.textContent = labels[i];
-      correctSelect.appendChild(opt);
+    function mcInputs() {
+      return Array.from(mcBlock.querySelectorAll('.mc-option'));
     }
-    if (prev && correctSelect.querySelector('option[value="' + prev + '"]')) {
-      correctSelect.value = prev;
-    }
-  }
 
-  function setMode() {
-    const tf = kindSelect.value === 'TrueFalse';
-    mcBlock.hidden = tf;
-    tfBlock.hidden = !tf;
+    function filledMcCount() {
+      const inputs = mcInputs();
+      let count = 0;
+      for (const inp of inputs) {
+        if (!inp.value.trim()) break;
+        count++;
+      }
+      return count;
+    }
+
+    function refreshCorrectSelect() {
+      if (!correctSelect) {
+        return;
+      }
+      const count = Math.max(2, filledMcCount());
+      const prev = correctSelect.value;
+      correctSelect.innerHTML = '';
+      for (let i = 0; i < count && i < labels.length; i++) {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = labels[i];
+        correctSelect.appendChild(opt);
+      }
+      if (prev && correctSelect.querySelector('option[value="' + prev + '"]')) {
+        correctSelect.value = prev;
+      }
+    }
+
+    function setMode() {
+      const tf = kindSelect.value === 'TrueFalse';
+      mcBlock.hidden = tf;
+      tfBlock.hidden = !tf;
+      mcInputs().forEach(function (inp) {
+        inp.disabled = tf;
+        inp.required = !tf && inp.dataset.requiredMc === 'true';
+      });
+      if (correctSelect) {
+        correctSelect.disabled = tf;
+      }
+      tfBlock.querySelectorAll('input[type="radio"]').forEach(function (r) {
+        r.disabled = !tf;
+      });
+    }
+
+    kindSelect.addEventListener('change', setMode);
     mcInputs().forEach(function (inp) {
-      inp.disabled = tf;
-      inp.required = !tf && inp.dataset.requiredMc === 'true';
+      inp.addEventListener('input', refreshCorrectSelect);
     });
-    correctSelect.disabled = tf;
-    tfBlock.querySelectorAll('input[type="radio"]').forEach(function (r) {
-      r.disabled = !tf;
-    });
+    setMode();
+    refreshCorrectSelect();
   }
 
-  kindSelect.addEventListener('change', setMode);
-  mcInputs().forEach(function (inp) {
-    inp.addEventListener('input', refreshCorrectSelect);
+  const addForm = document.getElementById('add-question-form');
+  if (addForm) {
+    wireQuestionForm(addForm);
+  }
+  document.querySelectorAll('[data-edit-form]').forEach(function (form) {
+    wireQuestionForm(form);
   });
-  setMode();
-  refreshCorrectSelect();
 })();
 </script>
 </body>
