@@ -399,11 +399,17 @@
     const url = `${location.origin}/player/?code=${encodeURIComponent(code)}`;
     joinUrlEl.innerHTML = `Beitrittslink: <a href="${url}">${url}</a>`;
     qrWrap.classList.remove("hidden");
-    if (window.QRCode) {
-      QRCode.toCanvas(qrCanvas, url, { width: 180, margin: 1 }, (err) => {
-        if (err) console.error(err);
-      });
+    if (!window.QRCode) {
+      console.error("QRCode-Bibliothek nicht geladen — QR-Anzeige nicht möglich.");
+      return;
     }
+    const ctx = qrCanvas.getContext("2d");
+    if (ctx) {
+      ctx.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
+    }
+    QRCode.toCanvas(qrCanvas, url, { width: 180, margin: 1 }, (err) => {
+      if (err) console.error(err);
+    });
   }
 
   connection.on("RoomCreated", (msg) => {
