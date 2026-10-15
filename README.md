@@ -45,6 +45,8 @@ Dann im Browser — am besten über die **LAN-IP** (nicht nur `localhost`), dami
 | *Spieler: Code + Nickname (mobil)* | *Host live: Frage, Timer, Team-Boost / Zeit+5* |
 | ![Spieler: Frage mit Power-Ups](docs/screenshots/05-player-question-powerups.png) | ![Spieler: Schild-FX](docs/screenshots/06-player-shield-fx.png) |
 | *Spieler: Frage inkl. Störimpuls & Shield* | *Arena-FX: Schild aktiv* |
+| ![Editor: Fragetext mit Code-Vorschau](docs/screenshots/07-editor-code-preview.png) | |
+| *Editor: Live-Vorschau wie bei Teilnehmern (Syntax-Highlighting)* | |
 
 ### Firewall / LAN / UX
 
