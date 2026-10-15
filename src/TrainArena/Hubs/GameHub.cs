@@ -297,7 +297,10 @@ public sealed class GameHub : Hub
             await SendInventoryUpdateToPlayerAsync(session, asyncPlayer.Nickname, viaHubContext: false);
 
             await DeliverAsyncSubmitResultToPlayerAsync(session, asyncPlayer, asyncResult, viaHubContext: false);
-            await BroadcastAsyncScoreboardAsync(session, viaHubContext: false);
+            if (session.Phase != GamePhase.Finished)
+            {
+                await BroadcastAsyncScoreboardAsync(session, viaHubContext: false);
+            }
             await ProcessAsyncTimeoutsForSessionAsync(session, viaHubContext: false);
             RescheduleAsyncTimeouts(session.Code);
             return;
@@ -713,7 +716,7 @@ public sealed class GameHub : Hub
             }
         }
 
-        if (anyTimeout)
+        if (anyTimeout && !raceFinished)
         {
             await BroadcastAsyncScoreboardAsync(session, viaHubContext);
         }
@@ -736,7 +739,7 @@ public sealed class GameHub : Hub
             session.GetLeaderboard()
                 .Select(e => new LeaderboardEntryDto(e.Nickname, e.Score))
                 .ToList(),
-            Array.Empty<QuestionReviewDto>(),
+            ToReview(session),
             false,
             null);
 

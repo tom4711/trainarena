@@ -315,6 +315,7 @@
   }
 
   function renderAsyncScoreboard(msg) {
+    if (!finishedEl.classList.contains("hidden")) return;
     hostAsyncRace = true;
     clearAutoAdvanceCountdown();
     setup.classList.add("hidden");
@@ -582,7 +583,7 @@
     btnStart.classList.add("hidden");
     setArenaVisible(false);
     if (hostAsyncRace) {
-      setAsyncRaceLiveView(false);
+      $("async-scoreboard")?.classList.add("hidden");
     }
     renderBoardEntries(msg.entries);
     board.classList.remove("hidden");

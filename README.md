@@ -174,7 +174,7 @@ Stoppen: `docker compose down` (Volumes bleiben). Volumes mit löschen: `docker 
 - CSV- / Kahoot-ähnlicher Import sowie JSON-Quiz-Pack (inkl. Erklärung/Tags/Punkte)
 - Host-Raum + Code/QR-Join, Live-Runde, Server-Timer, Rangliste; nach dem Finale zeigt der Host ein **Fragen-Review** (Anteil richtig, Antwortverteilung, Erklärung/Tags)
 - **Auto-Advance:** optional beim Raumerstellen — nach der Rangliste automatisch weiter (3/5/10 s; Host kann weiterhin manuell **Weiter** drücken)
-- **Async-Rennen:** optional beim Raumerstellen — jeder Spieler bekommt die Fragen in **eigener Reihenfolge** (Shuffle) und mit **eigenem Timer**; der Host sieht Live-Punkte und Fortschritt **x/n** (ohne Fragetext). **Nicht kombinierbar** mit Prüfungsmodus oder Auto-Advance. Power-Ups inkl. Störimpuls gelten wie im Sync-Modus; das Rennen endet automatisch, wenn **alle** fertig sind → Abschluss-Rangliste.
+- **Async-Rennen:** optional beim Raumerstellen — jeder Spieler bekommt die Fragen in **eigener Reihenfolge** (Shuffle) und mit **eigenem Timer**; der Host sieht Live-Punkte und Fortschritt **x/n** (ohne Fragetext). **Nicht kombinierbar** mit Prüfungsmodus oder Auto-Advance. Power-Ups inkl. Störimpuls gelten wie im Sync-Modus; das Rennen endet automatisch, wenn **alle** fertig sind → Abschluss-Rangliste und dasselbe **Fragen-Review** wie im Sync-Modus (Quiz-Reihenfolge, Timeouts zählen nicht als Antwort).
 - **Prüfungsmodus (IHK):** optional beim Raumerstellen — ohne Power-Ups, optionale Themen-Filter (ODER), Punkte/Note nach IHK-Schema (100-Punkte-Skala); Erklärungen erst im Review, nicht live während der Frage
 - Classroom-Größe ~≤40, ein Prozess
 - **Power-Ups** (siehe unten); self-contained Releases für **Windows / Linux / macOS**

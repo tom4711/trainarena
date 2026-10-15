@@ -85,6 +85,88 @@ public class AsyncRaceSessionTests
     }
 
     [Fact]
+    public void AsyncFinish_ReviewAggregatesInQuizOrder_AndSkipsTimeouts()
+    {
+        var s = new GameSession("ABC123", "host", Guid.NewGuid(), asyncRaceEnabled: true);
+        s.SetQuestions(
+        [
+            new QuizQuestion
+            {
+                Text = "Q1",
+                Options = ["a", "b"],
+                CorrectIndex = 0,
+                TimeLimitSeconds = 20,
+                Explanation = "weil a",
+            },
+            new QuizQuestion
+            {
+                Text = "Q2",
+                Options = ["a", "b", "c"],
+                CorrectIndex = 2,
+                TimeLimitSeconds = 20,
+                Tags = ["csharp"],
+            },
+        ]);
+        s.TryJoin("Ada", "c1");
+        s.TryJoin("Bob", "c2");
+        var now = DateTimeOffset.UtcNow;
+        Assert.True(s.StartAsyncRace(now).ok);
+
+        AnswerRemaining(s, "Ada", now, correct: true);
+        Assert.Empty(s.Review);
+
+        TimeoutRemaining(s, "Bob");
+
+        Assert.Equal(GamePhase.Finished, s.Phase);
+        Assert.Equal(2, s.Review.Count);
+
+        var first = s.Review[0];
+        Assert.Equal(0, first.QuestionIndex);
+        Assert.Equal("Q1", first.Text);
+        Assert.Equal("weil a", first.Explanation);
+        Assert.Equal([1, 0], first.Counts);
+        Assert.Equal(1, first.AnsweredCount);
+        Assert.Equal(2, first.PlayerCount);
+        Assert.Equal(1, first.CorrectCount);
+
+        var second = s.Review[1];
+        Assert.Equal(1, second.QuestionIndex);
+        Assert.Equal("Q2", second.Text);
+        Assert.Equal(["csharp"], second.Tags);
+        Assert.Equal([0, 0, 1], second.Counts);
+        Assert.Equal(1, second.AnsweredCount);
+        Assert.Equal(2, second.PlayerCount);
+        Assert.Equal(1, second.CorrectCount);
+    }
+
+    [Fact]
+    public void AsyncFinish_WrongPickAndDisruptedCorrectPick_MatchSyncReviewRules()
+    {
+        var cfg = PowerUpRoomConfig.CreateDefault();
+        cfg.Starter[PowerUpId.Disrupt] = 1;
+        var s = new GameSession("ABC123", "host", Guid.NewGuid(), cfg, asyncRaceEnabled: true);
+        s.SetQuestions(
+        [
+            new QuizQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0, TimeLimitSeconds = 20 },
+        ]);
+        s.TryJoin("Ada", "c1");
+        s.TryJoin("Bob", "c2");
+        var now = DateTimeOffset.UtcNow;
+        Assert.True(s.StartAsyncRace(now).ok);
+
+        Assert.True(s.TryUsePowerUp("c1", PowerUpId.Disrupt, "Bob").ok);
+        Assert.True(s.SubmitAsyncAnswer("Bob", 0, now).Ok);
+        Assert.True(s.SubmitAsyncAnswer("Ada", 1, now).Ok);
+
+        Assert.Equal(GamePhase.Finished, s.Phase);
+        Assert.Single(s.Review);
+        Assert.Equal([1, 1], s.Review[0].Counts);
+        Assert.Equal(2, s.Review[0].AnsweredCount);
+        Assert.Equal(2, s.Review[0].PlayerCount);
+        Assert.Equal(1, s.Review[0].CorrectCount);
+    }
+
+    [Fact]
     public void Disrupt_RejectsFinishedTarget()
     {
         var cfg = PowerUpRoomConfig.CreateDefault();
@@ -298,5 +380,25 @@ public class AsyncRaceSessionTests
         s.SetQuestions([new QuizQuestion { Text = "Q", Options = ["a", "b"], CorrectIndex = 0 }]);
         s.TryJoin("Ada", "c1");
         return s;
+    }
+
+    private static void AnswerRemaining(GameSession session, string nickname, DateTimeOffset now, bool correct)
+    {
+        while (session.GetRaceState(nickname) is { Finished: false } race)
+        {
+            var question = race.Current!;
+            var pick = correct ? question.CorrectIndex : question.CorrectIndex == 0 ? 1 : 0;
+            Assert.True(session.SubmitAsyncAnswer(nickname, pick, now).Ok);
+        }
+    }
+
+    private static void TimeoutRemaining(GameSession session, string nickname)
+    {
+        while (session.GetRaceState(nickname) is { Finished: false } race)
+        {
+            var endsAt = race.EndsAtUtc!.Value;
+            var (timedOut, _) = session.TryTimeoutAsyncPlayer(nickname, endsAt);
+            Assert.True(timedOut);
+        }
     }
 }

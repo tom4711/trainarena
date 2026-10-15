@@ -190,7 +190,12 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
 
         var finished = WaitFor<GameFinishedMessage>(host, "GameFinished", timeoutSeconds: 15);
         var gameOver = await finished;
-        Assert.Empty(gameOver.Review);
+        Assert.Single(gameOver.Review);
+        Assert.Equal("Only?", gameOver.Review[0].Text);
+        Assert.Equal(1, gameOver.Review[0].AnsweredCount);
+        Assert.Equal(2, gameOver.Review[0].PlayerCount);
+        Assert.Equal(1, gameOver.Review[0].CorrectCount);
+        Assert.Equal([1, 0], gameOver.Review[0].Counts);
         Assert.Equal(2, gameOver.Entries.Count);
     }
 
@@ -226,7 +231,13 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
 
         var (gameOver, finishCount) = await finished.WaitAsync(TimeSpan.FromSeconds(8));
         Assert.Equal(1, finishCount);
-        Assert.Empty(gameOver.Review);
+        Assert.Single(gameOver.Review);
+        Assert.Equal("Only?", gameOver.Review[0].Text);
+        Assert.Equal(0, gameOver.Review[0].CorrectIndex);
+        Assert.Equal(2, gameOver.Review[0].AnsweredCount);
+        Assert.Equal(2, gameOver.Review[0].PlayerCount);
+        Assert.Equal(2, gameOver.Review[0].CorrectCount);
+        Assert.Equal([2, 0], gameOver.Review[0].Counts);
         Assert.Equal(2, gameOver.Entries.Count);
     }
 
@@ -340,7 +351,7 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
     }
 
     [Fact]
-    public async Task RejoinHost_AfterAsyncRaceFinished_UsesEmptyReviewPayload()
+    public async Task RejoinHost_AfterAsyncRaceFinished_RestoresReviewPayload()
     {
         var quizId = await SeedSingleQuestionQuizAsync();
 
@@ -371,7 +382,10 @@ public class AsyncRaceHubTests : IClassFixture<TrainArenaWebAppFactory>
         var finished = WaitFor<GameFinishedMessage>(host2, "GameFinished");
         await host2.InvokeAsync("RejoinHost", room.Code);
         var payload = await finished;
-        Assert.Empty(payload.Review);
+        Assert.Single(payload.Review);
+        Assert.Equal("Only?", payload.Review[0].Text);
+        Assert.Equal(1, payload.Review[0].AnsweredCount);
+        Assert.Equal(1, payload.Review[0].CorrectCount);
     }
 
     [Fact]

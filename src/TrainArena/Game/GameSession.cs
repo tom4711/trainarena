@@ -41,6 +41,10 @@ public sealed class GameSession
     private readonly Dictionary<string, bool> _correctThisQuestion =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly List<QuestionReviewStat> _review = [];
+    private int[][]? _asyncOptionCounts;
+    private int[]? _asyncAnswered;
+    private int[]? _asyncCorrect;
+    private int _asyncReviewPlayers;
     private bool _roomExtraTimeExtendedThisQuestion;
     private int _hostEventsUsedThisQuestion;
     private bool _boostAllActive;
@@ -159,6 +163,7 @@ public sealed class GameSession
             _quizQuestions = questions.ToList();
             QuestionIndex = -1;
             _review.Clear();
+            ClearAsyncReviewUnlocked();
             _ihkPointsPerQuestion = ExamMode
                 ? IhkGrading.NormalizeToHundred(_quizQuestions.Select(q => q.Points).ToList())
                 : [];
@@ -916,6 +921,7 @@ public sealed class GameSession
                 };
             }
 
+            BeginAsyncReviewUnlocked();
             Phase = GamePhase.AsyncRacing;
             return (true, null);
         }
@@ -1009,6 +1015,7 @@ public sealed class GameSession
             var limit = QuestionTimeLimit(question);
             var points = ComputeSubmitPoints(countsAsCorrect, nowUtc, startedAt, limit, puState);
             player.Score += points;
+            RecordAsyncAnswerUnlocked(question, optionIndex);
 
             return AdvanceAsyncPlayerAfterAnswer(
                 player.Nickname,
@@ -1356,7 +1363,86 @@ public sealed class GameSession
         }
 
         Phase = GamePhase.Finished;
+        MaterializeAsyncReviewUnlocked();
         return true;
+    }
+
+    private void BeginAsyncReviewUnlocked()
+    {
+        var count = _quizQuestions.Count;
+        _asyncReviewPlayers = _players.Count;
+        _asyncOptionCounts = new int[count][];
+        _asyncAnswered = new int[count];
+        _asyncCorrect = new int[count];
+        for (var i = 0; i < count; i++)
+        {
+            _asyncOptionCounts[i] = new int[_quizQuestions[i].Options.Length];
+        }
+    }
+
+    private void ClearAsyncReviewUnlocked()
+    {
+        _asyncOptionCounts = null;
+        _asyncAnswered = null;
+        _asyncCorrect = null;
+        _asyncReviewPlayers = 0;
+    }
+
+    private void RecordAsyncAnswerUnlocked(QuizQuestion question, int optionIndex)
+    {
+        if (_asyncOptionCounts is null)
+        {
+            return;
+        }
+
+        var index = -1;
+        for (var i = 0; i < _quizQuestions.Count; i++)
+        {
+            if (ReferenceEquals(_quizQuestions[i], question))
+            {
+                index = i;
+                break;
+            }
+        }
+
+        if (index < 0 || optionIndex < 0 || optionIndex >= _asyncOptionCounts[index].Length)
+        {
+            return;
+        }
+
+        _asyncOptionCounts[index][optionIndex]++;
+        _asyncAnswered![index]++;
+        if (optionIndex == question.CorrectIndex)
+        {
+            _asyncCorrect![index]++;
+        }
+    }
+
+    private void MaterializeAsyncReviewUnlocked()
+    {
+        if (_asyncOptionCounts is null || _asyncAnswered is null || _asyncCorrect is null || _review.Count > 0)
+        {
+            return;
+        }
+
+        for (var i = 0; i < _quizQuestions.Count; i++)
+        {
+            var question = _quizQuestions[i];
+            _review.Add(new QuestionReviewStat
+            {
+                QuestionIndex = i,
+                Text = question.Text,
+                Options = question.Options.ToArray(),
+                CorrectIndex = question.CorrectIndex,
+                Counts = _asyncOptionCounts[i].ToArray(),
+                AnsweredCount = _asyncAnswered[i],
+                PlayerCount = Math.Max(_asyncReviewPlayers, _asyncAnswered[i]),
+                CorrectCount = _asyncCorrect[i],
+                Explanation = question.Explanation,
+                Tags = question.Tags,
+                IhkPoints = 0,
+            });
+        }
     }
 
     private static List<T> ShuffleCopy<T>(IReadOnlyList<T> source, Random rng)
