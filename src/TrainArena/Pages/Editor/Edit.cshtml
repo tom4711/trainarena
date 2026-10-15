@@ -15,6 +15,7 @@
     <link rel="apple-touch-icon" href="/assets/brand/logo-icon.png?v=20261008" />
     <title>Quiz bearbeiten — @quiz.Title</title>
     <link rel="stylesheet" href="/css/host.css" />
+    <link rel="stylesheet" href="/lib/prism/prism-tomorrow.min.css" />
 </head>
 <body>
 <main class="host editor">
@@ -61,6 +62,7 @@
         {
             <p class="muted editor-empty">Noch keine Fragen — Import nutzen oder unten anlegen.</p>
         }
+        <div class="questions-grid">
         @foreach (var q in quiz.Questions.OrderBy(x => x.SortOrder))
         {
             var filled = QuizRules.GetFilledOptions(q);
@@ -74,7 +76,15 @@
                         <input type="hidden" name="id" value="@quiz.Id" />
                         <input type="hidden" name="questionId" value="@q.Id" />
                         <p class="muted">Frage @(q.SortOrder + 1) bearbeiten</p>
-                        <label>Fragetext<textarea name="text" required rows="2">@q.Text</textarea></label>
+                        <label class="question-text-field">Fragetext
+                            <div class="question-compose">
+                                <textarea name="text" class="js-question-text-input" required rows="4">@q.Text</textarea>
+                                <div class="question-preview-panel">
+                                    <p class="question-preview-label muted">Vorschau (wie Teilnehmer)</p>
+                                    <div class="q-text js-question-preview" aria-live="polite"></div>
+                                </div>
+                            </div>
+                        </label>
                         <label>Fragetyp
                             <select name="displayKind" id="edit-displayKind-@q.Id">
                                 @if (q.DisplayKind == QuestionDisplayKind.Mc)
@@ -156,7 +166,11 @@
                 }
                 else
                 {
-                    <strong>@(q.SortOrder + 1). @q.Text</strong>
+                    <div class="q-card-head">
+                        <span class="q-card-num">@(q.SortOrder + 1).</span>
+                        <textarea id="q-preview-src-@q.Id" class="js-q-source" hidden readonly>@q.Text</textarea>
+                        <div class="q-text q-card-preview" data-q-preview-for="q-preview-src-@q.Id"></div>
+                    </div>
                     @if (q.DisplayKind == QuestionDisplayKind.TrueFalse)
                     {
                         <span class="badge-tf">Wahr/Falsch</span>
@@ -194,13 +208,22 @@
                 }
             </div>
         }
+        </div>
     </section>
 
     <section class="panel">
         <h2>Frage hinzufügen</h2>
         <form method="post" asp-page-handler="AddQuestion" enctype="multipart/form-data" id="add-question-form">
             <input type="hidden" name="id" value="@quiz.Id" />
-            <label>Fragetext<textarea name="text" required rows="2"></textarea></label>
+            <label class="question-text-field">Fragetext
+                <div class="question-compose">
+                    <textarea name="text" class="js-question-text-input" required rows="4"></textarea>
+                    <div class="question-preview-panel">
+                        <p class="question-preview-label muted">Vorschau (wie Teilnehmer)</p>
+                        <div class="q-text js-question-preview" aria-hidden="true"></div>
+                    </div>
+                </div>
+            </label>
             <label>Fragetyp
                 <select name="displayKind" id="displayKind">
                     <option value="Mc">Multiple Choice</option>
@@ -329,5 +352,9 @@
   });
 })();
 </script>
+    <script src="/lib/prism/prism.min.js"></script>
+    <script src="/lib/prism/prism-csharp.min.js"></script>
+    <script src="/js/question-format.js"></script>
+    <script src="/js/editor-preview.js"></script>
 </body>
 </html>

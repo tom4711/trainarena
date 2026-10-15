@@ -37,6 +37,20 @@ body {
   padding-bottom: max(2.75rem, env(safe-area-inset-bottom));
 }
 
+@media (min-width: 640px) {
+  .player {
+    max-width: min(36rem, 92vw);
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .player {
+    max-width: min(44rem, 88vw);
+  }
+}
+
 .app-version {
   margin: 1.75rem 0 0;
   text-align: center;

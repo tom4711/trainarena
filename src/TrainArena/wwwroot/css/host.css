@@ -45,6 +45,18 @@ body.is-shutting-down {
   padding-bottom: max(3rem, env(safe-area-inset-bottom));
 }
 
+@media (min-width: 900px) {
+  .host {
+    max-width: min(52rem, 94vw);
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .host.editor {
+    max-width: min(76rem, 96vw);
+  }
+}
+
 h1 {
   margin: 0 0 0.25rem;
   font-size: clamp(1.75rem, 4vw, 2.15rem);
@@ -343,7 +355,8 @@ button.secondary {
 }
 
 #question-text .q-code,
-.review-qtext .q-code {
+.review-qtext .q-code,
+.editor .q-text .q-code {
   margin: 0.75rem 0 0.35rem;
   padding: 0.85rem 1rem;
   border-radius: var(--radius-sm);
@@ -354,7 +367,8 @@ button.secondary {
   background: #0d1117;
 }
 #question-text .q-code code,
-.review-qtext .q-code code {
+.review-qtext .q-code code,
+.editor .q-text .q-code code {
   font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   white-space: pre;
 }
@@ -986,6 +1000,87 @@ button.danger:hover:not(:disabled) {
 }
 .editor-empty {
   margin: 0.35rem 0 0;
+}
+
+.editor .questions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+@media (min-width: 1100px) {
+  .editor .questions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .editor .questions-grid .q-card {
+    margin-top: 0;
+  }
+}
+
+.editor .question-text-field {
+  display: block;
+}
+
+.editor .question-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.4rem;
+}
+
+.editor .question-preview-panel {
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.85rem;
+  background: color-mix(in srgb, var(--bg-deep) 75%, var(--panel));
+}
+
+.editor .question-preview-label {
+  margin: 0 0 0.45rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.editor .js-question-preview.q-text,
+.editor .q-card-preview.q-text {
+  margin: 0;
+  font-size: clamp(1.05rem, 2.5vw, 1.35rem);
+}
+
+.editor .q-card-head {
+  display: flex;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+
+.editor .q-card-num {
+  flex: 0 0 auto;
+  font-weight: 650;
+  font-size: 1.02rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.editor .q-card-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (min-width: 720px) {
+  .editor .question-compose {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.85rem 1.25rem;
+    align-items: start;
+  }
+
+  .editor .question-compose textarea {
+    min-height: 9rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
