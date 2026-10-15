@@ -31,10 +31,47 @@ async function firstQuizValue(page) {
   });
 }
 
+async function fetchFirstQuizId() {
+  const res = await fetch(`${baseUrl}/api/quizzes`);
+  if (!res.ok) throw new Error(`GET /api/quizzes → ${res.status}`);
+  const list = await res.json();
+  const id = list?.[0]?.id;
+  if (!id) throw new Error("No quiz in database");
+  return id;
+}
+
+async function captureEditorCodePreview(browser, quizId) {
+  const ctx = await browser.newContext({
+    viewport: { width: 1400, height: 900 },
+    deviceScaleFactor: 2,
+    reducedMotion: "no-preference",
+  });
+  const page = await ctx.newPage();
+  await page.goto(`${baseUrl}/Editor/Edit/${quizId}`, { waitUntil: "networkidle" });
+
+  const sample =
+    "Welcher Typ hat x?\n\n```csharp\nint x = 5;\nConsole.WriteLine(x);\n```";
+  const textarea = page.locator("#add-question-form .js-question-text-input");
+  await textarea.scrollIntoViewIfNeeded();
+  await textarea.fill(sample);
+  await page.waitForSelector("#add-question-form .js-question-preview pre.q-code", {
+    timeout: 15_000,
+  });
+  await page.waitForTimeout(400);
+
+  const panel = page.locator("#add-question-form .question-compose");
+  await panel.screenshot({
+    path: path.join(outDir, "07-editor-code-preview.png"),
+  });
+  await ctx.close();
+}
+
 async function main() {
   await mkdir(outDir, { recursive: true });
 
   const browser = await chromium.launch({ headless: true });
+  const quizIdFromApi = await fetchFirstQuizId();
+  await captureEditorCodePreview(browser, quizIdFromApi);
 
   const hostContext = await browser.newContext({
     viewport: { width: 1280, height: 900 },
