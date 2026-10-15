@@ -641,6 +641,7 @@
 
   function showBoard(entries, done, hasMore) {
     questionPanel.classList.add("hidden");
+    waitPanel.classList.add("hidden");
     boardPanel.classList.remove("hidden");
     powerupsEl.classList.add("hidden");
     shared.renderBoardList(boardList, entries);
