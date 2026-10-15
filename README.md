@@ -78,15 +78,56 @@ Mindestens **zwei** der Spalten `OptionA`…`OptionF` ausfüllen (ohne Lücken d
 
 **Kahoot-ähnlich:** Excel-Vorlage als CSV speichern mit Spalten `Question`, `Answer 1`…`Answer 6` (mindestens zwei ausgefüllt), `Time limit`, `Correct answer(s)` (1-basiert). Kein natives `.xlsx` — bei Bedarf vorher als CSV exportieren. Ungültige Zeilen werden übersprungen.
 
-**JSON-Quiz-Pack:** Objekt mit `questions[]` oder direkt ein Fragen-Array. Felder u. a. `text`, `displayKind` (`mc` | `trueFalse`), `options`, `correctIndex`, `timeLimitSeconds`, optional `explanation`, `tags` (String-Array), `points` (IHK-Gewichtung), optional `image` (`fileName`, `contentType`, `base64`). Code im Fragetext als Fence:
+**JSON-Quiz-Pack:** Wurzel entweder als Objekt mit `questions[]` oder als **direktes Fragen-Array** `[{ ... }, ...]`. JSON-Kommentare und nachgestellte Kommas sind erlaubt. Vollständiges Beispiel-Quiz: [`docs/quizzes/csharp-grundlagen-programmierung.json`](docs/quizzes/csharp-grundlagen-programmierung.json).
 
-````markdown
-```csharp
-int x = 5;
+```json
+{
+  "title": "Optional — nur Metadaten, Quiz-Titel im Editor bleibt unverändert",
+  "questions": [
+    {
+      "text": "Welcher Typ ist für Ganzzahlen gedacht?",
+      "displayKind": "mc",
+      "options": ["int", "double", "bool", "string"],
+      "correctIndex": 0,
+      "timeLimitSeconds": 20,
+      "explanation": "Optional — nach Auflösung / im Fragen-Review",
+      "tags": ["typen", "csharp"],
+      "points": 5,
+      "image": {
+        "fileName": "diagramm.png",
+        "contentType": "image/png",
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+      }
+    },
+    {
+      "text": "C# ist statisch typisiert.",
+      "displayKind": "trueFalse",
+      "correctIndex": 0
+    },
+    {
+      "text": "Was ist x?\n\n```csharp\nint x = 5;\n```",
+      "options": ["5", "0", "10", "null"],
+      "correctIndex": 0
+    }
+  ]
+}
 ```
-````
 
-Host und Player rendern Fences mit Syntax-Highlighting (Prism, lokal unter `wwwroot/lib/prism/`).
+| Feld | Pflicht | Beschreibung |
+|------|---------|--------------|
+| `text` | ja | Fragetext (mehrzeilig ok). Code als Markdown-Fence im Text, z. B. ` ```csharp ` … ` ``` ` |
+| `displayKind` | nein | `mc` (Standard) oder `trueFalse` (auch `true_false`, `tf`, `wahrfalsch`, `wahr_falsch`) |
+| `options` | bei `mc` | 2–6 Strings, **ohne Lücken** in der Liste. Bei `trueFalse` entfallen — es werden automatisch `Wahr` / `Falsch` gesetzt |
+| `correctIndex` | ja | **0-basierter** Index der richtigen Option |
+| `timeLimitSeconds` | nein | 5–120; sonst **20** |
+| `explanation` | nein | Freitext (wird bei >2000 Zeichen gekürzt) |
+| `tags` | nein | String-Array für Themen-Filter beim Host (Prüfungsmodus) |
+| `points` | nein | IHK-Gewichtung im Prüfungsmodus: `> 0` = Gewicht, `0`/fehlend = gleichmäßig (Summe der gespielten Fragen → 100 Punkte) |
+| `image` | nein | `fileName`, `contentType` (JPEG/PNG/WebP/GIF), `base64` (roh oder `data:image/png;base64,...`). Max. **2 MB** |
+
+Ungültige Fragen werden übersprungen; gültige werden trotzdem importiert (Hinweis mit Anzahl übersprungener Einträge).
+
+Host und Player rendern Code-Fences mit Syntax-Highlighting (Prism, lokal unter `wwwroot/lib/prism/`).
 
 **Editor (zusätzlich zum Import):** Fragetyp **Multiple Choice** (2–6 Optionen, genau eine richtig) oder **Wahr/Falsch**; optionale **Erklärung**, **Themen-Tags** und **IHK-Punkte**. **50/50** skaliert mit der Antwortanzahl: bei ≥4 Optionen zwei falsche ausblenden, bei 3 eine; bei 2 Optionen deaktiviert.
 
