@@ -177,7 +177,7 @@ Stoppen: `docker compose down` (Volumes bleiben). Volumes mit löschen: `docker 
 - **Async-Rennen:** optional beim Raumerstellen — jeder Spieler bekommt die Fragen in **eigener Reihenfolge** (Shuffle) und mit **eigenem Timer**; der Host sieht Live-Punkte und Fortschritt **x/n** (ohne Fragetext). **Nicht kombinierbar** mit Prüfungsmodus oder Auto-Advance. Power-Ups inkl. Störimpuls gelten wie im Sync-Modus; das Rennen endet automatisch, wenn **alle** fertig sind → Abschluss-Rangliste und dasselbe **Fragen-Review** wie im Sync-Modus (Quiz-Reihenfolge, Timeouts zählen nicht als Antwort).
 - **Prüfungsmodus (IHK):** optional beim Raumerstellen — ohne Power-Ups, optionale Themen-Filter (ODER), Punkte/Note nach IHK-Schema (100-Punkte-Skala); Erklärungen erst im Review, nicht live während der Frage
 - Classroom-Größe ~≤40, ein Prozess
-- **Power-Ups** (siehe unten); self-contained Releases für **Windows / Linux / macOS**
+- **Power-Ups** (siehe unten); optionale **Host-Musik** und **Player-SFX** (Mute/Lautstärke); self-contained Releases für **Windows / Linux / macOS**
 
 ## Power-Ups
 
@@ -240,6 +240,15 @@ Zwischen Tags: `1.0.1-alpha.0.N` (Höhe seit dem letzten Tag). Docker lokal: `do
 Das Cursor-Environment ist dashboard-managed. `install` führt
 [`scripts/cloud-agent-install.sh`](scripts/cloud-agent-install.sh) aus (.NET SDK 10 in `~/.dotnet`, optional `dotnet restore`).
 
+## Audio
+
+Optional, lokal unter `wwwroot/audio/` (kein CDN):
+
+- **Host:** leise Hintergrundmusik (Loop) nach „Raum erstellen“; Mute + Lautstärke im Footer (Persistenz in `localStorage`)
+- **Spieler:** kurze SFX für Antwort (Punkte > 0 / = 0) und Power-Ups (Activate / Hit / Block); Mute auf der Join-Seite
+
+Quellen und Lizenzen: [`docs/ATTRIBUTION.md`](docs/ATTRIBUTION.md).
+
 ## Lizenz
 
-MIT — siehe [LICENSE](LICENSE).
+MIT — siehe [LICENSE](LICENSE). Audio-Drittanbieter: siehe [`docs/ATTRIBUTION.md`](docs/ATTRIBUTION.md).

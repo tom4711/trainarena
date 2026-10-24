@@ -41,6 +41,11 @@
     subEl: fxSub,
   });
   const escapeHtml = shared.escapeHtml;
+  const audio = window.TrainArenaAudio.createAudioController({ role: "host" });
+  window.TrainArenaAudio.bindHostControls(audio, {
+    muteBtn: $("btn-audio-mute"),
+    volumeInput: $("audio-volume"),
+  });
 
   let startedAt = null;
   let endsAt = null;
@@ -422,6 +427,8 @@
     btnStart.classList.remove("hidden");
     updateStartButtonLabel();
     setLobbyStatus("0 Spieler verbunden — warte auf Beitritte…");
+    // User just clicked „Raum erstellen“ — unlock + start BGM (autoplay policy).
+    audio.startBgm();
   });
 
   connection.on("LobbyState", (msg) => {
@@ -711,6 +718,7 @@
       setLobbyStatus("Bitte zuerst ein Quiz wählen.", "is-error");
       return;
     }
+    audio.unlock();
     setLobbyStatus("Raum wird erstellt…", "is-loading");
     btnCreate.disabled = true;
     const asyncRace = readAsyncRaceConfig();
