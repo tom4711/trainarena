@@ -1,0 +1,70 @@
+version: 2
+
+# Batch routine updates weekly. Security updates have their own groups and
+# are not delayed by this schedule. Major upgrades stay separate for review.
+updates:
+  - package-ecosystem: "nuget"
+    # One entry covers both projects so shared Microsoft packages move together.
+    directories:
+      - "/src/TrainArena"
+      - "/tests/TrainArena.Tests"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      nuget-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      nuget-major:
+        patterns: ["*"]
+        update-types: ["major"]
+      nuget-security:
+        applies-to: "security-updates"
+        patterns: ["*"]
+
+  - package-ecosystem: "npm"
+    directory: "/scripts"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      npm-major:
+        patterns: ["*"]
+        update-types: ["major"]
+      npm-security:
+        applies-to: "security-updates"
+        patterns: ["*"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      actions-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      actions-major:
+        patterns: ["*"]
+        update-types: ["major"]
+      actions-security:
+        applies-to: "security-updates"
+        patterns: ["*"]
