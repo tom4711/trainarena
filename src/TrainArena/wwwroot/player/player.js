@@ -773,6 +773,7 @@
       joinError.textContent = "Bitte einen Nickname eingeben.";
       return;
     }
+    audio.unlock();
     const btn = $("btn-join");
     btn.classList.add("is-busy");
     btn.disabled = true;
@@ -806,7 +807,6 @@
   }
 
   $("btn-join").addEventListener("click", () => {
-    audio.unlock();
     tryJoin();
   });
   $("nickname").addEventListener("keydown", (ev) => {

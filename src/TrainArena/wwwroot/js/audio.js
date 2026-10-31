@@ -23,7 +23,9 @@
 
   function readNumber(key, fallback) {
     try {
-      const v = Number(localStorage.getItem(key));
+      const stored = localStorage.getItem(key);
+      if (stored === null) return fallback;
+      const v = Number(stored);
       return Number.isFinite(v) ? v : fallback;
     } catch {
       return fallback;
