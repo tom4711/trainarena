@@ -40,6 +40,8 @@
     titleEl: fxTitle,
     subEl: fxSub,
   });
+  const audio = window.TrainArenaAudio.createAudioController({ role: "player" });
+  window.TrainArenaAudio.bindPlayerMute(audio, $("btn-audio-mute"));
 
   let startedAt = null;
   let endsAt = null;
@@ -271,6 +273,10 @@
     const id = msg.powerUpId;
     const btn = powerUpButton(id);
     if (btn) flashClass(btn, "is-activating", 400);
+    // Self-activate SFX (FX-events cover shield/disrupt separately).
+    if (id === "fifty_fifty" || id === "double" || id === "extra_time") {
+      audio.playSfx("powerup");
+    }
 
     if (msg.endsAtUtc) {
       endsAt = new Date(msg.endsAtUtc);
@@ -305,6 +311,7 @@
     const actor = msg?.actorNickname || "?";
     const target = msg?.targetNickname || "?";
     const me = nickname;
+    audio.playPowerUpFx(kind);
     if (kind === "shield_up") {
       showFx(kind, "Schild aktiv", actor === me ? "Du bist geschützt" : `${actor} ist geschützt`);
       if (actor === me) markPowerUpActive("shield");
@@ -540,6 +547,8 @@
     answerStatus.className = "status-ok";
     answerStatus.textContent =
       msg.points > 0 ? `Gesendet (+${msg.points} Punkte)` : "Gesendet";
+    // Heuristik ohne Gameplay-Änderung: Punkte > 0 ≈ richtig (Disrupt kann 0 liefern).
+    audio.playAnswerResult(msg.points);
   });
 
   connection.on("QuestionEnded", (msg) => {
@@ -764,6 +773,7 @@
       joinError.textContent = "Bitte einen Nickname eingeben.";
       return;
     }
+    audio.unlock();
     const btn = $("btn-join");
     btn.classList.add("is-busy");
     btn.disabled = true;

@@ -131,6 +131,13 @@
         </div>
 
         <div class="host-footer">
+            <div class="audio-controls" aria-label="Hintergrundmusik">
+                <button id="btn-audio-mute" type="button" class="secondary" aria-pressed="false">Ton an</button>
+                <label class="audio-volume">
+                    Lautstärke
+                    <input id="audio-volume" type="range" min="0" max="100" value="22" step="1" aria-label="Musik-Lautstärke" />
+                </label>
+            </div>
             <button id="btn-shutdown" type="button" class="danger secondary">Server beenden</button>
             <p class="app-version" aria-label="App-Version">v@(AppVersion.Display)</p>
         </div>
@@ -143,6 +150,7 @@
     <script src="/lib/prism/prism-csharp.min.js"></script>
     <script src="/js/question-format.js"></script>
     <script src="/js/shared.js"></script>
+    <script src="/js/audio.js"></script>
     <script src="/js/host.js"></script>
 </body>
 </html>
