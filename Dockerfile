@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 
 # No .git in the image — pass the MinVer version from CI / local build.
@@ -17,7 +17,7 @@ RUN dotnet publish src/TrainArena/TrainArena.csproj \
     --no-restore \
     -p:MinVerVersionOverride=${APP_VERSION}
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS final
 WORKDIR /app
 
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080 \
